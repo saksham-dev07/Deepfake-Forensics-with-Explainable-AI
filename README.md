@@ -99,6 +99,12 @@ npm run dev
 ```
 *The analytical dashboard will be accessible at `http://localhost:5173`*
 
+### 3. Production Deployment
+This repository is pre-configured for a modern, decoupled cloud deployment:
+
+* **Backend (Hugging Face Spaces)**: The `backend/` directory contains a `Dockerfile` specifically designed to deploy the heavy PyTorch and OpenCV FastAPI server to a free [Hugging Face Space](https://huggingface.co/spaces) (using the Docker template).
+* **Frontend (Vercel)**: The React dashboard is optimized for seamless deployment on Vercel. Be sure to configure the `VITE_API_URL` environment variable in your Vercel project settings to point to your live Hugging Face API URL (e.g., `https://username-spacename.hf.space`).
+
 ---
 
 ## 🏗 System Architecture
