@@ -17,3 +17,4 @@ gdown
 efficientnet_pytorch
 matplotlib
 mediapipe
+PyWavelets
