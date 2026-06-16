@@ -88,7 +88,10 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
 
   const downloadReport = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/reports/${jobId}/pdf`);
+      const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
+      const response = await fetch(`${API_BASE}/api/reports/${jobId}/pdf`, {
+        headers: { 'x-api-key': API_KEY }
+      });
       if (!response.ok) {
         alert("Could not download the report. The analysis may have expired from the temporary server memory, or it was not generated correctly.");
         return;

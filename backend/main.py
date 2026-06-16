@@ -10,6 +10,8 @@ import numpy as np
 import traceback
 import concurrent.futures
 from uuid import uuid4
+from fastapi import HTTPException, Security, Depends
+from fastapi.security.api_key import APIKeyHeader
 from pipeline.video_processor import process_video
 from pipeline.pdf_reporter import generate_pdf_report
 from pipeline.models import DeepfakeDetector, SyncNetAnalyzer
@@ -23,10 +25,21 @@ from pipeline.audio_sync import analyze_audio_visual_sync
 
 app = FastAPI(title="Deepfake Forensics API", version="2.0.0")
 
-# Allow CORS for local development
+# Security Configuration
+API_KEY = os.environ.get("API_KEY", "deepforensics-dev-key")
+API_KEY_NAME = "x-api-key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
+
+async def get_api_key(api_key_header: str = Security(api_key_header)):
+    if api_key_header == API_KEY:
+        return api_key_header
+    raise HTTPException(status_code=401, detail="Invalid API Key")
+
+# Allow CORS for specific origins
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,14 +71,29 @@ explainer = XAIExplainer(detector.model)
 print("Initialization complete.")
 
 @app.post("/api/analyze")
-async def analyze_video(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def analyze_video(background_tasks: BackgroundTasks, file: UploadFile = File(...), api_key: str = Depends(get_api_key)):
     job_id = str(uuid4())
-    file_extension = file.filename.split(".")[-1]
+    file_extension = file.filename.split(".")[-1].lower()
+    
+    # 1. File Type Validation
+    ALLOWED_EXTENSIONS = {"mp4", "avi", "mov", "mkv", "webm", "png", "jpg", "jpeg"}
+    if file_extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+
     file_path = os.path.join(UPLOAD_DIR, f"{job_id}.{file_extension}")
     
+    # 2. File Size Validation (100 MB Limit)
+    MAX_SIZE_BYTES = 100 * 1024 * 1024
+    file_size = 0
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
+        while chunk := file.file.read(1024 * 1024):  # Read in 1MB chunks
+            file_size += len(chunk)
+            if file_size > MAX_SIZE_BYTES:
+                buffer.close()
+                os.remove(file_path)
+                raise HTTPException(status_code=413, detail="File too large. Maximum size is 100 MB.")
+            buffer.write(chunk)
+    
     analysis_jobs[job_id] = {"status": "processing", "progress": 0, "result": None}
     
     # Run the heavy processing in the background
@@ -74,13 +102,13 @@ async def analyze_video(background_tasks: BackgroundTasks, file: UploadFile = Fi
     return {"job_id": job_id, "status": "processing"}
 
 @app.get("/api/status/{job_id}")
-async def get_status(job_id: str):
+async def get_status(job_id: str, api_key: str = Depends(get_api_key)):
     if job_id not in analysis_jobs:
         return JSONResponse(status_code=404, content={"message": "Job not found"})
     return analysis_jobs[job_id]
 
 @app.get("/api/reports/{job_id}/pdf")
-async def download_report(job_id: str):
+async def download_report(job_id: str, api_key: str = Depends(get_api_key)):
     pdf_path = os.path.join(REPORT_DIR, f"{job_id}.pdf")
     if not os.path.exists(pdf_path):
         return JSONResponse(status_code=404, content={"message": "Report not found"})

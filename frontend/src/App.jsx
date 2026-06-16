@@ -36,9 +36,13 @@ function App() {
     formData.append('file', selectedFile);
 
     const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
     try {
       const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
+        headers: {
+          'x-api-key': API_KEY,
+        },
         body: formData,
       });
 
@@ -59,7 +63,12 @@ function App() {
     const interval = setInterval(async () => {
       try {
         const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${API_BASE}/api/status/${currentJobId}`);
+        const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
+        const response = await fetch(`${API_BASE}/api/status/${currentJobId}`, {
+          headers: {
+            'x-api-key': API_KEY,
+          }
+        });
         const data = await response.json();
 
         if (data.status === 'processing') {
