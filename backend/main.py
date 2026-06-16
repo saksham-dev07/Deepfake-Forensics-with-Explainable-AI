@@ -32,6 +32,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def root():
+    return {
+        "status": "online",
+        "message": "DeepForensics API is running. Please use the Vercel frontend to interact with this service."
+    }
+
 UPLOAD_DIR = "uploads"
 REPORT_DIR = "reports"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
