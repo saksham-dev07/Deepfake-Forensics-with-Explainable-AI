@@ -86,8 +86,26 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
   const [showFullGeometryInfo, setShowFullGeometryInfo] = useState(false);
   const isVideo = fileName && fileName.toLowerCase().match(/\.(mp4|avi|mov|mkv|webm)$/);
 
-  const downloadReport = () => {
-    window.open(`${API_BASE}/api/reports/${jobId}/pdf`, '_blank');
+  const downloadReport = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/reports/${jobId}/pdf`);
+      if (!response.ok) {
+        alert("Could not download the report. The analysis may have expired from the temporary server memory, or it was not generated correctly.");
+        return;
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DeepForensics_Report_${fileName || jobId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      alert("An error occurred while downloading the PDF.");
+    }
   };
 
   const getSyncColor = (score) => {
