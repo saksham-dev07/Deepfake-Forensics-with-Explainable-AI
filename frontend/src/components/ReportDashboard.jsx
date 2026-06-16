@@ -6,7 +6,7 @@ import {
   ShieldAlert, Info, Lightbulb, Star, ChevronUp, ChevronDown, ZoomIn, X
 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Helper component to render a simple SVG line chart
 const SimpleSparkline = ({ data, color, label, ideal }) => {
