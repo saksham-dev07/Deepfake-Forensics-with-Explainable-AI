@@ -42,12 +42,11 @@ Maps 468 3D facial landmarks utilizing [MediaPipe Face Mesh](https://arxiv.org/a
 * **Proportional Asymmetry:** Analyzes structural interocular proportions and facial Golden Ratio distortions.
 
 ### 4. Error Level Analysis (ELA)
-Exploits JPEG compression inconsistencies. When a synthetic face is spliced into a pristine host image, the local block-compression levels misalign.
-* Computes the mathematical delta between the original image and a uniformly re-compressed copy (`Quality=90`) to highlight localized tampering signatures.
-* Extends standard ELA into the **HSV Color Space** to detect unnatural saturation compression rates ([Krawetz, 2007](https://www.hackerfactor.com/papers/bh-usa-07-krawetz-wp.pdf)).
+Detects heterogeneous compression signatures. When a fake face is spliced onto a real body, the manipulated region possesses a different JPEG compression quality than the original background.
+* Re-saves the image at 95% quality and calculates the absolute pixel-wise difference.
 
-### 5. Sensor Noise Fingerprinting (PRNU/SRM)
-Every physical camera sensor deposits a unique, imperceptible Photo Response Non-Uniformity (PRNU) signature into its images.
+### 5. Sensor Noise (PRNU/SRM)
+* **Photo Response Non-Uniformity (PRNU):** Every digital camera sensor possesses a unique, microscopic hardware defect fingerprint. Deepfakes lack this hardware signature.
 * **Spatial Rich Model (SRM):** Applies high-pass linear filtering to strip away primary image content, isolating the raw noise map. AI-generated face swaps violently disrupt this continuous noise matrix, causing the PRNU fingerprint to fail within the face bounding box ([Fridrich & Kodovsky, 2012](https://ieeexplore.ieee.org/document/6205615)).
 
 ### 6. Chrominance Color Space Mapping
@@ -69,12 +68,24 @@ Generative models struggle to accurately simulate physical optics and camera sen
 Deepfakes frequently fail to synthesize the microscopic, heartbeat-induced color changes in human skin.
 * **Remote Photoplethysmography (rPPG):** Extracts the subtle volumetric blood flow signals from facial regions of interest using spatial pooling and independent component analysis. Generates a Heart Rate Anomaly score based on the physiological impossibility of the detected BPM or SNR.
 
+### 10. Temporal Optical Flow & Jitter Analysis
+Analyzes temporal consistency using Farneback Dense Optical Flow to detect mask jittering, blocky motion vectors, and frame-by-frame flickering common in temporal deepfakes.
+
+### 11. Acoustic Anti-Spoofing (Voice Liveness)
+Analyzes an audio track for synthetic artifacts common in AI voice clones by evaluating zero-crossing rate variance, spectral rolloff, and high-frequency energy ratios.
+
+### 12. Eye Movement & Blink Analysis
+Computes the Eye Aspect Ratio (EAR) over time to detect unnaturally low blink rates, extreme glitching, or "lazy eye" gaze asymmetry characteristic of poorly rendered generative faces.
+
+### 13. Cryptographic Metadata Integrity (EXIF)
+Analyzes file headers to detect stripped EXIF data or specific cryptographic signatures left behind by generative manipulation software (e.g., Midjourney, DALL-E, Runway, Photoshop).
+
 ---
 
 ## 🏛 Court-Ready PDF Reporting
 All automated analyses are compiled into a comprehensive, multi-page PDF report. The document is strictly formatted to provide an interpretable chain-of-evidence:
 1. **Executive Verdict:** The overall ensemble confidence score and binary classification.
-2. **Detailed Module Breakdown:** Isolated confidence metrics across all 7 analytical engines.
+2. **Detailed Module Breakdown:** Isolated confidence metrics across all 13 analytical engines.
 3. **Visual Evidence Gallery:** Embedded high-resolution heatmaps, gradient maps, and XAI overlays.
 4. **Metadata Integrity:** Secure UUID assignment and ISO-8601 timestamping.
 
