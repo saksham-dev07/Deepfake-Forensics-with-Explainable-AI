@@ -23,7 +23,7 @@ The **Deepfake Forensics Platform** operates as a state-of-the-art digital foren
 
 ## 🎯 Core Detection Engines & Academic Foundations
 
-The platform analyzes visual and auditory streams through 7 rigorously researched forensic methodologies:
+The platform analyzes visual and auditory streams through up to 13 rigorously researched forensic methodologies:
 
 ### 1. Neural Network Attention (EfficientNet-B4 + XAI)
 Utilizes a custom-finetuned [EfficientNet-B4](https://arxiv.org/abs/1905.11946) architecture trained via Contrastive Learning on datasets derived from the [Deepfake Detection Challenge (DFDC)](https://arxiv.org/abs/2006.07397). 
@@ -59,6 +59,16 @@ In synthetic "lip-sync" deepfakes, the visual mouth movements often fail to achi
 * Extracts phonetic Mel-frequency cepstral coefficients (MFCCs) from the audio stream and correlates them with the visual Mouth Aspect Ratio (MAR) utilizing a modified **SyncNet** architecture ([Chung & Zisserman, 2016](https://arxiv.org/abs/1607.03985)).
 * Computes **LSE-C** (Confidence) and **LSE-D** (Distance) to mathematically prove lip-sync tampering.
 
+### 8. Physical Optics & Sensor Artifacts (CFA & Corneal)
+Generative models struggle to accurately simulate physical optics and camera sensor hardware properties.
+* **Corneal Specular Highlights:** Maps the reflection of light sources on the eyes. Real photos have mathematically consistent reflections across both spherical eyes, while AI models frequently render impossible, mismatched 3D reflections.
+* **Color Filter Array (CFA) Artifacts:** Analyzes the Bayer filter interpolation. Genuine digital photos possess distinct periodic demosaicing patterns that AI generators overwrite or fail to produce.
+* **3D Lighting Consistency:** Projects 3D normals onto the 2D image to estimate the directional light source. Detects contradictory shadow and lighting gradients typical of face swaps.
+
+### 9. Physiological Forensics (rPPG)
+Deepfakes frequently fail to synthesize the microscopic, heartbeat-induced color changes in human skin.
+* **Remote Photoplethysmography (rPPG):** Extracts the subtle volumetric blood flow signals from facial regions of interest using spatial pooling and independent component analysis. Generates a Heart Rate Anomaly score based on the physiological impossibility of the detected BPM or SNR.
+
 ---
 
 ## 🏛 Court-Ready PDF Reporting
@@ -82,12 +92,16 @@ All automated analyses are compiled into a comprehensive, multi-page PDF report.
 ### 1. Initialize the Backend (FastAPI / PyTorch)
 The backend is architected for maximum throughput, utilizing a concurrent `ThreadPoolExecutor` to execute heavy OpenCV computations in parallel, bypassing the Python Global Interpreter Lock (GIL).
 
-```bash
+It is **highly recommended** to use a Virtual Environment to avoid cluttering your global system drive with gigabytes of PyTorch and OpenCV binaries.
+
+```powershell
 cd backend
-python -m pip install -r requirements.txt
-python main.py
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
-*The REST API will initialize and bind to `http://localhost:8000`*
+*The REST API will initialize and bind to `http://127.0.0.1:8000`*
 
 ### 2. Initialize the Frontend Dashboard (React / Vite)
 The user interface is a responsive, modern React application styled with custom CSS, featuring dark-mode glassmorphism and subtle micro-animations.

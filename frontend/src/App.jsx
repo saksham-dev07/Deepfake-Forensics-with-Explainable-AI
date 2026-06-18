@@ -2,17 +2,18 @@ import React, { useState, useRef } from 'react';
 import ReportDashboard from './components/ReportDashboard';
 import { 
   Shield, Zap, ScanSearch, Info, Lock, BrainCircuit, Target, 
-  BarChart3, Volume2, UploadCloud, CheckCircle2, Loader2, Circle, GitBranch, Settings, Activity, Focus, Camera
+  BarChart3, Volume2, UploadCloud, CheckCircle2, Loader2, Circle, GitBranch, Settings, Activity, Focus, Camera, Lightbulb, FileText
 } from 'lucide-react';
 
 const PIPELINE_STEPS = [
   { label: 'Extracting video frames & audio track', threshold: 5 },
   { label: 'Running EfficientNet-B4 multi-frame classifier', threshold: 15 },
-  { label: 'Generating GradCAM visual explanations', threshold: 35 },
-  { label: 'Frequency domain analysis (DCT + FFT)', threshold: 48 },
-  { label: 'Error Level Analysis (JPEG compression)', threshold: 58 },
-  { label: 'Facial geometry & noise consistency', threshold: 68 },
-  { label: 'Audio-video synchronization (SyncNet)', threshold: 78 },
+  { label: 'Generating GradCAM visual explanations', threshold: 30 },
+  { label: 'Frequency domain analysis (DCT + FFT)', threshold: 40 },
+  { label: 'Error Level Analysis (JPEG compression)', threshold: 50 },
+  { label: 'Biological sensors (Eye Gaze & Heartbeat)', threshold: 60 },
+  { label: 'Temporal consistency (Optical Flow & Jitter)', threshold: 68 },
+  { label: 'Audio forensics (Spoofing & SyncNet)', threshold: 75 },
   { label: 'Computing weighted ensemble score', threshold: 85 },
   { label: 'Compiling court-grade forensic PDF', threshold: 90 },
 ];
@@ -267,6 +268,95 @@ function App() {
                       </div>
                     </div>
                   </section>
+
+                  <section className="detailed-features" style={{ marginTop: '4rem', marginBottom: '2rem' }}>
+                    <div className="section-title" style={{ marginBottom: '2rem', textAlign: 'center' }}>How We Detect Deepfakes</div>
+                    
+                    <div className="feature-showcase" style={{ display: 'grid', gap: '2rem' }}>
+                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={24} /> Spectral & Frequency Analysis</h3>
+                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                            Real cameras capture a natural balance of high and low frequencies. AI generators, however, struggle to reproduce microscopic high-frequency details (like skin pores or natural sensor noise), resulting in mathematically "smooth" pixels. We use Fast Fourier Transforms (FFT) and Discrete Cosine Transforms (DCT) to detect this unnatural lack of high-frequency energy.
+                          </p>
+                        </div>
+                        <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '2rem' }}>
+                          <ul style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <li>• <strong>Switching Noise (SWN):</strong> Isolates pure AI generation noise and highlights deepfake splicing seams.</li>
+                            <li>• <strong>8x8 Block DCT:</strong> Detects localized disruptions in the JPEG compression grid.</li>
+                            <li>• <strong>Phase Spectrum:</strong> Identifies structural phase angle anomalies caused by face swapping.</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ color: '#a855f7', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><ScanSearch size={24} /> Hardware Noise & ELA Forensics</h3>
+                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                            Images taken by real physical cameras have a baked-in Bayer filter pattern (CFA) and uniform JPEG compression. We analyze these microscopic spatial properties.
+                          </p>
+                        </div>
+                        <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '2rem' }}>
+                          <ul style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <li>• <strong>Error Level Analysis (ELA):</strong> Exposes differences in JPEG compression histories to reveal spliced fake faces.</li>
+                            <li>• <strong>CFA Artifacts:</strong> Generative AI (Midjourney/DALL-E) completely lacks the Color Filter Array demosaicing patterns produced by real camera hardware.</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ color: 'var(--warning)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Focus size={24} /> Face Geometry & Temporal Jitter</h3>
+                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                            While AI can generate a perfect fake face in a single frame, it struggles to keep the 3D geometry of that face perfectly stable across time in a video. We track 468 facial landmarks across every frame to measure micro-jitters, unnatural head pose variations, and blinking anomalies that human eyes can't detect.
+                          </p>
+                        </div>
+                        <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '2rem' }}>
+                          <ul style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <li>• <strong>Landmark Jitter:</strong> Microscopic shaking of facial anchor points.</li>
+                            <li>• <strong>Optical Flow:</strong> Tracks dense pixel motion vectors to flag blocky unnatural flickering around fake masks.</li>
+                            <li>• <strong>Eye Aspect Ratio (EAR):</strong> Detection of unnatural "lazy eye" or missing blink patterns.</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ color: 'var(--secondary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Volume2 size={24} /> Audio Forensics & Synchronization</h3>
+                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                            Audio deepfakes and lip-syncing (Wav2Lip) are common manipulation techniques. We use a dual-stream SyncNet architecture that extracts Mel-frequency cepstral coefficients (MFCC) to calculate lip-sync desynchronization. Additionally, we run Voice Anti-Spoofing tests to detect unnatural high-frequency "vocoder" static and perfectly smooth zero-crossing rates that expose AI voice clones like ElevenLabs.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ color: 'var(--danger)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={24} /> Biological Signal (rPPG) Detection</h3>
+                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                            Real human faces exhibit microscopic color changes with every heartbeat as blood pumps through the capillaries. AI-generated and swapped faces completely lack these photoplethysmography (rPPG) signals. We isolate the green color channel of the face and run a Fast Fourier Transform to search for a human pulse frequency.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ color: 'var(--info)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Lightbulb size={24} /> Illumination & Optics Analysis</h3>
+                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                            When a face is spliced into a new image, or generated entirely by an AI, the 3D lighting environment almost never matches perfectly. We compute image gradients to estimate 2D illumination directions. Additionally, we extract and compare the <strong>Corneal Specular Highlights</strong> (the reflections in the eyes)—GANs notoriously fail to render matching geometric reflections in both eyes.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ color: 'var(--success)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><FileText size={24} /> EXIF & Metadata Forensics</h3>
+                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                            Generative AI tools (Midjourney, Stable Diffusion) and editing software (Photoshop) often leave distinct signatures in the file metadata. We automatically extract and analyze the EXIF payload, detecting manipulation software signatures, stripped metadata, and suspicious generation timestamps.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
                 </>
               )}
 
@@ -409,7 +499,7 @@ function App() {
             Court-grade multimedia forensic analysis powered by EfficientNet-B4, GradCAM spatial grounding, SHAP feature attribution, and SyncNet temporal validation.
           </p>
           <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', fontSize: '0.85rem' }}>
-            <a href="https://huggingface.co/nikokons/contrastive-deepfake-detector" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--secondary)', textDecoration: 'none' }}>Base Model Weights</a>
+            <span style={{ color: 'var(--success)' }}>Running Custom Fine-Tuned Weights</span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '1.5rem' }}>
             &copy; {new Date().getFullYear()} DeepForensics. All rights reserved. Version 1.1.0

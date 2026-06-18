@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { 
   Flame, Activity, Search, Frame, Camera, Palette, BarChart3, 
   Volume2, FileText, Download, RotateCcw, AlertTriangle, CheckCircle2, 
-  ShieldAlert, Info, Lightbulb, Star, ChevronUp, ChevronDown, ZoomIn, X
+  ShieldAlert, Info, Lightbulb, Star, ChevronUp, ChevronDown, ZoomIn, X, Focus, ScanSearch
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -78,7 +78,7 @@ const VerdictBadge = ({ verdict }) => {
 
 const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
   const isFake = result.overall_score > 0.55;
-  const [activeTab, setActiveTab] = useState('visual');
+  const [activeTab, setActiveTab] = useState('features');
   const [zoomedImage, setZoomedImage] = useState(null);
   const [showFullGradcamInfo, setShowFullGradcamInfo] = useState(false);
   const [showFullSpectralInfo, setShowFullSpectralInfo] = useState(false);
@@ -133,16 +133,26 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
 
   const verdictStyle = getVerdictDetails();
 
-  const tabs = [
-    { id: 'visual', icon: <Flame size={16} />, label: 'GradCAM' },
-    { id: 'frequency', icon: <Activity size={16} />, label: 'Frequency' },
-    { id: 'ela', icon: <Search size={16} />, label: 'ELA' },
-    { id: 'geometry', icon: <Frame size={16} />, label: 'Face Geometry' },
-    { id: 'noise', icon: <Camera size={16} />, label: 'Sensor Noise' },
-    { id: 'color', icon: <Palette size={16} />, label: 'Color Space' },
+  const beginnerTabs = [
     { id: 'features', icon: <BarChart3 size={16} />, label: 'Ensemble' },
-    ...(isVideo ? [{ id: 'audio', icon: <Volume2 size={16} />, label: 'Audio Sync' }] : []),
+    { id: 'visual', icon: <Flame size={16} />, label: 'GradCAM' },
+    ...(isVideo && result.file_metadata?.has_audio ? [{ id: 'audio', icon: <Volume2 size={16} />, label: 'Audio Sync' }] : []),
+    ...(isVideo && result.file_metadata?.has_audio ? [{ id: 'voice', icon: <Volume2 size={16} />, label: 'Voice Spoofing' }] : []),
     { id: 'meta', icon: <FileText size={16} />, label: 'Metadata' },
+  ];
+
+  const advancedTabs = [
+    { id: 'geometry', icon: <Frame size={16} />, label: 'Face Geometry' },
+    ...(!isVideo ? [{ id: 'corneal', icon: <Focus size={16} />, label: 'Corneal Optics' }] : []),
+    ...(isVideo ? [{ id: 'eye', icon: <Activity size={16} />, label: 'Eye & Gaze' }] : []),
+    { id: 'color', icon: <Palette size={16} />, label: 'Color Space' },
+    { id: 'ela', icon: <Search size={16} />, label: 'ELA' },
+    { id: 'noise', icon: <Camera size={16} />, label: 'Sensor Noise' },
+    ...(!isVideo ? [{ id: 'cfa', icon: <ScanSearch size={16} />, label: 'CFA Artifacts' }] : []),
+    { id: 'frequency', icon: <Activity size={16} />, label: 'Frequency' },
+    ...(isVideo ? [{ id: 'rppg', icon: <Activity size={16} />, label: 'Pulse (rPPG)' }] : []),
+    { id: 'lighting', icon: <Lightbulb size={16} />, label: 'Lighting' },
+    ...(isVideo ? [{ id: 'flow', icon: <Activity size={16} />, label: 'Optical Flow' }] : []),
   ];
 
   return (
@@ -174,9 +184,9 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
         <div className="verdict-meta">
           <span className="verdict-meta-item">📁 {fileName || 'Uploaded File'}</span>
           <span className="verdict-meta-item">🖼️ {result.frames_analyzed} frames</span>
-          <span className="verdict-meta-item">🧠 EfficientNet-B4</span>
-          <span className="verdict-meta-item"><Activity size={20} color="var(--primary)" /> 7 detectors</span>
-          <span className="verdict-meta-item">🕐 {new Date().toLocaleString()}</span>
+          <span className="verdict-meta-item">🧠 EfficientNet-B4 Ensemble</span>
+          <span className="verdict-meta-item"><Activity size={20} color="var(--primary)" /> {result.weights ? Object.values(result.weights).filter(w => w > 0).length : (isVideo ? (result.file_metadata?.has_audio ? 13 : 11) : 9)} detectors</span>
+          <span className="verdict-meta-item">🕐 {result.timestamp || new Date().toLocaleString()}</span>
         </div>
 
         {/* Mini score bars */}
@@ -188,7 +198,14 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
             { label: 'Geometry', score: result.geometry_anomaly_score, key: 'geo' },
             { label: 'Noise', score: result.noise_score, key: 'ns' },
             { label: 'Color', score: result.color_score, key: 'cl' },
-            ...(isVideo ? [{ label: 'Sync', score: 1 - result.sync_score, key: 'syn' }] : []),
+            { label: 'Lighting', score: result.lighting_score || 0, key: 'li' },
+            ...(!isVideo ? [{ label: 'CFA', score: result.cfa_score || 0, key: 'cfa' }] : []),
+            ...(!isVideo ? [{ label: 'Corneal', score: result.corneal_score || 0, key: 'corn' }] : []),
+            ...(isVideo ? [{ label: 'rPPG', score: result.rppg_score || 0, key: 'rppg' }] : []),
+            ...(isVideo ? [{ label: 'Eye/Gaze', score: result.eye_score || 0, key: 'eye' }] : []),
+            ...(isVideo ? [{ label: 'Opt Flow', score: result.flow_score || 0, key: 'flow' }] : []),
+            ...(isVideo && result.file_metadata?.has_audio ? [{ label: 'Sync', score: 1 - result.sync_score, key: 'syn' }] : []),
+            ...(isVideo && result.file_metadata?.has_audio ? [{ label: 'Voice', score: result.voice_score || 0, key: 'voice' }] : []),
           ].map(item => (
             <div key={item.key} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.label}</div>
@@ -205,16 +222,35 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
       {/* Right Main Content */}
       <div className="dashboard-main">
         {/* Tab Bar */}
-      <div className="tab-bar">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.icon} {tab.label}
-          </button>
-        ))}
+      <div className="tab-bar-container" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem', fontWeight: 700, paddingLeft: '0.5rem' }}>Core / Beginner Analysis</div>
+          <div className="tab-bar">
+            {beginnerTabs.map(tab => (
+              <button
+                key={tab.id}
+                className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem', fontWeight: 700, paddingLeft: '0.5rem' }}>Advanced Physical Forensics</div>
+          <div className="tab-bar">
+            {advancedTabs.map(tab => (
+              <button
+                key={tab.id}
+                className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ========== GRADCAM TAB ========== */}
@@ -265,14 +301,24 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
                 <h4 style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontSize: '0.9rem', fontWeight: 600 }}>Coarse Localization (Grad-CAM)</h4>
                 <div 
                   className="zoomable-image-container" 
-                  onClick={() => setZoomedImage(result.heatmaps && result.heatmaps.length > 0 ? `${API_BASE}/${result.heatmaps[0]}` : '/gradcam-mockup.png')}
+                  onClick={() => {
+                    if (result.heatmaps && result.heatmaps.length > 0) {
+                      setZoomedImage(`${API_BASE}/${result.heatmaps[0]}`);
+                    }
+                  }}
                 >
-                  <img
-                    src={result.heatmaps && result.heatmaps.length > 0 ? `${API_BASE}/${result.heatmaps[0]}` : '/gradcam-mockup.png'}
-                    alt="GradCAM Heatmap"
-                    className="heatmap-image"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
+                  {result.heatmaps && result.heatmaps.length > 0 ? (
+                    <img
+                      src={`${API_BASE}/${result.heatmaps[0]}`}
+                      alt="GradCAM Heatmap"
+                      className="heatmap-image"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                      <p>Heatmap unavailable</p>
+                    </div>
+                  )}
                   <div className="zoom-overlay">
                     <ZoomIn size={32} />
                   </div>
@@ -415,12 +461,83 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
               <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>RGB Cross-Channel Variance</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 600, color: result.frequency_analysis.channel_variance > 0.01 ? 'var(--warning)' : 'var(--text-primary)' }}>
-                  {result.frequency_analysis.channel_variance.toFixed(4)}
+                  {result.frequency_analysis.channel_variance < 0.0001 ? result.frequency_analysis.channel_variance.toExponential(2) : result.frequency_analysis.channel_variance.toFixed(4)}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>High variance = GAN artifact</div>
               </div>
             </div>
           </div>
+
+          {/* Beginner-Friendly Visualizations Grid */}
+          <div className="analysis-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+            <div className="glass-panel analysis-panel" style={{ gridColumn: '1 / -1' }}>
+              <div className="panel-header">
+                <div className="panel-icon" style={{ background: 'rgba(234,88,12,0.12)' }}><Camera size={20} color="#ea580c" /></div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div className="panel-title">Switching Noise (SWN) <span style={{fontSize: '0.7rem', background: 'var(--success)', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px', color: '#000'}}>Beginner Friendly</span></div>
+                    <div className="panel-subtitle">Zero-crossing artifact detector mapped onto original image</div>
+                  </div>
+                  {result.frequency_analysis?.verdicts && <VerdictBadge verdict={result.frequency_analysis.verdicts.swn} />}
+                </div>
+              </div>
+              <div className="heatmap-container">
+                <div 
+                  className="zoomable-image-container"
+                  onClick={() => setZoomedImage(`${API_BASE}/${result.frequency_analysis.swn_noise_path}`)}
+                  style={{ maxWidth: '600px', margin: '0 auto' }}
+                >
+                  <img
+                    src={result.frequency_analysis.swn_noise_path ? `${API_BASE}/${result.frequency_analysis.swn_noise_path}` : '/gradcam-mockup.png'}
+                    alt="Switching Noise SWN"
+                    className="heatmap-image"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <div className="zoom-overlay"><ZoomIn size={32} /></div>
+                </div>
+              </div>
+              <div className="heatmap-legend" style={{ marginTop: '1rem', justifyContent: 'center' }}>
+                <span className="heatmap-legend-icon"><Info size={16} color="var(--text-secondary)" /></span>
+                <span>The easiest way to spot fakes: pure AI generation noise and deepfake splicing seams light up brightly here, directly superimposed on the original video frame.</span>
+              </div>
+            </div>
+            
+            <div className="glass-panel analysis-panel" style={{ gridColumn: '1 / -1' }}>
+              <div className="panel-header">
+                <div className="panel-icon" style={{ background: 'rgba(245,158,11,0.12)' }}>🧱</div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div className="panel-title">8x8 Block DCT High-Frequency Map <span style={{fontSize: '0.7rem', background: 'var(--success)', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px', color: '#000'}}>Beginner Friendly</span></div>
+                    <div className="panel-subtitle">Localized JPEG grid anomaly detection mapped onto original image</div>
+                  </div>
+                  {result.frequency_analysis?.verdicts && <VerdictBadge verdict={result.frequency_analysis.verdicts.block_dct} />}
+                </div>
+              </div>
+              <div className="heatmap-container">
+                <div 
+                  className="zoomable-image-container"
+                  onClick={() => setZoomedImage(`${API_BASE}/${result.frequency_analysis.block_dct_path}`)}
+                  style={{ maxWidth: '600px', margin: '0 auto' }}
+                >
+                  <img
+                    src={`${API_BASE}/${result.frequency_analysis.block_dct_path}`}
+                    alt="Block DCT Artifacts"
+                    className="heatmap-image"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <div className="zoom-overlay"><ZoomIn size={32} /></div>
+                </div>
+              </div>
+              <div className="heatmap-legend" style={{ marginTop: '1rem', justifyContent: 'center' }}>
+                <span className="heatmap-legend-icon"><Info size={16} color="var(--text-secondary)" /></span>
+                <span>Visualizes the high-frequency energy of every 8x8 block. Artificial face splicing often disrupts the natural grid, creating a glowing mismatch against the background.</span>
+              </div>
+            </div>
+          </div>
+
+          <h4 style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
+            Advanced Mathematical Spectra
+          </h4>
 
           {/* Visualizations Grid */}
           <div className="analysis-grid">
@@ -485,39 +602,7 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
             </div>
           </div>
           
-          <div className="analysis-grid" style={{ marginBottom: '1.5rem' }}>
-            <div className="glass-panel analysis-panel" style={{ gridColumn: '1 / -1' }}>
-              <div className="panel-header">
-                <div className="panel-icon" style={{ background: 'rgba(245,158,11,0.12)' }}>🧱</div>
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div className="panel-title">8x8 Block DCT High-Frequency Map</div>
-                    <div className="panel-subtitle">Localized JPEG grid anomaly detection</div>
-                  </div>
-                  {result.frequency_analysis?.verdicts && <VerdictBadge verdict={result.frequency_analysis.verdicts.block_dct} />}
-                </div>
-              </div>
-              <div className="heatmap-container">
-                <div 
-                  className="zoomable-image-container"
-                  onClick={() => setZoomedImage(`${API_BASE}/${result.frequency_analysis.block_dct_path}`)}
-                  style={{ maxWidth: '600px', margin: '0 auto' }}
-                >
-                  <img
-                    src={`${API_BASE}/${result.frequency_analysis.block_dct_path}`}
-                    alt="Block DCT Artifacts"
-                    className="heatmap-image"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                  <div className="zoom-overlay"><ZoomIn size={32} /></div>
-                </div>
-              </div>
-              <div className="heatmap-legend" style={{ marginTop: '1rem', justifyContent: 'center' }}>
-                <span className="heatmap-legend-icon"><Info size={16} color="var(--text-secondary)" /></span>
-                <span>Visualizes the high-frequency energy of every 8x8 DCT block. Artificial face splicing often disrupts the natural DCT grid, creating a glowing mismatch.</span>
-              </div>
-            </div>
-          </div>
+
 
           <div className="analysis-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
             <div className="glass-panel analysis-panel">
@@ -574,32 +659,7 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
               </div>
             </div>
 
-            <div className="glass-panel analysis-panel">
-              <div className="panel-header">
-                <div className="panel-icon" style={{ background: 'rgba(234,88,12,0.12)' }}><Camera size={20} color="#ea580c" /></div>
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div className="panel-title">Switching Noise (SWN)</div>
-                    <div className="panel-subtitle">Zero-crossing artifact detector</div>
-                  </div>
-                  {result.frequency_analysis?.verdicts && <VerdictBadge verdict={result.frequency_analysis.verdicts.swn} />}
-                </div>
-              </div>
-              <div className="heatmap-container">
-                <div 
-                  className="zoomable-image-container"
-                  onClick={() => setZoomedImage(`${API_BASE}/${result.frequency_analysis.swn_noise_path}`)}
-                >
-                  <img
-                    src={result.frequency_analysis.swn_noise_path ? `${API_BASE}/${result.frequency_analysis.swn_noise_path}` : '/gradcam-mockup.png'}
-                    alt="Switching Noise SWN"
-                    className="heatmap-image"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                  <div className="zoom-overlay"><ZoomIn size={32} /></div>
-                </div>
-              </div>
-            </div>
+
           </div>
 
           {/* PCA & Advanced Visualizations */}
@@ -649,14 +709,24 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
                 <div className="heatmap-container" style={{ flex: 1 }}>
                   <div 
                     className="zoomable-image-container"
-                    onClick={() => setZoomedImage(`${API_BASE}/${result.frequency_analysis.cepstrum_path}`)}
+                    onClick={() => {
+                      if (result.frequency_analysis.cepstrum_path) {
+                        setZoomedImage(`${API_BASE}/${result.frequency_analysis.cepstrum_path}`);
+                      }
+                    }}
                   >
-                    <img
-                      src={result.frequency_analysis.cepstrum_path ? `${API_BASE}/${result.frequency_analysis.cepstrum_path}` : '/gradcam-mockup.png'}
-                      alt="Cepstrum Analysis"
-                      className="heatmap-image"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
+                    {result.frequency_analysis.cepstrum_path ? (
+                      <img
+                        src={`${API_BASE}/${result.frequency_analysis.cepstrum_path}`}
+                        alt="Cepstrum Analysis"
+                        className="heatmap-image"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div style={{ width: '100%', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                        <p>Visualization unavailable</p>
+                      </div>
+                    )}
                     <div className="zoom-overlay"><ZoomIn size={32} /></div>
                   </div>
                   <div className="image-caption" style={{ marginTop: '0.5rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Bright spikes indicate synthetic resampling</div>
@@ -776,6 +846,113 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========== CFA TAB ========== */}
+      {activeTab === 'cfa' && result.cfa_analysis && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="info-callout">
+            <div className="info-callout-icon"><Lightbulb size={20} color="var(--primary)" /></div>
+            <div className="info-callout-content">
+              <h4>Color Filter Array (CFA) Forensics</h4>
+              <p>
+                Real digital cameras capture images through a microscopic "Bayer filter" grid, leaving behind a subtle mathematical signature (CFA demosaicing artifacts) across the entire photo. Purely AI-generated images lack this grid entirely, and face-swaps have a disrupted grid on the face compared to the background.
+              </p>
+            </div>
+          </div>
+
+          <div className="glass-panel analysis-panel">
+            <div className="panel-header">
+              <div className="panel-icon shap"><ScanSearch size={20} color="var(--primary)" /></div>
+              <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div className="panel-title">Bayer Filter Noise Map</div>
+                  <div className="panel-subtitle">Highlighting underlying camera hardware signatures</div>
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: getScoreColor(result.cfa_analysis.cfa_score) }}>
+                  {(result.cfa_analysis.cfa_score * 100).toFixed(1)}%
+                </div>
+              </div>
+            </div>
+
+            <div className="heatmap-container" style={{ minHeight: '300px' }}>
+              <div 
+                className="zoomable-image-container"
+                onClick={() => setZoomedImage(`${API_BASE}/${result.cfa_analysis.cfa_map_path}`)}
+              >
+                <img
+                  src={`${API_BASE}/${result.cfa_analysis.cfa_map_path}`}
+                  alt="CFA Heatmap"
+                  className="heatmap-image"
+                  style={{ maxHeight: '400px' }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <div className="zoom-overlay"><ZoomIn size={32} /></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== CORNEAL OPTICS TAB ========== */}
+      {activeTab === 'corneal' && result.corneal_analysis && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="info-callout">
+            <div className="info-callout-icon"><Lightbulb size={20} color="var(--info)" /></div>
+            <div className="info-callout-content">
+              <h4>Corneal Specular Highlights</h4>
+              <p>
+                A person's eyes act as spherical mirrors. In a real, unedited photo, the reflection of light sources (specular highlights) must be geometrically consistent across both eyes. Generative AI models struggle with 3D physical consistency and often render mismatched reflections in the left and right eyes.
+              </p>
+            </div>
+          </div>
+
+          <div className="glass-panel analysis-panel">
+            <div className="panel-header">
+              <div className="panel-icon shap"><Focus size={20} color="var(--info)" /></div>
+              <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div className="panel-title">Eye Reflection Consistency Map</div>
+                  <div className="panel-subtitle">Comparing left vs right eye lighting</div>
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: getScoreColor(result.corneal_analysis.corneal_score) }}>
+                  {(result.corneal_analysis.corneal_score * 100).toFixed(1)}%
+                </div>
+              </div>
+            </div>
+
+            <div className="heatmap-container" style={{ minHeight: '200px' }}>
+              <div 
+                className="zoomable-image-container"
+                onClick={() => setZoomedImage(`${API_BASE}/${result.corneal_analysis.corneal_map_path}`)}
+              >
+                <img
+                  src={`${API_BASE}/${result.corneal_analysis.corneal_map_path}`}
+                  alt="Corneal Highlights"
+                  className="heatmap-image"
+                  style={{ maxHeight: '250px' }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <div className="zoom-overlay"><ZoomIn size={32} /></div>
+              </div>
+            </div>
+            
+            {result.corneal_analysis.iou !== undefined && (
+              <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div className="metric-box">
+                  <div className="metric-label">Highlight IoU</div>
+                  <div className="metric-value">{(result.corneal_analysis.iou * 100).toFixed(1)}%</div>
+                  <div className="metric-desc">Intersection over union of bright spots</div>
+                </div>
+                <div className="metric-box">
+                  <div className="metric-label">Structural Similarity</div>
+                  <div className="metric-value">{(result.corneal_analysis.ssim * 100).toFixed(1)}%</div>
+                  <div className="metric-desc">SSIM between left and right mask</div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1425,6 +1602,139 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
         </div>
       )}
 
+      {/* ========== RPPG TAB ========== */}
+      {activeTab === 'rppg' && result.rppg_analysis && (
+        <div className="glass-panel analysis-panel" style={{ marginBottom: '2rem' }}>
+          <div className="panel-header">
+            <div className="panel-icon"><Activity size={20} color={result.rppg_analysis.has_pulse ? "var(--success)" : "var(--danger)"} /></div>
+            <div>
+              <div className="panel-title">Biological Signal (rPPG)</div>
+              <div className="panel-subtitle">Heartbeat detection via micro-color changes</div>
+            </div>
+          </div>
+          
+          <div className="info-callout" style={{ marginBottom: '1.5rem' }}>
+            <div className="info-callout-icon"><Lightbulb size={20} color="var(--primary)" /></div>
+            <div className="info-callout-content">
+              <h4>How Remote Photoplethysmography (rPPG) Works</h4>
+              <p>
+                Every time your heart beats, a pulse of blood flows through your face, causing microscopic fluctuations in skin color (specifically absorbing green light). Real videos of humans capture these invisible color changes. 
+              </p>
+              <p style={{ marginTop: '0.5rem' }}>
+                AI video generators like Sora or DeepFaceLab completely fail to synthesize a biologically accurate, continuous heartbeat hidden within the pixel data! By applying Fast Fourier Transforms (FFT) to the spatial color averages over time, we can detect if a physiological pulse exists.
+              </p>
+            </div>
+          </div>
+          
+          <div className="analysis-grid">
+            <div style={{ textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Detected Heart Rate</div>
+              <div style={{ fontSize: '2rem', fontWeight: 700, color: result.rppg_analysis.has_pulse ? 'var(--success)' : 'var(--danger)' }}>
+                {result.rppg_analysis.has_pulse ? `${result.rppg_analysis.heart_rate} BPM` : 'None'}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                {result.rppg_analysis.has_pulse ? 'Human Pulse Detected' : 'Static/Synthetic Face'}
+              </div>
+            </div>
+            
+            <div style={{ textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Signal-to-Noise Ratio</div>
+              <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--info)' }}>
+                {result.rppg_analysis.snr}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                Peak Prominence
+              </div>
+            </div>
+          </div>
+
+          {result.rppg_analysis.signal_plot_path && (
+            <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+              <img 
+                src={`${API_BASE}/${result.rppg_analysis.signal_plot_path}`} 
+                alt="rPPG Signal Spectrum" 
+                className="result-img" 
+                style={{ width: '100%', maxWidth: '600px', borderRadius: '8px' }} 
+              />
+            </div>
+          )}
+          
+          {result.rppg_analysis.warnings && result.rppg_analysis.warnings.length > 0 && (
+            <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--danger)' }}>
+              {result.rppg_analysis.warnings.map((w, i) => <div key={i} style={{ color: 'var(--danger)', fontSize: '0.9rem' }}>• {w}</div>)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========== LIGHTING TAB ========== */}
+      {activeTab === 'lighting' && result.lighting_analysis && (
+        <div className="glass-panel analysis-panel" style={{ marginBottom: '2rem' }}>
+          <div className="panel-header">
+            <div className="panel-icon"><Lightbulb size={20} color="var(--warning)" /></div>
+            <div>
+              <div className="panel-title">Illumination Estimation</div>
+              <div className="panel-subtitle">Detecting spliced lighting inconsistencies</div>
+            </div>
+          </div>
+          
+          <div className="info-callout" style={{ marginBottom: '1.5rem' }}>
+            <div className="info-callout-icon"><Lightbulb size={20} color="var(--primary)" /></div>
+            <div className="info-callout-content">
+              <h4>How 2D Illumination Estimation Works</h4>
+              <p>
+                When a fake face is spliced onto a real body (like in many standard deepfakes), the lighting environment of the spliced face almost never perfectly matches the lighting of the background scene.
+              </p>
+              <p style={{ marginTop: '0.5rem' }}>
+                Based on seminal digital forensics research, we extract the 2D surface normals and pixel intensity gradients of both the Face and the Background independently. By calculating the dominant directional vector of the light source for both regions, we can measure the divergence angle. A large angle strongly indicates a lighting mismatch caused by image splicing!
+              </p>
+            </div>
+          </div>
+          
+          <div className="analysis-grid">
+            <div style={{ textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Divergence Angle</div>
+              <div style={{ fontSize: '2rem', fontWeight: 700, color: result.lighting_analysis.angle_difference > 45 ? 'var(--danger)' : 'var(--success)' }}>
+                {result.lighting_analysis.angle_difference}°
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                Difference between Face & BG light source
+              </div>
+            </div>
+            
+            <div style={{ textAlign: 'center', background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Anomaly Score</div>
+              <div style={{ fontSize: '2rem', fontWeight: 700, color: getScoreColor(result.lighting_analysis.lighting_anomaly_score) }}>
+                {(result.lighting_analysis.lighting_anomaly_score * 100).toFixed(0)}%
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                Higher = Inconsistent Lighting
+              </div>
+            </div>
+          </div>
+
+          {result.lighting_analysis.lighting_map_path && (
+            <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+              <img 
+                src={`${API_BASE}/${result.lighting_analysis.lighting_map_path}`} 
+                alt="Lighting Direction Vectors" 
+                className="result-img" 
+                style={{ width: '100%', maxWidth: '500px', borderRadius: '8px' }} 
+              />
+              <p style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                Arrows indicate the dominant 2D illumination direction extracted from image gradients.
+              </p>
+            </div>
+          )}
+          
+          {result.lighting_analysis.warnings && result.lighting_analysis.warnings.length > 0 && (
+            <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--danger)' }}>
+              {result.lighting_analysis.warnings.map((w, i) => <div key={i} style={{ color: 'var(--danger)', fontSize: '0.9rem' }}>• {w}</div>)}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ========== ENSEMBLE TAB ========== */}
       {activeTab === 'features' && (
         <div className="glass-panel analysis-panel" style={{ marginBottom: '2rem' }}>
@@ -1435,22 +1745,45 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
               <div className="panel-subtitle">Weighted combination of all detection techniques</div>
             </div>
           </div>
+          
+          <div className="info-callout" style={{ marginBottom: '1.5rem' }}>
+            <div className="info-callout-icon"><Lightbulb size={20} color="var(--primary)" /></div>
+            <div className="info-callout-content">
+              <h4>How the Ensemble Works</h4>
+              <p>
+                No single forensic technique is perfect. Deepfakes can easily fool a neural network by adding artificial noise, or trick a geometric analyzer by keeping the original face shape. To solve this, our engine runs a <strong>Multi-Modal Ensemble</strong>, analyzing the image across 7 radically different physical and statistical domains. 
+              </p>
+              <p style={{ marginTop: '0.5rem' }}>
+                We use an <strong>Image Quality Assessment (IQA)</strong> orchestrator to dynamically weight these tests. If the video is highly compressed or blurry from a webcam, the engine mathematically lowers its trust in pixel-perfect physical sensors (like Noise and Color) and increases its reliance on AI and geometric landmarks!
+              </p>
+            </div>
+          </div>
           <div className="analysis-grid" style={{ marginBottom: 0 }}>
             <div>
               <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
                 Detector Scores
               </h4>
               {[
-                { label: 'EfficientNet-B4', score: result.nn_score, weight: '40%' },
-                { label: 'Frequency Analysis', score: result.spectral_anomaly_score, weight: isVideo ? '10%' : '15%' },
-                { label: 'Error Level Analysis', score: result.ela_score, weight: isVideo ? '10%' : '15%' },
-                { label: 'Face Geometry', score: result.geometry_anomaly_score, weight: '10%' },
-                { label: 'Sensor Noise', score: result.noise_score, weight: '10%' },
-                { label: 'Chrominance', score: result.color_score, weight: '10%' },
-                ...(isVideo ? [{ label: 'Audio Sync', score: 1 - result.sync_score, weight: '10%' }] : []),
+                { label: 'EfficientNet-B4', score: result.nn_score, weight: result.weights?.nn_score },
+                { label: 'Frequency Analysis', score: result.spectral_anomaly_score, weight: result.weights?.spectral_score },
+                { label: 'Error Level Analysis', score: result.ela_score, weight: result.weights?.ela_score },
+                { label: 'Face Geometry', score: result.geometry_anomaly_score, weight: result.weights?.geometry_anomaly },
+                { label: 'Sensor Noise', score: result.noise_score, weight: result.weights?.noise_score },
+                { label: 'Chrominance', score: result.color_score, weight: result.weights?.color_score },
+                { label: 'Lighting', score: result.lighting_score, weight: result.weights?.lighting_score },
+                ...(!isVideo ? [{ label: 'CFA Pattern', score: result.cfa_score || 0, weight: result.weights?.cfa_score }] : []),
+                ...(!isVideo ? [{ label: 'Corneal Reflection', score: result.corneal_score || 0, weight: result.weights?.corneal_score }] : []),
+                ...(isVideo ? [{ label: 'Eye Tracking', score: result.eye_score || 0, weight: result.weights?.eye_score }] : []),
+                ...(isVideo ? [{ label: 'Optical Flow', score: result.flow_score || 0, weight: result.weights?.flow_score }] : []),
+                ...(isVideo && result.file_metadata?.has_audio ? [{ label: 'Audio Sync', score: 1 - result.sync_score, weight: result.weights?.sync_score }] : []),
+                ...(isVideo && result.file_metadata?.has_audio ? [{ label: 'Voice Spoofing', score: result.voice_score || 0, weight: result.weights?.voice_score }] : []),
+                ...(isVideo ? [{ label: 'Pulse (rPPG)', score: result.rppg_score, weight: result.weights?.rppg_score }] : [])
               ].map((item, idx) => (
                 <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                   <div style={{ flex: 1, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{item.label}</div>
+                  <div style={{ width: '45px', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+                    {item.weight !== undefined ? `${(item.weight * 100).toFixed(1)}%` : ''}
+                  </div>
                   <div style={{ width: '120px' }}>
                     <div className="progress-bar-bg" style={{ height: '4px', margin: 0 }}>
                       <div className="progress-bar-fill" style={{ width: `${item.score * 100}%`, background: getScoreColor(item.score), animation: 'none' }}></div>
@@ -1484,7 +1817,14 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
                       { label: 'Geo', score: result.geometry_anomaly_score },
                       { label: 'Noise', score: result.noise_score },
                       { label: 'Color', score: result.color_score },
-                      ...(isVideo ? [{ label: 'Sync', score: 1 - result.sync_score }] : [])
+                      { label: 'Light', score: result.lighting_score },
+                      ...(!isVideo ? [{ label: 'CFA', score: result.cfa_score || 0 }] : []),
+                      ...(!isVideo ? [{ label: 'Corneal', score: result.corneal_score || 0 }] : []),
+                      ...(isVideo ? [{ label: 'Eye', score: result.eye_score || 0 }] : []),
+                      ...(isVideo ? [{ label: 'Flow', score: result.flow_score || 0 }] : []),
+                      ...(isVideo && result.file_metadata?.has_audio ? [{ label: 'Sync', score: 1 - result.sync_score }] : []),
+                      ...(isVideo && result.file_metadata?.has_audio ? [{ label: 'Voice', score: result.voice_score || 0 }] : []),
+                      ...(isVideo ? [{ label: 'rPPG', score: result.rppg_score }] : [])
                     ];
                     const center = 140;
                     const radius = 100;
@@ -1549,12 +1889,34 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
           <div className="panel-header">
             <div className="panel-icon meta"><FileText size={20} color="var(--primary)" /></div>
             <div>
-              <div className="panel-title">Full Analysis Metadata</div>
-              <div className="panel-subtitle">Technical specifications and configuration</div>
+              <div className="panel-title">EXIF & File Metadata Analysis</div>
+              <div className="panel-subtitle">Technical specifications and digital footprint</div>
             </div>
           </div>
+          
+          <div className="info-callout" style={{ marginBottom: '1.5rem' }}>
+            <div className="info-callout-icon"><Lightbulb size={20} color="var(--primary)" /></div>
+            <div className="info-callout-content">
+              <h4>How Metadata Analysis Works</h4>
+              <p>
+                Every digital file contains hidden "metadata" — data about the data. When an image is captured by a real physical camera (like an iPhone or DSLR), the camera embeds rich EXIF tags detailing the lens model, focal length, GPS location, and exposure settings.
+              </p>
+              <p style={{ marginTop: '0.5rem' }}>
+                When images are generated by AI (Midjourney, DALL-E) or heavily edited (Photoshop), they either strip this physical metadata entirely, or leave behind specific software signatures in the file headers. This tab exposes that hidden digital footprint.
+              </p>
+            </div>
+          </div>
+          
+          {result.metadata_analysis && result.metadata_analysis.warnings.length > 0 && (
+            <div style={{ margin: '1rem 0 2rem 0', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--danger)', borderRadius: '4px' }}>
+              <h4 style={{ color: 'var(--danger)', marginTop: 0, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><ShieldAlert size={16} /> Forensic Warnings</h4>
+              {result.metadata_analysis.warnings.map((w, i) => <div key={i} style={{ color: 'var(--text-primary)', fontSize: '0.9rem', marginBottom: '0.3rem' }}>• {w}</div>)}
+            </div>
+          )}
+
           <table className="meta-table">
             <tbody>
+              <tr><td colSpan="2" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Basic File Properties</td></tr>
               <tr><td>File Name</td><td>{fileName || 'N/A'}</td></tr>
               <tr><td>Job ID</td><td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{jobId}</td></tr>
               <tr><td>Analysis Date</td><td>{new Date().toLocaleString()}</td></tr>
@@ -1567,19 +1929,203 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
                 </>
               )}
 
+              {result.metadata_analysis && Object.keys(result.metadata_analysis.extracted_tags).length > 0 && (
+                <>
+                  <tr><td colSpan="2" style={{ paddingTop: '1.5rem', color: 'var(--secondary)', fontWeight: 'bold' }}>Extracted EXIF Tags</td></tr>
+                  {Object.entries(result.metadata_analysis.extracted_tags).map(([key, val]) => (
+                    <tr key={key}>
+                      <td style={{ color: 'var(--text-muted)' }}>{key}</td>
+                      <td style={{ color: val.toLowerCase().includes('midjourney') || val.toLowerCase().includes('photoshop') ? 'var(--danger)' : 'var(--text-primary)' }}>{val}</td>
+                    </tr>
+                  ))}
+                </>
+              )}
+
               <tr><td colSpan="2" style={{ paddingTop: '1.5rem', color: 'var(--primary)', fontWeight: 'bold' }}>Model Configuration</td></tr>
               <tr><td>Model Engine</td><td>EfficientNet-B4 (Contrastive SBI)</td></tr>
               <tr><td>Feature Dimension</td><td>1792-d Vector Space</td></tr>
               <tr><td>Input Resolution</td><td>380 × 380 (Cropped Face)</td></tr>
               <tr><td>XAI Interventions</td><td>GradCAM (Spatial), SHAP (Feature)</td></tr>
-              <tr><td>Frequency Analysis</td><td>DCT + FFT + Azimuthal Averaging</td></tr>
-              <tr><td>Compression Analysis</td><td>Error Level Analysis (JPEG Q=90)</td></tr>
-              <tr><td>Face Analysis</td><td>Symmetry + Texture + PRNU Noise</td></tr>
-              {isVideo && <tr><td>Audio Analysis</td><td>SyncNet v2 (Wav2Lip)</td></tr>}
-              <tr><td>Ensemble Weights</td><td>{isVideo ? 'NN:50% Freq:15% ELA:15% Geo:10% Sync:10%' : 'NN:55% Freq:20% ELA:15% Geo:10%'}</td></tr>
               <tr><td>Frames Analyzed</td><td>{result.frames_analyzed}</td></tr>
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ========== EYE GAZE & BLINK TAB ========== */}
+      {activeTab === 'eye' && result.eye_analysis && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="info-callout">
+            <strong>Biological Metric: Eye & Gaze Dynamics</strong>
+            Deepfakes often struggle with natural blink frequency and gaze consistency (convergence). This test analyzes the Eye Aspect Ratio (EAR) over time to flag unnatural 'lazy eye' artifacts or blinking anomalies.
+          </div>
+          
+          <div className="analysis-grid" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="glass-panel analysis-panel">
+              <div className="panel-header">
+                <div className="panel-icon" style={{ background: 'rgba(59, 130, 246, 0.12)' }}>👁️</div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div className="panel-title">Blink & Gaze Tracker</div>
+                    <div className="panel-subtitle">Blink Rate: {result.eye_analysis.blink_rate_per_min} bpm | Gaze Asymmetry: {result.eye_analysis.gaze_asymmetry.toFixed(3)}</div>
+                  </div>
+                  <VerdictBadge verdict={result.eye_analysis.eye_anomaly_score > 0.6 ? 'Fail' : 'Pass'} />
+                </div>
+              </div>
+
+              {result.eye_analysis.warnings && result.eye_analysis.warnings.length > 0 && (
+                <div style={{ margin: '1rem 0', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--danger)', borderRadius: '4px' }}>
+                  <h4 style={{ color: 'var(--danger)', marginTop: 0, marginBottom: '0.5rem', fontSize: '0.9rem' }}>Detection Warnings</h4>
+                  {result.eye_analysis.warnings.map((w, i) => <div key={i} style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>• {w}</div>)}
+                </div>
+              )}
+
+              <div className="heatmap-container" style={{ marginTop: '1rem' }}>
+                <div className="zoomable-image-container" onClick={() => {
+                  if (result.eye_analysis.eye_plot_path) {
+                    setZoomedImage(`${API_BASE}/${result.eye_analysis.eye_plot_path}`);
+                  }
+                }}>
+                  {result.eye_analysis.eye_plot_path ? (
+                    <img
+                      src={`${API_BASE}/${result.eye_analysis.eye_plot_path}`}
+                      alt="Eye Tracking Plot"
+                      className="heatmap-image"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                      <p>Plot unavailable</p>
+                    </div>
+                  )}
+                  <div className="zoom-overlay"><ZoomIn size={32} /></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== VOICE SPOOFING TAB ========== */}
+      {activeTab === 'voice' && result.voice_analysis && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="info-callout">
+            <strong>Audio Forensics: Voice Anti-Spoofing</strong>
+            AI voice clones (vocoders) often leave high-frequency synthetic artifacts and unnatural spectral roll-offs. This test analyzes the audio frequency spectrum to detect these synthetic traces.
+          </div>
+          
+          <div className="analysis-grid" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="glass-panel analysis-panel">
+              <div className="panel-header">
+                <div className="panel-icon" style={{ background: 'rgba(168, 85, 247, 0.12)' }}>🎙️</div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div className="panel-title">Mel-Frequency Analysis</div>
+                    <div className="panel-subtitle">ZCR Variance: {result.voice_analysis.zcr_variance.toFixed(5)} | HF Ratio: {result.voice_analysis.high_freq_ratio.toFixed(4)}</div>
+                  </div>
+                  <VerdictBadge verdict={result.voice_analysis.voice_anomaly_score > 0.6 ? 'Fail' : 'Pass'} />
+                </div>
+              </div>
+
+              {result.voice_analysis.warnings && result.voice_analysis.warnings.length > 0 && (
+                <div style={{ margin: '1rem 0', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--danger)', borderRadius: '4px' }}>
+                  <h4 style={{ color: 'var(--danger)', marginTop: 0, marginBottom: '0.5rem', fontSize: '0.9rem' }}>Spoofing Warnings</h4>
+                  {result.voice_analysis.warnings.map((w, i) => <div key={i} style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>• {w}</div>)}
+                </div>
+              )}
+
+              <div className="heatmap-container" style={{ marginTop: '1rem' }}>
+                <div className="zoomable-image-container" onClick={() => {
+                  if (result.voice_analysis.voice_plot_path) {
+                    setZoomedImage(`${API_BASE}/${result.voice_analysis.voice_plot_path}`);
+                  }
+                }}>
+                  {result.voice_analysis.voice_plot_path ? (
+                    <img
+                      src={`${API_BASE}/${result.voice_analysis.voice_plot_path}`}
+                      alt="Voice Spoofing Plot"
+                      className="heatmap-image"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                      <p>Spectrogram unavailable</p>
+                    </div>
+                  )}
+                  <div className="zoom-overlay"><ZoomIn size={32} /></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== OPTICAL FLOW TAB ========== */}
+      {activeTab === 'flow' && result.flow_analysis && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="info-callout">
+            <strong>Temporal Consistency: Optical Flow</strong>
+            When a fake face mask is pasted onto a video, its boundaries often "jitter" or flicker frame-to-frame. Dense Optical Flow tracks motion vectors to flag this blocky, unnatural movement.
+          </div>
+          
+          <div className="analysis-grid" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="glass-panel analysis-panel">
+              <div className="panel-header">
+                <div className="panel-icon" style={{ background: 'rgba(16, 185, 129, 0.12)' }}>🎞️</div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div className="panel-title">Temporal Jitter Tracker</div>
+                    <div className="panel-subtitle">Mean Motion Variance: {result.flow_analysis.mean_motion_variance}</div>
+                  </div>
+                  <VerdictBadge verdict={result.flow_analysis.flow_anomaly_score > 0.6 ? 'Fail' : 'Pass'} />
+                </div>
+              </div>
+
+              {result.flow_analysis.warnings && result.flow_analysis.warnings.length > 0 && (
+                <div style={{ margin: '1rem 0', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--danger)', borderRadius: '4px' }}>
+                  <h4 style={{ color: 'var(--danger)', marginTop: 0, marginBottom: '0.5rem', fontSize: '0.9rem' }}>Jitter Warnings</h4>
+                  {result.flow_analysis.warnings.map((w, i) => <div key={i} style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>• {w}</div>)}
+                </div>
+              )}
+
+              <div className="heatmap-container" style={{ marginTop: '1rem' }}>
+                <div className="zoomable-image-container" onClick={() => {
+                  if (result.flow_analysis.flow_plot_path) {
+                    setZoomedImage(`${API_BASE}/${result.flow_analysis.flow_plot_path}`);
+                  }
+                }}>
+                  {result.flow_analysis.flow_plot_path ? (
+                    <img
+                      src={`${API_BASE}/${result.flow_analysis.flow_plot_path}`}
+                      alt="Optical Flow Plot"
+                      className="heatmap-image"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', color: 'var(--text-muted)' }}>
+                      <p>Flow Plot unavailable</p>
+                    </div>
+                  )}
+                  <div className="zoom-overlay"><ZoomIn size={32} /></div>
+                </div>
+              </div>
+              
+              {result.flow_analysis.flow_field_path && (
+                <div className="heatmap-container" style={{ marginTop: '1rem' }}>
+                  <h4 style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontSize: '0.9rem', fontWeight: 600 }}>HSV Motion Vector Visualization</h4>
+                  <div className="zoomable-image-container" onClick={() => setZoomedImage(`${API_BASE}/${result.flow_analysis.flow_field_path}`)}>
+                    <img
+                      src={`${API_BASE}/${result.flow_analysis.flow_field_path}`}
+                      alt="Optical Flow Field"
+                      className="heatmap-image"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <div className="zoom-overlay"><ZoomIn size={32} /></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

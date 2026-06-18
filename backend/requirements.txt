@@ -18,3 +18,5 @@ efficientnet_pytorch
 matplotlib
 mediapipe
 PyWavelets
+scikit-image
+exifread

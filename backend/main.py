@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware # Touched to trigger reload
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
@@ -22,6 +22,14 @@ from pipeline.face_geometry import analyze_face_geometry
 from pipeline.noise_analysis import analyze_sensor_noise
 from pipeline.color_analysis import analyze_chrominance
 from pipeline.audio_sync import analyze_audio_visual_sync
+from pipeline.metadata_analysis import analyze_metadata
+from pipeline.rppg_analysis import extract_rppg_signal
+from pipeline.lighting_analysis import analyze_lighting
+from pipeline.eye_analysis import analyze_eye_movements
+from pipeline.voice_spoofing import analyze_voice_spoofing
+from pipeline.optical_flow import analyze_optical_flow
+from pipeline.cfa_analysis import analyze_cfa_artifacts
+from pipeline.corneal_analysis import analyze_corneal_reflections
 
 app = FastAPI(title="Deepfake Forensics API", version="2.0.0")
 
@@ -138,6 +146,20 @@ def run_analysis_pipeline(job_id: str, file_path: str):
         original_resolution = f"{first_frame.shape[1]} × {first_frame.shape[0]}"
         has_audio = audio_path is not None and os.path.exists(audio_path)
 
+        # Image Quality Assessment (IQA)
+        first_frame_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+        
+        # Crop to the center 50% to evaluate sharpness. Highly textured backgrounds (like curtains)
+        # can trick the Laplacian Variance into thinking a blurry webcam image is a sharp DSLR image!
+        h, w = first_frame_gray.shape
+        center_crop = first_frame_gray[int(h*0.25):int(h*0.75), int(w*0.25):int(w*0.75)]
+        laplacian_var = cv2.Laplacian(center_crop, cv2.CV_64F).var()
+        
+        # Base sharpness threshold (e.g. 100 is blurry, 400 is sharp)
+        # Normalize to a quality_multiplier between 0.3 and 1.3
+        quality_multiplier = float(np.clip(laplacian_var / 250.0, 0.3, 1.3))
+        image_quality_str = "High Quality (Sharp)" if quality_multiplier > 0.8 else "Low Quality (Blurry/Webcam)"
+
         # =============================================
         # STAGE 2: Neural Network Prediction (15-30%)
         # =============================================
@@ -171,7 +193,7 @@ def run_analysis_pipeline(job_id: str, file_path: str):
         analysis_jobs[job_id]["progress"] = 35
         heatmaps = []
         try:
-            # Preprocess: normalize (no ImageNet mean/std for nikokons custom model)
+            # Preprocess: normalize (no ImageNet mean/std for custom model)
             input_tensor = torch.from_numpy(first_frame_resized).permute(2, 0, 1).unsqueeze(0).float() / 255.0
             
             heatmap_path = os.path.join(frames_dir, "heatmap_0.jpg")
@@ -202,16 +224,17 @@ def run_analysis_pipeline(job_id: str, file_path: str):
                 traceback.print_exc()
                 return fallback_val
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        is_video = len(frame_files) > 1
+        with concurrent.futures.ThreadPoolExecutor(max_workers=11) as executor:
             future_freq = executor.submit(
                 run_with_fallback, analyze_frequency_domain, 
                 {"score": 0.5, "visualizations": []}, 
-                first_frame_rgb, frames_dir, prefix="freq"
+                first_frame_rgb, frames_dir, prefix="freq", quality_multiplier=quality_multiplier
             )
             future_ela = executor.submit(
                 run_with_fallback, analyze_ela, 
                 {"score": 0.5, "visualizations": []}, 
-                first_frame_rgb, frames_dir, prefix="ela"
+                first_frame_rgb, frames_dir, prefix="ela", quality_multiplier=quality_multiplier
             )
             future_face = executor.submit(
                 run_with_fallback, analyze_face_geometry, 
@@ -226,12 +249,52 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             future_noise = executor.submit(
                 run_with_fallback, analyze_sensor_noise,
                 {"noise_score": 0.5},
-                first_frame_rgb, frames_dir, prefix="noise"
+                first_frame_rgb, frames_dir, prefix="noise", quality_multiplier=quality_multiplier
             )
             future_color = executor.submit(
                 run_with_fallback, analyze_chrominance,
                 {"color_anomaly_score": 0.5},
-                first_frame_rgb, frames_dir, prefix="color"
+                first_frame_rgb, frames_dir, prefix="color", quality_multiplier=quality_multiplier
+            )
+            future_metadata = executor.submit(
+                run_with_fallback, analyze_metadata,
+                {"metadata_anomaly_score": 0.5, "warnings": []},
+                file_path
+            )
+            future_rppg = executor.submit(
+                run_with_fallback, extract_rppg_signal,
+                {"rppg_anomaly_score": 0.5, "has_pulse": False},
+                file_path, frames_dir, prefix="rppg"
+            )
+            future_lighting = executor.submit(
+                run_with_fallback, analyze_lighting,
+                {"lighting_anomaly_score": 0.5},
+                first_frame_rgb, frames_dir, prefix="lighting", quality_multiplier=quality_multiplier
+            )
+            future_eye = executor.submit(
+                run_with_fallback, analyze_eye_movements,
+                {"eye_anomaly_score": 0.5, "warnings": []},
+                file_path, frames_dir, prefix="eye"
+            ) if is_video else None
+            future_voice = executor.submit(
+                run_with_fallback, analyze_voice_spoofing,
+                {"voice_anomaly_score": 0.5, "warnings": []},
+                audio_path, frames_dir, prefix="voice"
+            ) if has_audio else None
+            future_flow = executor.submit(
+                run_with_fallback, analyze_optical_flow,
+                {"flow_anomaly_score": 0.5, "warnings": []},
+                file_path, frames_dir, prefix="flow"
+            ) if is_video else None
+            future_cfa = executor.submit(
+                run_with_fallback, analyze_cfa_artifacts,
+                {"cfa_score": 0.5, "warnings": []},
+                frame_files[0], save_dir=frames_dir, face_results=None, quality_multiplier=quality_multiplier
+            )
+            future_corneal = executor.submit(
+                run_with_fallback, analyze_corneal_reflections,
+                {"corneal_score": 0.5, "warnings": []},
+                frame_files[0], save_dir=frames_dir, face_results=None, quality_multiplier=quality_multiplier
             )
 
             freq_results = future_freq.result()
@@ -251,6 +314,15 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             analysis_jobs[job_id]["progress"] = 80
             
             color_results = future_color.result()
+            metadata_results = future_metadata.result()
+            rppg_results = future_rppg.result()
+            lighting_results = future_lighting.result()
+            eye_results = future_eye.result() if future_eye else {"eye_anomaly_score": 0.5}
+            voice_results = future_voice.result() if future_voice else {"voice_anomaly_score": 0.5}
+            flow_results = future_flow.result() if future_flow else {"flow_anomaly_score": 0.5}
+            cfa_results = future_cfa.result()
+            corneal_results = future_corneal.result()
+            
             analysis_jobs[job_id]["progress"] = 82
 
         # =============================================
@@ -266,41 +338,128 @@ def run_analysis_pipeline(job_id: str, file_path: str):
         geometry_anomaly = face_results.get("geometry_anomaly_score", 0.5) if face_results.get("face_detected") else 0.5
         noise_score = noise_results.get("noise_score", 0.5)
         color_score = color_results.get("color_anomaly_score", 0.5)
+        metadata_score = metadata_results.get("metadata_anomaly_score", 0.1)
+        rppg_score = rppg_results.get("rppg_anomaly_score", 0.5)
+        lighting_score = lighting_results.get("lighting_anomaly_score", 0.5)
+        eye_score = eye_results.get("eye_anomaly_score", 0.5)
+        voice_score = voice_results.get("voice_anomaly_score", 0.5)
+        flow_score = flow_results.get("flow_anomaly_score", 0.5)
+        cfa_score = cfa_results.get("cfa_score", 0.5)
+        corneal_score = corneal_results.get("corneal_score", 0.5)
+
+        # Blur Detection using Laplacian Variance
+        first_frame_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+        blur_score = cv2.Laplacian(first_frame_gray, cv2.CV_64F).var()
+        if blur_score < 100:
+            print(f"Blur detected (score: {blur_score:.2f}). Adjusting spectral penalty.")
+            spectral_score = spectral_score * 0.4
+            freq_results["spectral_anomaly_score"] = spectral_score
 
         # =============================================
         # EXPLAINABLE AI HEURISTIC: Grounding the Black Box
         # =============================================
-        # Neural Networks often output False Positives (90%+) on blurry/noisy webcam images
-        # because the compression mimics GAN artifacts. If our explainable physical sensors
-        # (Frequency, Noise, ELA, Color) agree the image is authentic, we suppress the NN score.
-        physical_score = (spectral_score + ela_score + noise_score + color_score) / 4.0
-        if physical_score < 0.45 and nn_score > 0.70:
-            print(f"XAI Intervention: Suppressing NN score ({nn_score:.2f}) due to authentic physical signals ({physical_score:.2f})")
-            # Scale down NN score based on how authentic the physical sensors think it is
-            nn_score = nn_score * (physical_score / 0.55)
-
-        # Dynamic ensemble weights based on audio presence
-        if audio_path:
-            # Video: NN=40%, Freq=10%, ELA=10%, Geo=10%, Noise=10%, Color=10%, Sync=10%
-            ensemble_score = (
-                nn_score * 0.40 +
-                spectral_score * 0.10 +
-                ela_score * 0.10 +
-                geometry_anomaly * 0.10 +
-                noise_score * 0.10 +
-                color_score * 0.10 +
-                (1 - sync_score) * 0.10
-            )
+        # Collect all physical and biological anomaly scores
+        all_physical_scores = [spectral_score, ela_score, noise_score, color_score, lighting_score, geometry_anomaly]
+        
+        if is_video:
+            all_physical_scores.append(rppg_score)
+            all_physical_scores.append(eye_score)
+            all_physical_scores.append(flow_score)
+            if has_audio:
+                all_physical_scores.append(1.0 - sync_score)
+                all_physical_scores.append(voice_score)
         else:
-            # Image: NN=40%, Freq=15%, ELA=15%, Geo=10%, Noise=10%, Color=10%
-            ensemble_score = (
-                nn_score * 0.40 +
-                spectral_score * 0.15 +
-                ela_score * 0.15 +
-                geometry_anomaly * 0.10 +
-                noise_score * 0.10 +
-                color_score * 0.10
-            )
+            all_physical_scores.append(cfa_score)
+            all_physical_scores.append(corneal_score)
+        
+        max_physical_anomaly = max(all_physical_scores)
+        avg_physical_score = sum(all_physical_scores) / len(all_physical_scores)
+        
+        # We intervene whenever the Neural Network predicts "Fake" (>0.50) 
+        # BUT EVERY single physical/biological sensor strongly agrees it is authentic (max < 0.50).
+        # This prevents suppressing the NN on deepfake videos where compression ruins image sensors
+        # but heartbeat/sync still catch the fake!
+        if max_physical_anomaly < 0.50 and nn_score > 0.50:
+            print(f"XAI Intervention: Suppressing NN score ({nn_score:.2f}) due to authentic physical signals (max {max_physical_anomaly:.2f})")
+            # Scale down NN score based on the average of the physical sensors
+            nn_score = nn_score * (avg_physical_score / 0.55)
+
+        # Dynamic ensemble weights based on media type and audio presence
+        
+        # IQA Dynamic Shifting: If image is blurry (quality_multiplier < 0.8), we suppress physical sensors and boost NN/geometry
+        # If image is sharp (quality_multiplier > 1.0), we boost physical sensors
+        phys_weight = 0.10 * quality_multiplier
+        phys_weight_minor = 0.05 * quality_multiplier
+        
+        if is_video and has_audio:
+            weights = {
+                "nn_score": 0.25 + (0.10 * (1.0 - quality_multiplier)), # NN takes the remaining weight
+                "spectral_score": phys_weight,
+                "ela_score": phys_weight,
+                "geometry_anomaly": 0.05 + (0.02 * (1.0 - quality_multiplier)),
+                "noise_score": phys_weight_minor,
+                "color_score": phys_weight_minor,
+                "sync_score": 0.05,
+                "metadata_score": 0.05,
+                "rppg_score": 0.05,
+                "lighting_score": phys_weight_minor,
+                "eye_score": 0.05,
+                "voice_score": 0.05,
+                "flow_score": 0.05
+            }
+        elif is_video and not has_audio:
+            weights = {
+                "nn_score": 0.30 + (0.10 * (1.0 - quality_multiplier)),
+                "spectral_score": phys_weight,
+                "ela_score": phys_weight,
+                "geometry_anomaly": 0.05 + (0.02 * (1.0 - quality_multiplier)),
+                "noise_score": phys_weight_minor,
+                "color_score": phys_weight_minor,
+                "metadata_score": 0.05,
+                "rppg_score": 0.10,
+                "lighting_score": phys_weight * 1.0, # 0.10 base
+                "eye_score": 0.10,
+                "flow_score": 0.10
+            }
+        else:
+            # Static image: no audio sync, no temporal rPPG heartbeat
+            weights = {
+                "nn_score": 0.35 + (0.15 * (1.0 - quality_multiplier)),
+                "spectral_score": phys_weight * 1.5, # 0.15 base
+                "ela_score": phys_weight * 1.5,      # 0.15 base
+                "geometry_anomaly": 0.05 + (0.03 * (1.0 - quality_multiplier)),
+                "noise_score": phys_weight_minor,
+                "color_score": phys_weight_minor,
+                "metadata_score": 0.05,
+                "lighting_score": phys_weight_minor,
+                "cfa_score": 0.10,
+                "corneal_score": 0.10
+            }
+        
+        # Normalize weights to exactly 1.0
+        total_w = sum(weights.values())
+        for k in weights:
+            weights[k] /= total_w
+
+        scores_dict = {
+            "nn_score": nn_score,
+            "spectral_score": spectral_score,
+            "ela_score": ela_score,
+            "geometry_anomaly": geometry_anomaly,
+            "noise_score": noise_score,
+            "color_score": color_score,
+            "sync_score": 1.0 - sync_score if has_audio else 0.0,
+            "metadata_score": metadata_score,
+            "rppg_score": rppg_score,
+            "lighting_score": lighting_score,
+            "eye_score": eye_score if is_video else 0.0,
+            "voice_score": voice_score if has_audio else 0.0,
+            "flow_score": flow_score if is_video else 0.0,
+            "cfa_score": cfa_score if not is_video else 0.0,
+            "corneal_score": corneal_score if not is_video else 0.0
+        }
+        
+        ensemble_score = sum(scores_dict[k] * w for k, w in weights.items())
             
         ensemble_score = float(np.clip(ensemble_score, 0, 1))
 
@@ -319,7 +478,7 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             verdict = "Likely Authentic"
 
         # SHAP-style feature importance (now data-driven)
-        shap_features = generate_shap_features(nn_score, spectral_score, ela_score, geometry_anomaly, noise_score, color_score, sync_score, face_results)
+        shap_features = generate_shap_features(nn_score, spectral_score, ela_score, geometry_anomaly, noise_score, color_score, sync_score, metadata_score, rppg_score, lighting_score, eye_score, voice_score, flow_score, cfa_score, corneal_score, face_results, has_audio, weights, ensemble_score)
         
         analysis_jobs[job_id]["progress"] = 90
 
@@ -340,6 +499,14 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             "noise_score": round(noise_score, 4),
             "color_score": round(color_score, 4),
             "sync_score": sync_score,
+            "metadata_score": round(metadata_score, 4),
+            "rppg_score": round(rppg_score, 4),
+            "lighting_score": round(lighting_score, 4),
+            "eye_score": round(eye_score, 4),
+            "voice_score": round(voice_score, 4),
+            "flow_score": round(flow_score, 4),
+            "cfa_score": round(cfa_score, 4),
+            "corneal_score": round(corneal_score, 4),
             
             # Multi-frame analysis
             "frame_scores": [round(s, 4) for s in all_frame_scores],
@@ -353,16 +520,29 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             "noise_analysis": noise_results,
             "color_analysis": color_results,
             "sync_analysis": sync_results if isinstance(sync_results, dict) else {},
+            "metadata_analysis": metadata_results,
+            "rppg_analysis": rppg_results,
+            "lighting_analysis": lighting_results,
+            "eye_analysis": eye_results,
+            "voice_analysis": voice_results,
+            "flow_analysis": flow_results,
+            "cfa_analysis": cfa_results,
+            "corneal_analysis": corneal_results,
             
             # XAI
             "shap_top_features": shap_features,
             "heatmaps": heatmaps,
+            
+            # Add dynamic weights for frontend to display
+            "weights": weights,
             
             # Metadata
             "file_metadata": {
                 "file_size_bytes": file_size_bytes,
                 "original_resolution": original_resolution,
                 "has_audio": has_audio,
+                "image_quality": image_quality_str,
+                "laplacian_variance": round(laplacian_var, 2)
             }
         }
 
@@ -380,23 +560,49 @@ def run_analysis_pipeline(job_id: str, file_path: str):
         analysis_jobs[job_id]["error"] = str(e)
 
 
-def generate_shap_features(nn_score, spectral_score, ela_score, geometry_score, noise_score, color_score, sync_score, face_results):
+def generate_shap_features(nn_score, spectral_score, ela_score, geometry_score, noise_score, color_score, sync_score, metadata_score, rppg_score, lighting_score, eye_score, voice_score, flow_score, cfa_score, corneal_score, face_results, has_audio, weights, ensemble_score):
     """
     Generate ranked feature importance list based on actual analysis results.
-    This replaces the hardcoded mock SHAP features with data-driven insights.
+    This replaces the hardcoded mock SHAP features with mathematically accurate SHAP contributions.
     """
     features = []
     
-    # Rank features by their contribution to the final score
+    # Calculate exact contribution of each feature to the total score (weight * score)
+    total_contribution = max(ensemble_score, 0.001)  # Prevent division by zero
+    
     signals = [
-        (nn_score, "Neural network pixel-level artifact detection"),
-        (spectral_score, "Frequency domain spectral anomalies (DCT/FFT)"),
-        (ela_score, "JPEG compression inconsistency (Error Level Analysis)"),
-        (geometry_score, "Facial boundary texture mismatch"),
-        (noise_score, "Sensor noise (PRNU) inconsistency"),
-        (color_score, "Chrominance (YCbCr) color space bleeding"),
-        (1 - sync_score, "Audio-video temporal desynchronization"),
+        ((nn_score * weights.get("nn_score", 0)) / total_contribution, "Neural network pixel-level artifact detection"),
+        ((spectral_score * weights.get("spectral_score", 0)) / total_contribution, "Frequency domain spectral anomalies (DCT/FFT)"),
+        ((ela_score * weights.get("ela_score", 0)) / total_contribution, "JPEG compression inconsistency (Error Level Analysis)"),
+        ((geometry_score * weights.get("geometry_anomaly", 0)) / total_contribution, "Facial boundary texture mismatch"),
+        ((noise_score * weights.get("noise_score", 0)) / total_contribution, "Sensor noise (PRNU) inconsistency"),
+        ((color_score * weights.get("color_score", 0)) / total_contribution, "Chrominance (YCbCr) color space bleeding"),
+        ((metadata_score * weights.get("metadata_score", 0)) / total_contribution, "Suspicious file EXIF/metadata footprint"),
+        ((lighting_score * weights.get("lighting_score", 0)) / total_contribution, "Illumination divergence across composited elements"),
     ]
+    
+    if has_audio:
+        signals.append((((1 - sync_score) * weights.get("sync_score", 0)) / total_contribution, "Audio-video temporal desynchronization"))
+        signals.append(((rppg_score * weights.get("rppg_score", 0)) / total_contribution, "Lack of biological heart pulse (rPPG)"))
+        if weights.get("voice_score", 0) > 0:
+            signals.append(((voice_score * weights.get("voice_score", 0)) / total_contribution, "High-frequency vocoder artifact (Audio Spoofing)"))
+    else:
+        # If it's a video but no audio, or static image? 
+        # rppg_score is calculated for video regardless of audio. Wait, let's just check weights.
+        if weights.get("rppg_score", 0) > 0:
+            signals.append(((rppg_score * weights.get("rppg_score", 0)) / total_contribution, "Lack of biological heart pulse (rPPG)"))
+    
+    if weights.get("eye_score", 0) > 0:
+        signals.append(((eye_score * weights.get("eye_score", 0)) / total_contribution, "Unnatural blink rate or gaze asymmetry"))
+        
+    if weights.get("flow_score", 0) > 0:
+        signals.append(((flow_score * weights.get("flow_score", 0)) / total_contribution, "Blocky temporal motion jitter (Optical Flow)"))
+        
+    if weights.get("cfa_score", 0) > 0:
+        signals.append(((cfa_score * weights.get("cfa_score", 0)) / total_contribution, "Missing or disrupted Bayer filter (CFA) pattern"))
+        
+    if weights.get("corneal_score", 0) > 0:
+        signals.append(((corneal_score * weights.get("corneal_score", 0)) / total_contribution, "Physically impossible mismatched corneal light reflections"))
     
     # Add face-specific features if face was detected
     if face_results.get("face_detected"):

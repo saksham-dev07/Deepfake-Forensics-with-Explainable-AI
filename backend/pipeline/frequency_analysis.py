@@ -672,7 +672,7 @@ def compute_phase_spectrum(image_rgb, save_path=None):
 
 
 
-def analyze_frequency_domain(image_rgb, output_dir, prefix="freq"):
+def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multiplier=1.0):
     """
     Run full frequency domain analysis on an image.
     Returns a dict with all computed metrics and paths to saved visualizations.
@@ -694,20 +694,24 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq"):
     radial_profile = azimuthal_average(image_rgb)
 
     # =========================================
-    # IMPROVED: Continuous spectral anomaly scoring
+    # IMPROVED: Continuous spectral anomaly scoring (Calibrated via IQA)
     # =========================================
-    if hf_ratio >= 0.01:
+    t1 = 0.001 * quality_multiplier
+    t2 = 0.0002 * quality_multiplier
+    t3 = 0.00005 * quality_multiplier
+    
+    if hf_ratio >= t1:
         spectral_anomaly = 0.10
-    elif hf_ratio >= 0.002:
-        # Linear interpolation: 0.01 -> 0.10, 0.002 -> 0.25
-        t = (0.01 - hf_ratio) / (0.008)
+    elif hf_ratio >= t2:
+        # Linear interpolation
+        t = (t1 - hf_ratio) / (t1 - t2)
         spectral_anomaly = 0.10 + t * 0.15
-    elif hf_ratio >= 0.0001:
-        # Linear interpolation: 0.002 -> 0.25, 0.0001 -> 0.55
-        t = (0.002 - hf_ratio) / (0.0019)
+    elif hf_ratio >= t3:
+        # Linear interpolation
+        t = (t2 - hf_ratio) / (t2 - t3)
         spectral_anomaly = 0.25 + t * 0.30
     else:
-        # Extremely low — < 0.0001
+        # Extremely low
         spectral_anomaly = 0.75
 
     # Additional signal: azimuthal 1/f deviation
@@ -727,17 +731,20 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq"):
     # NEW: Per-channel spectral consistency
     # =========================================
     channel_ratios, channel_variance = compute_per_channel_hf_ratio(image_rgb)
-    # High cross-channel variance is a strong GAN fingerprint
-    if channel_variance > 0.02:
+    # High cross-channel variance is a strong GAN fingerprint. Calibrated via IQA.
+    t_cv1 = 0.02 * (1.0 / quality_multiplier)
+    t_cv2 = 0.01 * (1.0 / quality_multiplier)
+    if channel_variance > t_cv1:
         spectral_anomaly = min(spectral_anomaly + 0.20, 0.95)
-    elif channel_variance > 0.01:
+    elif channel_variance > t_cv2:
         spectral_anomaly = min(spectral_anomaly + 0.10, 0.90)
 
     # =========================================
     # PCA spectral decomposition
     pca_path, pc3_var_ratio = pca_spectral_decomposition(image_rgb, output_dir, prefix)
     # If PC3 carries unusually high variance, hidden artifacts exist
-    if pc3_var_ratio > 0.05:
+    t_pc3 = 0.05 * (1.0 / quality_multiplier)
+    if pc3_var_ratio > t_pc3:
         spectral_anomaly = min(spectral_anomaly + 0.10, 0.95)
 
     # =========================================
@@ -767,7 +774,7 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq"):
     cepstrum_var = float(np.var(cepstrum_data))
     dwt_var = float(np.var(hh_data))
 
-    if dwt_var < 5.0:
+    if dwt_var < 0.5:
         spectral_anomaly = min(spectral_anomaly + 0.15, 0.95)
     
     if cepstrum_var > 0.05:
@@ -778,12 +785,12 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq"):
     # Calculate explicit individual verdicts and reasons for the UI
     verdicts = {
         "fft": {
-            "status": "Pass" if hf_ratio > 0.002 else "Fail",
-            "reason": f"High-Freq ratio {hf_ratio:.4f} > 0.002" if hf_ratio > 0.002 else f"Synthetic lack of high-frequencies ({hf_ratio:.4f})"
+            "status": "Pass" if hf_ratio > 0.0001 else "Fail",
+            "reason": f"High-Freq ratio {hf_ratio:.5f} > 0.0001" if hf_ratio > 0.0001 else f"Synthetic lack of high-frequencies ({hf_ratio:.5f})"
         },
         "dct": {
-            "status": "Pass" if dct_hf_ratio > 0.001 else "Fail",
-            "reason": f"DCT HF energy ratio {dct_hf_ratio:.5f} > 0.001" if dct_hf_ratio > 0.001 else f"Smoothed DCT spectrum ({dct_hf_ratio:.5f})"
+            "status": "Pass" if dct_hf_ratio > 0.00001 else "Fail",
+            "reason": f"DCT HF energy ratio {dct_hf_ratio:.6f} > 0.00001" if dct_hf_ratio > 0.00001 else f"Smoothed DCT spectrum ({dct_hf_ratio:.6f})"
         },
         "block_dct": {
             "status": "Pass" if block_variance < 1000.0 else "Fail" if block_variance > 5000.0 else "Warning",
@@ -810,8 +817,8 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq"):
             "reason": f"No structural echoes ({cepstrum_var:.4f})" if cepstrum_var < 0.03 else f"Resampling echoes detected ({cepstrum_var:.4f})"
         },
         "dwt": {
-            "status": "Pass" if dwt_var > 10.0 else "Fail" if dwt_var < 5.0 else "Warning",
-            "reason": f"Natural diagonal noise ({dwt_var:.2f})" if dwt_var > 10.0 else f"Synthetic lack of diagonal detail ({dwt_var:.2f})"
+            "status": "Pass" if dwt_var > 1.0 else "Fail" if dwt_var < 0.5 else "Warning",
+            "reason": f"Natural diagonal noise ({dwt_var:.2f})" if dwt_var > 1.0 else f"Synthetic lack of diagonal detail ({dwt_var:.2f})"
         }
     }
 

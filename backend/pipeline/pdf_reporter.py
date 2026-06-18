@@ -142,6 +142,22 @@ def generate_pdf_report(result_data: dict, output_path: str):
     pdf.draw_table_row("Chrominance Color Space Anomaly", f"{result_data.get('color_score', 0) * 100:.2f}%", None, True)
     if 'sync_score' in result_data:
         pdf.draw_table_row("Audio-Visual Desynchronization", f"{result_data.get('sync_score', 0) * 100:.2f}%", pdf.gray_bg, True)
+    if 'eye_score' in result_data and result_data['eye_score'] > 0:
+        pdf.draw_table_row("Eye & Gaze Anomaly", f"{result_data.get('eye_score', 0) * 100:.2f}%", None, True)
+    if 'voice_score' in result_data and result_data['voice_score'] > 0:
+        pdf.draw_table_row("Voice Spoofing Analysis", f"{result_data.get('voice_score', 0) * 100:.2f}%", pdf.gray_bg, True)
+    if 'flow_score' in result_data and result_data['flow_score'] > 0:
+        pdf.draw_table_row("Temporal Optical Flow Jitter", f"{result_data.get('flow_score', 0) * 100:.2f}%", None, True)
+    if 'metadata_score' in result_data:
+        pdf.draw_table_row("Metadata & EXIF Integrity", f"{result_data.get('metadata_score', 0) * 100:.2f}%", pdf.gray_bg, True)
+    if 'lighting_score' in result_data and result_data['lighting_score'] > 0:
+        pdf.draw_table_row("3D Lighting Consistency", f"{result_data.get('lighting_score', 0) * 100:.2f}%", None, True)
+    if 'cfa_score' in result_data and result_data['cfa_score'] > 0:
+        pdf.draw_table_row("CFA Artifacts Analysis", f"{result_data.get('cfa_score', 0) * 100:.2f}%", pdf.gray_bg, True)
+    if 'corneal_score' in result_data and result_data['corneal_score'] > 0:
+        pdf.draw_table_row("Corneal Reflection Consistency", f"{result_data.get('corneal_score', 0) * 100:.2f}%", None, True)
+    if 'rppg_score' in result_data and result_data['rppg_score'] > 0:
+        pdf.draw_table_row("Remote Photoplethysmography (rPPG)", f"{result_data.get('rppg_score', 0) * 100:.2f}%", pdf.gray_bg, True)
     
     pdf.set_font("Arial", 'B', 12)
     pdf.set_fill_color(230, 230, 230)
@@ -200,6 +216,32 @@ def generate_pdf_report(result_data: dict, output_path: str):
     else:
         pdf.set_font("Arial", 'I', 10)
         pdf.cell(0, 8, "No face detected in the analyzed frame.", 0, 1)
+
+    eye = result_data.get('eye_analysis', {})
+    if eye:
+        pdf.ln(5)
+        pdf.draw_table_row("Eye & Gaze Anomaly Score", f"{eye.get('eye_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+        if 'blink_rate_per_min' in eye:
+            pdf.draw_table_row("Blink Rate (BPM)", f"{eye.get('blink_rate_per_min', 0):.1f}")
+        if 'gaze_asymmetry' in eye:
+            pdf.draw_table_row("Gaze Asymmetry", f"{eye.get('gaze_asymmetry', 0):.3f}", pdf.gray_bg)
+        if eye.get('warnings'):
+            pdf.ln(2)
+            pdf.set_font("Arial", 'I', 9)
+            pdf.multi_cell(0, 5, "Warnings: " + sanitize_text("; ".join(eye.get('warnings'))))
+    
+    flow = result_data.get('flow_analysis', {})
+    if flow:
+        pdf.ln(5)
+        pdf.set_font("Arial", 'B', 11)
+        pdf.cell(0, 8, "Temporal Consistency (Optical Flow)", 0, 1)
+        pdf.draw_table_row("Optical Flow Jitter Score", f"{flow.get('flow_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+        if 'mean_motion_variance' in flow:
+            pdf.draw_table_row("Mean Motion Variance", f"{flow.get('mean_motion_variance', 0):.3f}")
+        if flow.get('warnings'):
+            pdf.ln(2)
+            pdf.set_font("Arial", 'I', 9)
+            pdf.multi_cell(0, 5, "Warnings: " + sanitize_text("; ".join(flow.get('warnings'))))
     
     # --- NOISE & COLOR ---
     pdf.chapter_title("4", "SENSOR NOISE & COLOR SPACE")
@@ -220,22 +262,70 @@ def generate_pdf_report(result_data: dict, output_path: str):
         if 'a_variance' in color:
             pdf.draw_table_row("LAB a* Channel Variance", f"{color.get('a_variance', 0):.2f}", pdf.gray_bg)
 
-    # --- AUDIO SYNC ---
+    # --- ADVANCED PHYSICS (LIGHTING, CFA, CORNEAL) ---
+    lighting = result_data.get('lighting_analysis', {})
+    cfa = result_data.get('cfa_analysis', {})
+    corneal = result_data.get('corneal_analysis', {})
+    
+    if lighting or cfa or corneal:
+        pdf.chapter_title("5", "PHYSICAL OPTICS & SENSOR ARTIFACTS")
+        if lighting:
+            pdf.draw_table_row("Lighting Anomaly Score", f"{lighting.get('lighting_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+        if cfa:
+            pdf.draw_table_row("CFA Anomaly Score", f"{cfa.get('cfa_score', 0) * 100:.1f}%")
+        if corneal:
+            pdf.draw_table_row("Corneal Reflection Anomaly", f"{corneal.get('corneal_score', 0) * 100:.1f}%", pdf.gray_bg)
+        pdf.ln(5)
+
+    # --- AUDIO SYNC & PHYSIOLOGY ---
     sync = result_data.get('sync_analysis', {})
-    if sync:
-        pdf.chapter_title("5", "AUDIO-VISUAL SYNCHRONIZATION")
-        pdf.draw_table_row("Pearson Correlation", f"{sync.get('correlation', 'N/A')}", pdf.gray_bg)
-        if 'lse_c' in sync:
-            pdf.draw_table_row("LSE-C (Expert Confidence)", f"{sync.get('lse_c'):.2f}")
-        if 'lse_d' in sync:
-            pdf.draw_table_row("LSE-D (Expert Distance)", f"{sync.get('lse_d'):.2f}", pdf.gray_bg)
-        pdf.ln(2)
-        pdf.set_font("Arial", 'I', 9)
-        pdf.multi_cell(0, 5, "Analysis: Mathematical correlation between visual Mouth Aspect Ratio (MAR) and Audio MFCC (Phonetic Shape). Low confidence indicates phonetic dubbing or LipSync AI.")
+    voice = result_data.get('voice_analysis', {})
+    rppg = result_data.get('rppg_analysis', {})
+    if sync or voice or rppg:
+        pdf.chapter_title("6", "AUDIO FORENSICS & PHYSIOLOGY")
+        if sync:
+            pdf.draw_table_row("Pearson Correlation", f"{sync.get('correlation', 'N/A')}", pdf.gray_bg)
+            if 'lse_c' in sync:
+                pdf.draw_table_row("LSE-C (Expert Confidence)", f"{sync.get('lse_c'):.2f}")
+            if 'lse_d' in sync:
+                pdf.draw_table_row("LSE-D (Expert Distance)", f"{sync.get('lse_d'):.2f}", pdf.gray_bg)
+            pdf.ln(2)
+            pdf.set_font("Arial", 'I', 9)
+            pdf.multi_cell(0, 5, "Sync Analysis: Mathematical correlation between visual Mouth Aspect Ratio (MAR) and Audio MFCC. Low confidence indicates phonetic dubbing.")
+        
+        if voice:
+            pdf.ln(5)
+            pdf.draw_table_row("Voice Spoofing Score", f"{voice.get('voice_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+            if 'high_freq_ratio' in voice:
+                pdf.draw_table_row("High Freq Ratio", f"{voice.get('high_freq_ratio', 0):.4f}")
+            if 'zcr_variance' in voice:
+                pdf.draw_table_row("Zero-Crossing Variance", f"{voice.get('zcr_variance', 0):.5f}", pdf.gray_bg)
+            if voice.get('warnings'):
+                pdf.ln(2)
+                pdf.set_font("Arial", 'I', 9)
+                pdf.multi_cell(0, 5, "Voice Warnings: " + sanitize_text("; ".join(voice.get('warnings'))))
+                
+        if rppg:
+            pdf.ln(5)
+            pdf.draw_table_row("rPPG Heart Rate Anomaly", f"{rppg.get('rppg_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+            if 'snr' in rppg:
+                pdf.draw_table_row("Signal-to-Noise Ratio (SNR)", f"{rppg.get('snr', 0):.2f} dB")
+            if 'bpm' in rppg:
+                pdf.draw_table_row("Estimated BPM", f"{rppg.get('bpm', 0):.1f}", pdf.gray_bg)
+
+    # --- METADATA ---
+    metadata = result_data.get('metadata_analysis', {})
+    if metadata:
+        pdf.chapter_title("7", "METADATA & EXIF INTEGRITY")
+        pdf.draw_table_row("Metadata Anomaly Score", f"{metadata.get('metadata_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+        if 'missing_tags' in metadata and len(metadata['missing_tags']) > 0:
+            pdf.draw_table_row("Missing Standard Tags", f"{len(metadata['missing_tags'])}")
+        if 'software_signature' in metadata:
+            pdf.draw_table_row("Software Signature", f"{metadata['software_signature'][:30]}", pdf.gray_bg)
 
     # --- VISUAL EVIDENCE ---
     pdf.add_page()
-    pdf.chapter_title("6", "VISUAL EVIDENCE GALLERY")
+    pdf.chapter_title("8", "VISUAL EVIDENCE GALLERY")
     pdf.ln(2)
 
     exhibit_counter = 1
@@ -335,9 +425,41 @@ def generate_pdf_report(result_data: dict, output_path: str):
     if color.get('a_map_path'):
         embed_image("LAB (a*) Channel Map", color.get('a_map_path'))
 
-    # Group 5: Sync
+    # Group 5: Temporal & Audio
     if sync.get('sync_plot_path'):
         embed_image("Audio-Visual Synchronization (MFCC vs MAR)", sync.get('sync_plot_path'))
+    
+    eye = result_data.get('eye_analysis', {})
+    if eye.get('eye_plot_path'):
+        embed_image("Eye Aspect Ratio (EAR) Tracker", eye.get('eye_plot_path'))
+        
+    voice = result_data.get('voice_analysis', {})
+    if voice.get('voice_plot_path'):
+        embed_image("Mel-Frequency Spectrogram (Voice Spoofing)", voice.get('voice_plot_path'))
+        
+    flow = result_data.get('flow_analysis', {})
+    if flow.get('flow_plot_path'):
+        embed_image("Temporal Motion Variance", flow.get('flow_plot_path'))
+    if flow.get('flow_field_path'):
+        embed_image("Optical Flow HSV Field", flow.get('flow_field_path'))
+        
+    lighting = result_data.get('lighting_analysis', {})
+    if lighting.get('lighting_map_path'):
+        embed_image("3D Lighting Consistency Map", lighting.get('lighting_map_path'))
+        
+    cfa = result_data.get('cfa_analysis', {})
+    if cfa.get('cfa_map_path'):
+        embed_image("CFA Artifacts Map", cfa.get('cfa_map_path'))
+        
+    corneal = result_data.get('corneal_analysis', {})
+    if corneal.get('corneal_map_path'):
+        embed_image("Corneal Reflection Overlay", corneal.get('corneal_map_path'))
+        
+    rppg = result_data.get('rppg_analysis', {})
+    if rppg.get('rppg_plot_path'):
+        embed_image("rPPG Heartbeat Waveform", rppg.get('rppg_plot_path'))
+    if rppg.get('rppg_map_path'):
+        embed_image("rPPG Face ROI Heatmap", rppg.get('rppg_map_path'))
 
     # --- DISCLAIMER ---
     if pdf.get_y() > 250:

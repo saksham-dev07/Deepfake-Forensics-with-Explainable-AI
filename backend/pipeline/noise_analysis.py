@@ -42,7 +42,7 @@ def extract_srm_noise(image_rgb):
     
     return srm_noise
 
-def analyze_sensor_noise(image_rgb, output_dir, prefix="noise"):
+def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multiplier=1.0):
     """
     Analyzes the sensor noise (PRNU consistency) of the image.
     Deepfakes often exhibit unnatural smoothness or mismatched noise prints
@@ -82,17 +82,21 @@ def analyze_sensor_noise(image_rgb, output_dir, prefix="noise"):
     
     # Score calculation (heuristic)
     # NLM PRNU variance is much cleaner.
-    if variance >= 2.0 and variance <= 15.0:
+    # Calibrate thresholds via IQA:
+    t_min = 2.0 * quality_multiplier
+    t_low = 1.0 * quality_multiplier
+    t_max = 15.0 * quality_multiplier
+
+    if variance >= t_min and variance <= t_max:
         noise_score = 0.10 # Normal PRNU camera noise range
-    elif variance > 1.0 and variance < 2.0:
-        # Linear interpolation: 2.0 -> 0.10, 1.0 -> 0.45
-        t = (2.0 - variance) / 1.0
+    elif variance > t_low and variance < t_min:
+        # Linear interpolation
+        t = (t_min - variance) / (t_min - t_low)
         noise_score = 0.10 + t * 0.35
-    elif variance <= 1.0:
-        # 1.0 -> 0.45, 0.0 -> 0.85
-        t = (1.0 - variance) / 1.0
+    elif variance <= t_low:
+        t = (t_low - variance) / t_low
         noise_score = 0.45 + t * 0.40
-    elif variance > 15.0:
+    elif variance > t_max:
         noise_score = 0.60 # Artificially injected noise
         
     return {

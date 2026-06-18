@@ -4,7 +4,7 @@ import torch.nn as nn
 import huggingface_hub
 import os
 
-# Exact architecture for the nikokons model
+# Base architecture for the custom EfficientNet-B4 model
 class ContrastiveFeatureExtractor(nn.Module):
     def __init__(self):
         super().__init__()
@@ -27,7 +27,7 @@ class DeepfakeDetector:
     def __init__(self):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        print("Loading nikokons/contrastive-deepfake-detector custom architecture...")
+        print("Loading custom EfficientNet-B4 deepfake detector architecture...")
         try:
             self.model = ContrastiveFeatureExtractor()
             
@@ -43,16 +43,7 @@ class DeepfakeDetector:
                     self.model.load_state_dict(ckpt, strict=False)
                 print("Finetuned model loaded successfully!")
             else:
-                # Download the tar checkpoint from HuggingFace
-                print("Loading nikokons/contrastive-deepfake-detector custom architecture...")
-                path = huggingface_hub.hf_hub_download('nikokons/contrastive-deepfake-detector', '79_0.9980_val.tar')
-                
-                # Load the state dict
-                ckpt = torch.load(path, map_location='cpu', weights_only=False)
-                
-                # The actual weights are stored under 'model' in the dict
-                self.model.load_state_dict(ckpt['model'], strict=False)
-                print("nikokons custom model loaded successfully!")
+                raise FileNotFoundError("Could not find finetuned_model.pth in the weights folder. Please train and download your model.")
 
             self.model.eval()
             self.model.to(self.device)

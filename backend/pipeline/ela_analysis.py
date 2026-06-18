@@ -194,7 +194,7 @@ def compute_hsv_ela(image_rgb, quality=90, save_path=None):
         cv2.imwrite(save_path, hsv_colored)
         
     return hsv_colored, s_variance
-def analyze_ela(image_rgb, output_dir, prefix="ela"):
+def analyze_ela(image_rgb, output_dir, prefix="ela", quality_multiplier=1.0):
     """
     Run full ELA analysis on an image.
     Returns a dict with metrics and visualization paths.
@@ -236,10 +236,10 @@ def analyze_ela(image_rgb, output_dir, prefix="ela"):
     smooth_mean = float(np.mean(ela_in_smooth[smooth_mask > 0])) if np.any(smooth_mask > 0) else 0.0
     smooth_max = float(np.max(ela_in_smooth)) if np.any(smooth_mask > 0) else 0.0
     
-    edge_anomaly_score = min(1.0, smooth_mean / 15.0) # Heuristic scaling
+    edge_anomaly_score = min(1.0, smooth_mean / (15.0 * quality_multiplier)) # Heuristic scaling
     
     # Final ensemble ELA score
-    final_ela_score = (base_ela_score * 0.4) + (edge_anomaly_score * 0.3) + (min(1.0, ghost_var/30.0) * 0.2) + (min(1.0, hsv_var/40.0) * 0.1)
+    final_ela_score = (base_ela_score * 0.4) + (edge_anomaly_score * 0.3) + (min(1.0, ghost_var/(30.0 * quality_multiplier)) * 0.2) + (min(1.0, hsv_var/(40.0 * quality_multiplier)) * 0.1)
     
     # Interpret the score
     if final_ela_score > 0.6:

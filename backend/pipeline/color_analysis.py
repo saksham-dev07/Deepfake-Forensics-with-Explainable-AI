@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import os
 
-def analyze_chrominance(image_rgb, output_dir, prefix="color"):
+def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplier=1.0):
     """
     Analyzes the image across multiple color spaces: YCbCr, HSV, and LAB.
     Deepfake generative models often struggle to properly reproduce 
@@ -57,10 +57,14 @@ def analyze_chrominance(image_rgb, output_dir, prefix="color"):
     # Deepfakes often have highly suppressed variance (flat skin tones).
     # Normal camera captures varied skin tones in S (saturation) and a* (redness/blood).
     anomaly_factors = 0
-    if cb_var < 10.0: anomaly_factors += 1
-    if cr_var < 10.0: anomaly_factors += 1
-    if s_var < 15.0: anomaly_factors += 1
-    if a_var < 5.0: anomaly_factors += 1 # a* channel is usually highly textured in real skin
+    t_cbcr = 10.0 * quality_multiplier
+    t_s = 15.0 * quality_multiplier
+    t_a = 5.0 * quality_multiplier
+    
+    if cb_var < t_cbcr: anomaly_factors += 1
+    if cr_var < t_cbcr: anomaly_factors += 1
+    if s_var < t_s: anomaly_factors += 1
+    if a_var < t_a: anomaly_factors += 1 # a* channel is usually highly textured in real skin
     
     if anomaly_factors >= 3:
         color_score = 0.85 # Highly suspicious (flat colors across multiple spaces)
