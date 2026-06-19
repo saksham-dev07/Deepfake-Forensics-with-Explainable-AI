@@ -1,4 +1,4 @@
-# 🕵️‍♂️ Deepfake Forensics & Explainable AI (XAI) Engine
+# Deepfake Forensics & Explainable AI (XAI) Engine
 
 <div align="center">
   <p><strong>An Enterprise-Grade, Multi-Modal Ensemble System for Detecting AI-Generated Media, Digital Manipulation, and Deepfakes.</strong></p>
@@ -13,7 +13,7 @@
 
 ---
 
-## 📖 Executive Summary
+## Executive Summary
 
 As generative AI models (GANs, Diffusion Models, and sophisticated deepfake pipelines like Wav2Lip and Roop) approach total photorealism, human visual inspection is no longer a mathematically reliable metric for media authenticity. 
 
@@ -21,7 +21,7 @@ The **Deepfake Forensics Platform** operates as a state-of-the-art digital foren
 
 ---
 
-## 🔬 Datasets & Model Training Methodology
+## Datasets & Model Training Methodology
 
 This platform relies on a combination of foundational academic weights and custom-trained models tuned specifically for robust deepfake detection. 
 
@@ -43,67 +43,67 @@ This platform relies on a combination of foundational academic weights and custo
 
 ---
 
-## 🎯 15-Dimensional Detection Architecture
+## 15-Dimensional Detection Architecture
 
 The platform executes a massive parallel processing pipeline, routing visual and auditory streams through rigorous forensic methodologies that feed into the final Meta-Classifier Ensemble.
 
-### 1. 🧠 Neural Network Attention (EfficientNet-B4 + XAI)
+### 1. Neural Network Attention (EfficientNet-B4 + XAI)
 * **Grad-CAM Heatmaps:** Reverse-engineers the network's spatial attention to generate heatmaps, isolating the exact pixels (e.g., blending boundaries, unnatural eye-reflections) that triggered the synthetic classification.
 * **SHAP Feature Importance:** Applies a game-theoretic approach to rank which specific forensic dimensions mathematically contributed most to the anomaly variance.
 
-### 2. 〰️ Spectral & Frequency Analysis
+### 2. Spectral & Frequency Analysis
 Generative AI inherently struggles to perfectly reconstruct the high-frequency macroscopic details inherent to physical camera sensors.
 * **FFT & 2D DCT Spectrum:** Maps two-dimensional frequency coefficients to detect synthetic frequency-domain smoothing.
 * **PCA (Principal Component Analysis):** Extracts the 3rd Principal Component (PC3) to reveal hidden periodic GAN artifacts.
 * **Switching Noise (SWN):** Isolates high-frequency noise by finding zero-crossings in mathematical gradients, illuminating deepfake splicing seams.
 
-### 3. 📐 Biological Face Geometry & Temporal Consistency
+### 3. Biological Face Geometry & Temporal Consistency
 Maps 468 3D facial landmarks utilizing **MediaPipe Face Mesh** to evaluate biological impossibility.
 * **Temporal Geometric Jitter:** Detects micro-stutters and physically impossible inter-frame vertex shifts, which are common in temporal GAN generation.
 * **Proportional Asymmetry:** Analyzes structural interocular proportions against the facial Golden Ratio using normalized Euclidian distance equations.
 
-### 4. 👁️ Eye Movement & Dynamic Blink Analysis
+### 4. Eye Movement & Dynamic Blink Analysis
 * **EAR (Eye Aspect Ratio):** Computes EAR continuously over time to detect unnaturally low blink rates or extreme glitching.
 * **Dynamic Median Thresholding:** Unlike hard-coded systems, this pipeline uses dynamic median-based thresholding (80% of resting state) to calculate accurate blink sequences irrespective of diverse human facial structures or camera angles.
 * **Gaze Asymmetry:** Detects "lazy eye" artifacts characteristic of poorly rendered generative faces.
 
-### 5. 📸 Physical Optics & Sensor Artifacts (CFA & Corneal)
+### 5. Physical Optics & Sensor Artifacts (CFA & Corneal)
 Generative models struggle to accurately simulate physical optics and camera sensor hardware properties.
 * **Corneal Specular Highlights:** Maps the reflection of light sources on the eyes. Computes Intersection-over-Union (IoU) and Structural Similarity (SSIM) between the left and right eye reflections. AI models frequently render impossible, mismatched 3D reflections.
 * **Color Filter Array (CFA) Artifacts:** Analyzes the Bayer filter interpolation. Genuine digital photos possess distinct periodic demosaicing patterns that AI generators overwrite or fail to produce.
 
-### 6. 🗣️ Native 3D-CNN Audio-Visual Desynchronization (SyncNet)
+### 6. Native 3D-CNN Audio-Visual Desynchronization (SyncNet)
 Armed with the official architecture from **Wav2Lip/SyncNet**, the system catches synthetic "lip-sync" deepfakes by extracting raw audio embeddings and visual lip movements.
 * **Deep Embedding L2 Distance:** Extracts 13 MFCC features from the audio and isolated `224x224` visual mouth crops across 5 consecutive frames. Both are passed through independent 3D-CNN encoders.
 * **LSE-D & LSE-C:** Mathematically computes the absolute Lip Sync Error Distance (LSE-D). Authentic videos score below `8.0`, while Lip-Sync AI fails to maintain this perfect synchronization, causing the distance to radically diverge.
 
-### 7. 🎙️ Acoustic Anti-Spoofing (Voice Liveness)
+### 7. Acoustic Anti-Spoofing (Voice Liveness)
 Analyzes an audio track for synthetic artifacts common in AI voice clones (e.g. ElevenLabs, VITS) by evaluating Mel-Frequency Spectrograms.
 * **Pre-Processing Pipelines:** Handles real-world audio corruption via *Cubic Spline De-Clipping* and *Spectral Gating Denoising* prior to inference.
 * **Spectral Rolloff & High-Frequency Ratios:** Measures the unnatural high-frequency energy decay often left by generative vocoders.
 
-### 8. ❤️ Physiological Forensics (rPPG)
+### 8. Physiological Forensics (rPPG)
 Deepfakes frequently fail to synthesize the microscopic, heartbeat-induced color changes in human skin.
 * **Remote Photoplethysmography (rPPG):** Extracts subtle volumetric blood flow signals from facial regions of interest using spatial pooling. Applies Fast Fourier Transforms (FFT) to detect if a physiological pulse exists. Generates an anomaly score based on the physiological impossibility of the detected BPM.
 
-### 9. 🎞️ Error Level Analysis (ELA)
+### 9. Error Level Analysis (ELA)
 Detects heterogeneous compression signatures. When a fake face is spliced onto a real body, the manipulated region possesses a different JPEG compression quality than the original background. Re-saves the image at 95% quality and calculates the absolute pixel-wise difference.
 
-### 10. 🌊 Temporal Optical Flow & Jitter Analysis
+### 10. Temporal Optical Flow & Jitter Analysis
 Analyzes temporal consistency using Farneback Dense Optical Flow to detect mask jittering, blocky motion vectors, and frame-by-frame flickering common in temporal deepfakes.
 
-### 11. 🔍 Sensor Noise (PRNU/SRM)
+### 11. Sensor Noise (PRNU/SRM)
 * **Spatial Rich Model (SRM):** Applies high-pass linear filtering to strip away primary image content, isolating the raw noise map. AI-generated face swaps violently disrupt this continuous noise matrix.
 
-### 12. 🎨 Chrominance Color Space Mapping
+### 12. Chrominance Color Space Mapping
 Identifies mathematical anomalies in the **YCbCr** (Chrominance separation) and **LAB** (a* channel) spaces, as GANs frequently produce statistical aberrations in human-vision color spaces that are invisible in RGB.
 
-### 13. 🔐 Cryptographic Metadata Integrity (EXIF)
+### 13. Cryptographic Metadata Integrity (EXIF)
 Analyzes file headers to detect stripped EXIF data or specific cryptographic signatures left behind by generative manipulation software.
 
 ---
 
-## 🏛 Court-Ready PDF Reporting
+## Court-Ready PDF Reporting
 All automated analyses are compiled into a comprehensive, multi-page PDF report. The document is strictly formatted to provide an interpretable chain-of-evidence:
 1. **Executive Verdict:** The overall ensemble confidence score and binary classification.
 2. **Detailed Module Breakdown:** Isolated confidence metrics across all analytical engines.
@@ -114,7 +114,7 @@ All automated analyses are compiled into a comprehensive, multi-page PDF report.
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 * Python 3.10+
@@ -147,7 +147,7 @@ npm run dev
 
 ---
 
-## 🏗 System Architecture
+## System Architecture
 
 ```mermaid
 graph TD
@@ -188,7 +188,7 @@ graph TD
 
 ---
 
-## 📚 Academic References & Citations
+## Academic References & Citations
 * **EfficientNet:** Tan, M., & Le, Q. (2019). *EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks*. ICML. ([Link](https://arxiv.org/abs/1905.11946))
 * **Grad-CAM:** Selvaraju, R. R., et al. (2017). *Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization*. ICCV. ([Link](https://arxiv.org/abs/1610.02391))
 * **SyncNet / Lip-Sync Analysis:** Chung, J. S., & Zisserman, A. (2016). *Out of time: automated lip sync in the wild*. ACCV. ([Link](https://arxiv.org/abs/1607.05046))
@@ -206,7 +206,7 @@ graph TD
 
 ---
 
-## ⚖️ License & Ethical Use
+## License & Ethical Use
 This software is strictly provided for research, digital forensics, and investigative journalism purposes. Any malicious use, or utilizing these analytical pipelines to reverse-engineer and train adversary deepfake generators, is fundamentally prohibited.
 
 **Deepfake Forensics Platform © 2026**
