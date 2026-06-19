@@ -22,5 +22,5 @@ frontend/dist/
 backend/uploads/
 backend/test_out/
 backend/reports/
-backend/weights/
+
 *.log
