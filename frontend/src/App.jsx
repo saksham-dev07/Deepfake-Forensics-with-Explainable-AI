@@ -7,14 +7,15 @@ import {
 
 const PIPELINE_STEPS = [
   { label: 'Extracting video frames & audio track', threshold: 5 },
-  { label: 'Running EfficientNet-B4 multi-frame classifier', threshold: 15 },
+  { label: 'Acoustic Pre-Processing (De-Clipping & Denoising)', threshold: 10 },
+  { label: 'Running EfficientNet-B4 visual classifier', threshold: 20 },
   { label: 'Generating GradCAM visual explanations', threshold: 30 },
   { label: 'Frequency domain analysis (DCT + FFT)', threshold: 40 },
   { label: 'Error Level Analysis (JPEG compression)', threshold: 50 },
   { label: 'Biological sensors (Eye Gaze & Heartbeat)', threshold: 60 },
   { label: 'Temporal consistency (Optical Flow & Jitter)', threshold: 68 },
-  { label: 'Audio forensics (Spoofing & SyncNet)', threshold: 75 },
-  { label: 'Computing weighted ensemble score', threshold: 85 },
+  { label: 'Audio forensics (PyTorch CNN & SyncNet)', threshold: 75 },
+  { label: 'Running PyTorch AI Meta-Classifier', threshold: 85 },
   { label: 'Compiling court-grade forensic PDF', threshold: 90 },
 ];
 
@@ -79,10 +80,10 @@ function App() {
           setProgress(100);
           setStatus('complete');
           setResult(data.result);
-        } else if (data.status === 'failed') {
+        } else if (data.status === 'failed' || !data.status) {
           clearInterval(interval);
           setStatus('idle');
-          alert('Analysis failed: ' + (data.error || 'Unknown error'));
+          alert('Analysis failed: ' + (data.error || data.message || 'Job not found or unknown error'));
         }
       } catch (error) {
         console.error('Status poll error', error);
@@ -170,10 +171,10 @@ function App() {
                   <div className="stats-grid">
                     <div className="stat-card">
                       <div className="stat-card-header">
-                        <BrainCircuit size={16} className="stat-card-icon" /> Base Model
+                        <BrainCircuit size={16} className="stat-card-icon" /> Core Engine
                       </div>
-                      <div className="stat-card-value">EfficientNet-B4</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Contrastive SBI Trained</div>
+                      <div className="stat-card-value">PyTorch Meta-Classifier</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>15-Feature ML Ensemble</div>
                     </div>
                     <div className="stat-card">
                       <div className="stat-card-header">
@@ -207,8 +208,8 @@ function App() {
                       <div className="stat-card-header">
                         <Volume2 size={16} className="stat-card-icon" style={{ color: 'var(--secondary)' }} /> Audio-Visual
                       </div>
-                      <div className="stat-card-value">SyncNet</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Lip-sync Desynchronization</div>
+                      <div className="stat-card-value">PyTorch 2D-CNN</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Anti-Spoofing & SyncNet</div>
                     </div>
                   </div>
 
@@ -253,8 +254,8 @@ function App() {
                       </div>
                       <div className="glass-panel step-card step-2">
                         <div className="step-number">02</div>
-                        <div className="step-title">AI Analysis</div>
-                        <div className="step-desc">EfficientNet-B4 with contrastive learning extracts deepfake artifacts at the pixel level.</div>
+                        <div className="step-title">Multi-Modal AI Engine</div>
+                        <div className="step-desc">15 distinct AI sensors extract visual, temporal, and biological anomalies. The PyTorch Meta-Classifier computes the final verdict.</div>
                       </div>
                       <div className="glass-panel step-card step-3">
                         <div className="step-number">03</div>
@@ -322,9 +323,18 @@ function App() {
 
                       <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
                         <div style={{ flex: 1 }}>
-                          <h3 style={{ color: 'var(--secondary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Volume2 size={24} /> Audio Forensics & Synchronization</h3>
+                          <h3 style={{ color: 'var(--secondary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Volume2 size={24} /> Audio CNN & Forensic Pre-Processing</h3>
                           <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                            Audio deepfakes and lip-syncing (Wav2Lip) are common manipulation techniques. We use a dual-stream SyncNet architecture that extracts Mel-frequency cepstral coefficients (MFCC) to calculate lip-sync desynchronization. Additionally, we run Voice Anti-Spoofing tests to detect unnatural high-frequency "vocoder" static and perfectly smooth zero-crossing rates that expose AI voice clones like ElevenLabs.
+                            Audio deepfakes and lip-syncing (Wav2Lip) are common manipulation techniques. We process audio through a robust forensic pipeline including <strong>Cubic Spline De-Clipping</strong> and <strong>Spectral Gating Denoising</strong> to handle real-world corruption. The cleaned audio is then fed into a <strong>Lightweight PyTorch 2D-CNN</strong> that analyzes 128-channel Mel-Spectrograms to calculate a highly accurate voice spoofing probability. Lip-sync desynchronization is concurrently measured using a dual-stream SyncNet architecture.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><BrainCircuit size={24} /> PyTorch AI Meta-Classifier</h3>
+                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                            Instead of relying on rigid, hardcoded thresholds that cause false positives, our system uses a fully trained Multi-Layer Perceptron (MLP). The AI Meta-Classifier evaluates the outputs of all 15 visual, biological, and acoustic sensors simultaneously, learning their mathematical relationships to determine an ironclad, explainable final verdict.
                           </p>
                         </div>
                       </div>

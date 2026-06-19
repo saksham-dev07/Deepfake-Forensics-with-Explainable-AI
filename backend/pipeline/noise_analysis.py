@@ -61,8 +61,11 @@ def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multipli
     noise_vis = cv2.normalize(noise, None, 0, 255, cv2.NORM_MINMAX)
     noise_vis = cv2.applyColorMap(noise_vis, cv2.COLORMAP_JET)
     
+    # Blend with original
+    blended_noise = cv2.addWeighted(cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR), 0.4, noise_vis, 0.8, 0)
+    
     noise_path = os.path.join(output_dir, f"{prefix}_map.jpg")
-    cv2.imwrite(noise_path, noise_vis)
+    cv2.imwrite(noise_path, blended_noise)
     
     # ---------------------------------------------
     # NEW: Spatial Rich Model (SRM) Filter Map
@@ -71,8 +74,11 @@ def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multipli
     srm_vis = cv2.normalize(np.log(srm_noise + 1e-5), None, 0, 255, cv2.NORM_MINMAX)
     srm_vis = cv2.applyColorMap(np.uint8(srm_vis), cv2.COLORMAP_MAGMA)
     
+    # Blend with original
+    blended_srm = cv2.addWeighted(cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR), 0.4, srm_vis, 0.8, 0)
+    
     srm_path = os.path.join(output_dir, f"{prefix}_srm_map.jpg")
-    cv2.imwrite(srm_path, srm_vis)
+    cv2.imwrite(srm_path, blended_srm)
     
     # Calculate noise variance.
     # With NLM, the variance of natural noise is tighter and lower than with simple blur.

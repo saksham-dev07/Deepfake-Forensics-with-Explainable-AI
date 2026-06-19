@@ -50,7 +50,7 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
     from mediapipe.tasks.python import vision
     
     # Use the local model file
-    model_path = os.path.join(os.path.dirname(__file__), '..', 'face_landmarker.task')
+    model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'weights', 'face_landmarker.task')
     base_options = mp_python.BaseOptions(model_asset_path=model_path)
     options = vision.FaceLandmarkerOptions(
         base_options=base_options,
@@ -125,12 +125,18 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
         return results
 
     # 1. Blink Detection
-    # A blink is typically an EAR drop below a threshold (e.g. 0.20)
-    # We dynamically calculate threshold based on the 10th percentile
+    # A blink is typically a sharp drop in the Eye Aspect Ratio.
+    # We dynamically calculate the threshold based on the user's natural resting EAR
     ear_array = np.array(ear_sequence)
-    threshold = np.percentile(ear_array, 10) * 0.8
-    # Fallback absolute thresholds
-    threshold = np.clip(threshold, 0.15, 0.25)
+    resting_ear = np.median(ear_array)  # Median ignores the blink outliers
+    
+    # A blink must be a significant relative drop (80% of resting) AND an absolute drop (-0.03)
+    # This ensures we don't trigger false blinks on tiny landmark jitters, 
+    # but successfully detect blinks for ALL eye shapes (narrow or wide).
+    threshold = min(resting_ear * 0.80, resting_ear - 0.03)
+    
+    # Generous absolute safety bounds to prevent edge-case failures
+    threshold = np.clip(threshold, 0.05, 0.35)
 
     blinks = 0
     in_blink = False

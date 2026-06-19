@@ -1,0 +1,55 @@
+Error in analyze_face_geometry: module 'mediapipe' has no attribute 'solutions'
+Traceback (most recent call last):
+  File "E:\Deepfake Forensics with Explainable AI\backend\main.py", line 217, in run_with_fallback
+    return func(*args, **kwargs)
+  File "E:\Deepfake Forensics with Explainable AI\backend\pipeline\face_geometry.py", line 503, in analyze_face_geometry
+    visualize_landmarks(image_rgb, landmarks_first, metrics=hud_metrics, save_path=vis_path)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Deepfake Forensics with Explainable AI\backend\pipeline\face_geometry.py", line 381, in visualize_landmarks
+    mp_face_mesh = mp.solutions.face_mesh
+                   ^^^^^^^^^^^^
+AttributeError: module 'mediapipe' has no attribute 'solutions'
+Error in analyze_face_geometry: OpenCV(4.13.0) D:\a\opencv-python\opencv-python\opencv\modules\core\src\arithm.cpp:665: error: (-209:Sizes of input arguments do not match) The operation is neither 'array op array' (where arrays have the same size and the same number of channels), nor 'array op scalar', nor 'scalar op array' in function 'cv::arithm_op'
+
+Traceback (most recent call last):
+  File "E:\Deepfake Forensics with Explainable AI\backend\main.py", line 217, in run_with_fallback
+    return func(*args, **kwargs)
+  File "E:\Deepfake Forensics with Explainable AI\backend\pipeline\face_geometry.py", line 463, in analyze_face_geometry
+    symmetry, sym_map_path = compute_face_symmetry(image_rgb, bbox, output_dir, prefix)
+                             ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Deepfake Forensics with Explainable AI\backend\pipeline\face_geometry.py", line 135, in compute_face_symmetry
+    blended = cv2.addWeighted(face_crop_bgr, 0.4, diff_vis, 0.8, 0)
+cv2.error: OpenCV(4.13.0) D:\a\opencv-python\opencv-python\opencv\modules\core\src\arithm.cpp:665: error: (-209:Sizes of input arguments do not match) The operation is neither 'array op array' (where arrays have the same size and the same number of channels), nor 'array op scalar', nor 'scalar op array' in function 'cv::arithm_op'
+
+Error in analyze_face_geometry: OpenCV(4.13.0) D:\a\opencv-python\opencv-python\opencv\modules\calib3d\src\calibration_base.cpp:1346: error: (-2:Unspecified error) in function 'void __cdecl cv::findExtrinsicCameraParams2(const class cv::Mat &,const class cv::Mat &,const class cv::Mat &,const class cv::Mat &,class cv::Mat &,class cv::Mat &,int)'
+> DLT algorithm needs at least 6 points for pose estimation from 3D-2D point correspondences. (expected: 'count >= 6'), where
+>     'count' is 5
+> must be greater than or equal to
+>     '6' is 6
+
+Traceback (most recent call last):
+  File "E:\Deepfake Forensics with Explainable AI\backend\main.py", line 221, in run_with_fallback
+    return func(*args, **kwargs)
+  File "E:\Deepfake Forensics with Explainable AI\backend\pipeline\face_geometry.py", line 536, in analyze_face_geometry
+    first_head_pose = compute_3d_head_pose(landmarks_first, iw, ih)
+  File "E:\Deepfake Forensics with Explainable AI\backend\pipeline\face_geometry.py", line 410, in compute_3d_head_pose
+    success, rotation_vector, translation_vector = cv2.solvePnP(
+                                                   ~~~~~~~~~~~~^
+        model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+cv2.error: OpenCV(4.13.0) D:\a\opencv-python\opencv-python\opencv\modules\calib3d\src\calibration_base.cpp:1346: error: (-2:Unspecified error) in function 'void __cdecl cv::findExtrinsicCameraParams2(const class cv::Mat &,const class cv::Mat &,const class cv::Mat &,const class cv::Mat &,class cv::Mat &,class cv::Mat &,int)'
+> DLT algorithm needs at least 6 points for pose estimation from 3D-2D point correspondences. (expected: 'count >= 6'), where
+>     'count' is 5
+> must be greater than or equal to
+>     '6' is 6
+
+Error in analyze_lighting: name 'bg_mask' is not defined
+Traceback (most recent call last):
+  File "E:\Deepfake Forensics with Explainable AI\backend\main.py", line 221, in run_with_fallback
+    return func(*args, **kwargs)
+  File "E:\Deepfake Forensics with Explainable AI\backend\pipeline\lighting_analysis.py", line 127, in analyze_lighting
+    bg_valid = (bg_mask > 0) & strong_edges
+                ^^^^^^^
+NameError: name 'bg_mask' is not defined

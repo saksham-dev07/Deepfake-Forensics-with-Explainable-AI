@@ -30,17 +30,19 @@ from pipeline.voice_spoofing import analyze_voice_spoofing
 from pipeline.optical_flow import analyze_optical_flow
 from pipeline.cfa_analysis import analyze_cfa_artifacts
 from pipeline.corneal_analysis import analyze_corneal_reflections
+from pipeline.ensemble_classifier import DeepfakeMetaClassifier
 
 app = FastAPI(title="Deepfake Forensics API", version="2.0.0")
 
 # Security Configuration
-API_KEY = os.environ.get("API_KEY", "deepforensics-dev-key")
+API_KEY = os.environ.get("API_KEY") or "deepforensics-dev-key"
 API_KEY_NAME = "x-api-key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
 
 async def get_api_key(api_key_header: str = Security(api_key_header)):
     if api_key_header == API_KEY:
         return api_key_header
+    print(f"DEBUG: Received API Key '{api_key_header}', expected '{API_KEY}'")
     raise HTTPException(status_code=401, detail="Invalid API Key")
 
 # Allow CORS for specific origins
@@ -76,6 +78,8 @@ print("Initializing AI Models...")
 detector = DeepfakeDetector()
 sync_analyzer = SyncNetAnalyzer()
 explainer = XAIExplainer(detector.model)
+meta_classifier = DeepfakeMetaClassifier()
+meta_classifier.load_model()
 print("Initialization complete.")
 
 @app.post("/api/analyze")
@@ -384,107 +388,61 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             # Scale down NN score based on the average of the physical sensors
             nn_score = nn_score * (avg_physical_score / 0.55)
 
-        # Dynamic ensemble weights based on media type and audio presence
-        
-        # IQA Dynamic Shifting: If image is blurry (quality_multiplier < 0.8), we suppress physical sensors and boost NN/geometry
-        # If image is sharp (quality_multiplier > 1.0), we boost physical sensors
-        phys_weight = 0.10 * quality_multiplier
-        phys_weight_minor = 0.05 * quality_multiplier
-        
-        if is_video and has_audio:
-            weights = {
-                "nn_score": 0.25 + (0.10 * (1.0 - quality_multiplier)), # NN takes the remaining weight
-                "spectral_score": phys_weight,
-                "ela_score": phys_weight,
-                "geometry_anomaly": 0.05 + (0.02 * (1.0 - quality_multiplier)),
-                "noise_score": phys_weight_minor,
-                "color_score": phys_weight_minor,
-                "sync_score": 0.05,
-                "metadata_score": 0.05,
-                "rppg_score": 0.05,
-                "lighting_score": phys_weight_minor,
-                "eye_score": 0.05,
-                "voice_score": 0.05,
-                "flow_score": 0.05
-            }
-        elif is_video and not has_audio:
-            weights = {
-                "nn_score": 0.30 + (0.10 * (1.0 - quality_multiplier)),
-                "spectral_score": phys_weight,
-                "ela_score": phys_weight,
-                "geometry_anomaly": 0.05 + (0.02 * (1.0 - quality_multiplier)),
-                "noise_score": phys_weight_minor,
-                "color_score": phys_weight_minor,
-                "metadata_score": 0.05,
-                "rppg_score": 0.10,
-                "lighting_score": phys_weight * 1.0, # 0.10 base
-                "eye_score": 0.10,
-                "flow_score": 0.10
-            }
-        else:
-            # Static image: no audio sync, no temporal rPPG heartbeat
-            weights = {
-                "nn_score": 0.35 + (0.15 * (1.0 - quality_multiplier)),
-                "spectral_score": phys_weight * 1.5, # 0.15 base
-                "ela_score": phys_weight * 1.5,      # 0.15 base
-                "geometry_anomaly": 0.05 + (0.03 * (1.0 - quality_multiplier)),
-                "noise_score": phys_weight_minor,
-                "color_score": phys_weight_minor,
-                "metadata_score": 0.05,
-                "lighting_score": phys_weight_minor,
-                "cfa_score": 0.10,
-                "corneal_score": 0.02
-            }
-        
-        # Normalize weights to exactly 1.0
-        total_w = sum(weights.values())
-        for k in weights:
-            weights[k] /= total_w
-
-        scores_dict = {
+        # Build feature dictionary for the Meta-Classifier
+        # We need to map sync_score correctly, since high sync = real.
+        classifier_features = {
             "nn_score": nn_score,
             "spectral_score": spectral_score,
             "ela_score": ela_score,
             "geometry_anomaly": geometry_anomaly,
             "noise_score": noise_score,
             "color_score": color_score,
-            "sync_score": 1.0 - sync_score if has_audio else 0.0,
             "metadata_score": metadata_score,
-            "rppg_score": rppg_score,
+            "rppg_score": rppg_score if is_video else 0.5,
             "lighting_score": lighting_score,
-            "eye_score": eye_score if is_video else 0.0,
-            "voice_score": voice_score if has_audio else 0.0,
-            "flow_score": flow_score if is_video else 0.0,
-            "cfa_score": cfa_score if not is_video else 0.0,
-            "corneal_score": corneal_score if not is_video else 0.0
+            "eye_score": eye_score if is_video else 0.5,
+            "voice_score": voice_score if has_audio else 0.5,
+            "flow_score": flow_score if is_video else 0.5,
+            "cfa_score": cfa_score,
+            "corneal_score": corneal_score
         }
         
-        ensemble_score = sum(scores_dict[k] * w for k, w in weights.items())
-            
-        ensemble_score = float(np.clip(ensemble_score, 0, 1))
+        # Determine sync_score
+        if has_audio:
+            classifier_features["sync_score"] = 1.0 - sync_score
+        else:
+            classifier_features["sync_score"] = 0.5
+        
+        # Use PyTorch Meta-Classifier to compute final confidence
+        fake_prob = meta_classifier.predict(classifier_features)
+        
+        # Determine verdict based on meta-classifier output
+        if fake_prob > 0.70:
+            verdict = "High Confidence Deepfake"
+        elif fake_prob > 0.55:
+            verdict = "Suspected Manipulation"
+        elif fake_prob > 0.40:
+            verdict = "Inconclusive - Manual Review Recommended"
+        else:
+            verdict = "Likely Authentic"
+
+        ensemble_score = float(np.clip(fake_prob, 0.0, 1.0))
+        
+        print(f"Meta-Classifier Final Fake Probability: {ensemble_score:.4f}")
 
         # Frame-level statistics
         frame_scores_std = float(np.std(all_frame_scores)) if len(all_frame_scores) > 1 else 0.0
         temporal_consistency = "Consistent" if frame_scores_std < 0.15 else "Inconsistent"
 
-        # Determine verdict
-        if ensemble_score > 0.70:
-            verdict = "High Confidence Deepfake"
-        elif ensemble_score > 0.55:
-            verdict = "Suspected Manipulation"
-        elif ensemble_score > 0.40:
-            verdict = "Inconclusive - Manual Review Recommended"
-        else:
-            verdict = "Likely Authentic"
-
-        # SHAP-style feature importance (now data-driven)
-        shap_features = generate_shap_features(nn_score, spectral_score, ela_score, geometry_anomaly, noise_score, color_score, sync_score, metadata_score, rppg_score, lighting_score, eye_score, voice_score, flow_score, cfa_score, corneal_score, face_results, has_audio, weights, ensemble_score)
+        # Note: generate_shap_features used the static weights to compute SHAP mathematically.
+        # Now we just pass dummy weights or re-write generate_shap_features. We will pass a dummy empty dict.
+        shap_features = generate_shap_features(nn_score, spectral_score, ela_score, geometry_anomaly, noise_score, color_score, sync_score, metadata_score, rppg_score, lighting_score, eye_score, voice_score, flow_score, cfa_score, corneal_score, face_results, has_audio, {}, ensemble_score)
         
         analysis_jobs[job_id]["progress"] = 90
 
         # =============================================
-        # STAGE 9: Generate PDF Report (90-100%)
-        # =============================================
+        # STAGE 9: Generate Explainable AI Report
+        # ==============================================
         result_data = {
             # Core verdict
             "overall_score": ensemble_score,
@@ -534,7 +492,7 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             "heatmaps": heatmaps,
             
             # Add dynamic weights for frontend to display
-            "weights": weights,
+            "weights": None,
             
             # Metadata
             "file_metadata": {
@@ -562,63 +520,54 @@ def run_analysis_pipeline(job_id: str, file_path: str):
 
 def generate_shap_features(nn_score, spectral_score, ela_score, geometry_score, noise_score, color_score, sync_score, metadata_score, rppg_score, lighting_score, eye_score, voice_score, flow_score, cfa_score, corneal_score, face_results, has_audio, weights, ensemble_score):
     """
-    Generate ranked feature importance list based on actual analysis results.
-    This replaces the hardcoded mock SHAP features with mathematically accurate SHAP contributions.
+    Generate ranked feature importance list based on the raw anomaly scores.
+    Since the ensemble is now a non-linear AI meta-classifier, we use the raw signal extremity as a proxy for SHAP feature importance.
     """
     features = []
     
-    # Calculate exact contribution of each feature to the total score (weight * score)
-    total_contribution = max(ensemble_score, 0.001)  # Prevent division by zero
-    
+    # We rank the features by how anomalous they are (score > 0.5)
     signals = [
-        ((nn_score * weights.get("nn_score", 0)) / total_contribution, "Neural network pixel-level artifact detection"),
-        ((spectral_score * weights.get("spectral_score", 0)) / total_contribution, "Frequency domain spectral anomalies (DCT/FFT)"),
-        ((ela_score * weights.get("ela_score", 0)) / total_contribution, "JPEG compression inconsistency (Error Level Analysis)"),
-        ((geometry_score * weights.get("geometry_anomaly", 0)) / total_contribution, "Facial boundary texture mismatch"),
-        ((noise_score * weights.get("noise_score", 0)) / total_contribution, "Sensor noise (PRNU) inconsistency"),
-        ((color_score * weights.get("color_score", 0)) / total_contribution, "Chrominance (YCbCr) color space bleeding"),
-        ((metadata_score * weights.get("metadata_score", 0)) / total_contribution, "Suspicious file EXIF/metadata footprint"),
-        ((lighting_score * weights.get("lighting_score", 0)) / total_contribution, "Illumination divergence across composited elements"),
+        (nn_score, "Neural network pixel-level artifact detection"),
+        (spectral_score, "Frequency domain spectral anomalies (DCT/FFT)"),
+        (ela_score, "JPEG compression inconsistency (Error Level Analysis)"),
+        (geometry_score, "Facial boundary texture mismatch"),
+        (noise_score, "Sensor noise (PRNU) inconsistency"),
+        (color_score, "Chrominance (YCbCr) color space bleeding"),
+        (metadata_score, "Suspicious file EXIF/metadata footprint"),
+        (lighting_score, "Illumination divergence across composited elements"),
+        (cfa_score, "Missing or disrupted Bayer filter (CFA) pattern"),
+        (corneal_score, "Physically impossible mismatched corneal light reflections"),
+        (rppg_score, "Lack of biological heart pulse (rPPG)"),
+        (eye_score, "Unnatural blink rate or gaze asymmetry"),
+        (flow_score, "Blocky temporal motion jitter (Optical Flow)")
     ]
     
     if has_audio:
-        signals.append((((1 - sync_score) * weights.get("sync_score", 0)) / total_contribution, "Audio-video temporal desynchronization"))
-        signals.append(((rppg_score * weights.get("rppg_score", 0)) / total_contribution, "Lack of biological heart pulse (rPPG)"))
-        if weights.get("voice_score", 0) > 0:
-            signals.append(((voice_score * weights.get("voice_score", 0)) / total_contribution, "High-frequency vocoder artifact (Audio Spoofing)"))
-    else:
-        # If it's a video but no audio, or static image? 
-        # rppg_score is calculated for video regardless of audio. Wait, let's just check weights.
-        if weights.get("rppg_score", 0) > 0:
-            signals.append(((rppg_score * weights.get("rppg_score", 0)) / total_contribution, "Lack of biological heart pulse (rPPG)"))
-    
-    if weights.get("eye_score", 0) > 0:
-        signals.append(((eye_score * weights.get("eye_score", 0)) / total_contribution, "Unnatural blink rate or gaze asymmetry"))
-        
-    if weights.get("flow_score", 0) > 0:
-        signals.append(((flow_score * weights.get("flow_score", 0)) / total_contribution, "Blocky temporal motion jitter (Optical Flow)"))
-        
-    if weights.get("cfa_score", 0) > 0:
-        signals.append(((cfa_score * weights.get("cfa_score", 0)) / total_contribution, "Missing or disrupted Bayer filter (CFA) pattern"))
-        
-    if weights.get("corneal_score", 0) > 0:
-        signals.append(((corneal_score * weights.get("corneal_score", 0)) / total_contribution, "Physically impossible mismatched corneal light reflections"))
+        signals.append((1.0 - sync_score, "Audio-video temporal desynchronization"))
+        signals.append((voice_score, "High-frequency vocoder artifact (Audio Spoofing)"))
     
     # Add face-specific features if face was detected
     if face_results.get("face_detected"):
         symmetry = face_results.get("symmetry_score", 0.5)
         if symmetry < 0.85:
-            signals.append((1 - symmetry, f"Facial asymmetry detected (score: {symmetry:.2f})"))
+            signals.append((1.0 - symmetry, f"Facial asymmetry detected (score: {symmetry:.2f})"))
         
         noise = face_results.get("noise_consistency", 0.5)
         if noise < 0.7:
-            signals.append((1 - noise, f"Inconsistent noise pattern at face boundary"))
+            signals.append((1.0 - noise, f"Inconsistent noise pattern at face boundary"))
     
-    # Sort by score (highest contribution first)
+    # Sort by anomaly severity
     signals.sort(key=lambda x: x[0], reverse=True)
     
+    # Calculate a rough percentage based on relative extremity
+    total_extremity = sum(max(s[0], 0.01) for s in signals[:6])
+    
     for score, description in signals:
-        if score > 0.1:  # Only include meaningful contributions
-            features.append(f"{description} ({score*100:.0f}%)")
+        if score > 0.45:  # Only include if it's actually somewhat anomalous
+            contribution = (score / total_extremity) * 100
+            features.append(f"{description} ({contribution:.0f}%)")
+            
+    if not features:
+        features.append("All signals indicate authentic media (100%)")
     
     return features[:6]  # Top 6 features

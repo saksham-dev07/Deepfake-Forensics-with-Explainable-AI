@@ -670,6 +670,46 @@ def compute_phase_spectrum(image_rgb, save_path=None):
         
     return phase_colored, phase_variance
 
+def compute_spectral_residual_saliency(image_rgb, save_path=None):
+    """
+    Isolates GAN/Deepfake Transpose Convolution grids using Spectral Residuals.
+    Computes Log Amplitude Spectrum, subtracts the smoothed (box-filtered) version,
+    and reconstructs the image using Inverse FFT.
+    The resulting Saliency Map highlights periodic high-frequency noise (like checkerboards).
+    """
+    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
+    gray_float = gray.astype(np.float32) / 255.0
+    
+    # 1. Forward FFT
+    f_transform = np.fft.fft2(gray_float)
+    
+    # 2. Extract Amplitude and Phase
+    amplitude = np.abs(f_transform)
+    phase = np.angle(f_transform)
+    
+    # 3. Log Amplitude
+    log_amplitude = np.log(amplitude + 1e-8)
+    
+    # 4. Spectral Residual = LogAmplitude - Smoothed(LogAmplitude)
+    kernel = np.ones((3, 3), np.float32) / 9.0
+    spectral_residual = log_amplitude - cv2.filter2D(log_amplitude, -1, kernel)
+    
+    # 5. Inverse FFT to reconstruct Saliency Map
+    complex_exp = np.exp(spectral_residual + 1j * phase)
+    saliency_map = np.abs(np.fft.ifft2(complex_exp))**2
+    
+    # 6. Gaussian smoothing for visual clarity
+    saliency_map = cv2.GaussianBlur(saliency_map, (5, 5), 0)
+    
+    # Normalize for visualization
+    smap_norm = cv2.normalize(saliency_map, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    smap_colored = cv2.applyColorMap(smap_norm, cv2.COLORMAP_HOT)
+    
+    if save_path:
+        cv2.imwrite(save_path, smap_colored)
+        
+    saliency_variance = float(np.var(saliency_map))
+    return smap_colored, saliency_variance
 
 
 def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multiplier=1.0):
@@ -763,6 +803,19 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
     _, swn_anomaly_ratio = compute_swn_noise_map(image_rgb, save_path=swn_path)
 
     # =========================================
+    # NEW: Spectral Residual Saliency
+    # =========================================
+    saliency_path = os.path.join(output_dir, f"{prefix}_saliency_map.jpg")
+    _, saliency_variance = compute_spectral_residual_saliency(image_rgb, save_path=saliency_path)
+    
+    # If a distinct grid pattern appears, saliency variance explodes (bright spots on black bg)
+    # Real photos have low saliency variance (smooth low-intensity edges)
+    if saliency_variance > 1500.0:
+        spectral_anomaly = min(spectral_anomaly + 0.20, 0.95)
+    elif saliency_variance > 500.0:
+        spectral_anomaly = min(spectral_anomaly + 0.10, 0.90)
+
+    # =========================================
     # NEW: Cepstrum and DWT
     # =========================================
     cepstrum_path = os.path.join(output_dir, f"{prefix}_cepstrum.jpg")
@@ -812,6 +865,10 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
             "status": "Pass" if pc3_var_ratio < 0.05 else "Fail",
             "reason": f"Normal PCA residuals ({pc3_var_ratio:.3f})" if pc3_var_ratio < 0.05 else f"Hidden periodic artifacts ({pc3_var_ratio:.3f})"
         },
+        "saliency": {
+            "status": "Pass" if saliency_variance < 500.0 else "Fail" if saliency_variance > 1500.0 else "Warning",
+            "reason": f"Natural smooth edges" if saliency_variance < 500.0 else f"Detected periodic GAN grid ({saliency_variance:.1f})"
+        },
         "cepstrum": {
             "status": "Pass" if cepstrum_var < 0.03 else "Fail" if cepstrum_var > 0.05 else "Warning",
             "reason": f"No structural echoes ({cepstrum_var:.4f})" if cepstrum_var < 0.03 else f"Resampling echoes detected ({cepstrum_var:.4f})"
@@ -832,6 +889,7 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
         "swn_noise_path": swn_path.replace("\\", "/"),
         "cepstrum_path": cepstrum_path.replace("\\", "/"),
         "dwt_diagonal_path": dwt_path.replace("\\", "/"),
+        "saliency_map_path": saliency_path.replace("\\", "/"),
         "high_freq_energy_ratio": round(hf_ratio, 6),
         "dct_hf_ratio": round(dct_hf_ratio, 6),
         "channel_hf_ratios": [round(r, 6) for r in channel_ratios],
@@ -842,6 +900,7 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
         "swn_anomaly_ratio": round(swn_anomaly_ratio, 6),
         "hpf_variance": round(hpf_variance, 6),
         "cepstrum_var": round(cepstrum_var, 6),
+        "saliency_variance": round(saliency_variance, 6),
         "dwt_var": round(dwt_var, 6),
         "spectral_anomaly_score": round(spectral_anomaly, 4),
         "radial_profile_length": len(radial_profile),

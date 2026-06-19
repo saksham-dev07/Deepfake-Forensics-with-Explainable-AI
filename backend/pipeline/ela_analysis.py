@@ -158,12 +158,15 @@ def compute_jpeg_ghosting(image_rgb, save_path=None):
     ghost_smooth = cv2.GaussianBlur(ghost_map_norm, (5, 5), 0)
     ghost_colored = cv2.applyColorMap(ghost_smooth, cv2.COLORMAP_INFERNO)
     
+    # Blend with original
+    blended = cv2.addWeighted(image_bgr, 0.4, ghost_colored, 0.8, 0)
+    
     ghost_variance = float(np.var(ghost_smooth) / 255.0)
     
     if save_path:
-        cv2.imwrite(save_path, ghost_colored)
+        cv2.imwrite(save_path, blended)
         
-    return ghost_colored, ghost_variance
+    return blended, ghost_variance
 
 
 def compute_hsv_ela(image_rgb, quality=90, save_path=None):
@@ -188,12 +191,15 @@ def compute_hsv_ela(image_rgb, quality=90, save_path=None):
     s_amp = np.clip(s_diff * 15, 0, 255).astype(np.uint8)
     hsv_colored = cv2.applyColorMap(s_amp, cv2.COLORMAP_TURBO)
     
+    # Blend with original
+    blended = cv2.addWeighted(image_bgr, 0.4, hsv_colored, 0.8, 0)
+    
     s_variance = float(np.var(s_amp) / 255.0)
     
     if save_path:
-        cv2.imwrite(save_path, hsv_colored)
+        cv2.imwrite(save_path, blended)
         
-    return hsv_colored, s_variance
+    return blended, s_variance
 def analyze_ela(image_rgb, output_dir, prefix="ela", quality_multiplier=1.0):
     """
     Run full ELA analysis on an image.

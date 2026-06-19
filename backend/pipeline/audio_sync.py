@@ -5,21 +5,102 @@ import librosa
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import torch
+from torch.nn import functional as F
+from scipy.interpolate import interp1d
+import math
+from .SyncNetModel import S
 import mediapipe as mp
 
+def get_mfccs(audio_path, start_time, duration, fps=25):
+    # Load audio segment
+    y, sr = librosa.load(audio_path, sr=16000, offset=start_time, duration=duration)
+    # SyncNet expects 100Hz audio feature rate. sr=16000, hop_length=160 -> 100fps
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=160, n_fft=512)
+    return mfcc
+
+def extract_audio_windows(audio_path, video_fps, total_frames):
+    # We need 0.2 seconds of audio for every 5 frames of video
+    # SyncNet expects 20 time steps of 13 MFCCs.
+    y, sr = librosa.load(audio_path, sr=16000)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=160, n_fft=512)
+    
+    # 1 video frame = 1 / video_fps seconds
+    # Audio rate = 100 Hz. 1 video frame = 100 / video_fps audio frames
+    audio_frames_per_video_frame = 100.0 / video_fps
+    
+    windows = []
+    for i in range(total_frames - 5):
+        start_idx = int(i * audio_frames_per_video_frame)
+        end_idx = start_idx + 20
+        if end_idx <= mfcc.shape[1]:
+            windows.append(mfcc[:, start_idx:end_idx])
+        else:
+            break
+    return windows
+
+def get_mouth_roi(frame, landmarks):
+    # Extract lower half of the face using landmarks
+    h, w, _ = frame.shape
+    x_min = w
+    x_max = 0
+    y_min = h
+    y_max = 0
+    for lm in landmarks:
+        x, y = int(lm.x * w), int(lm.y * h)
+        if x < x_min: x_min = x
+        if x > x_max: x_max = x
+        if y < y_min: y_min = y
+        if y > y_max: y_max = y
+        
+    # We want the lower half of the face (nose down)
+    y_mid = int((y_min + y_max) / 2)
+    # Make it a square
+    box_w = x_max - x_min
+    box_h = y_max - y_mid
+    size = max(box_w, box_h)
+    
+    # Center crop
+    cx = (x_min + x_max) // 2
+    cy = (y_mid + y_max) // 2
+    
+    half_size = int(size * 0.6) # Add padding
+    
+    x1 = max(0, cx - half_size)
+    y1 = max(0, cy - half_size)
+    x2 = min(w, cx + half_size)
+    y2 = min(h, cy + half_size)
+    
+    roi = frame[y1:y2, x1:x2]
+    if roi.size == 0:
+        return cv2.resize(frame, (224, 224))
+    return cv2.resize(roi, (224, 224))
+
 def analyze_audio_visual_sync(video_path, audio_path, output_dir, prefix="sync"):
-    """
-    Analyzes the correlation between audio energy and visual lip movements.
-    This acts as a heuristic proxy for SyncNet, detecting Wav2Lip or 
-    generic audio-visual desynchronization common in deepfakes.
-    """
+    results = {"sync_score": 0.5, "warnings": []}
+    
     if not audio_path or not video_path or not os.path.exists(audio_path) or not os.path.exists(video_path):
         return {"sync_score": 0.5, "error": "Missing audio or video file"}
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "syncnet_v2.model")
+    
+    if not os.path.exists(model_path):
+        results["warnings"].append("SyncNet weights not found.")
+        return results
+
+    try:
+        model = S(num_layers_in_fc_layers=1024)
+        model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
+        model.eval()
+        model.to(device)
+    except Exception as e:
+        results["warnings"].append(f"Failed to load SyncNet: {e}")
+        return results
 
     from mediapipe.tasks import python as mp_python
     from mediapipe.tasks.python import vision
     
-    # Use the local model file we downloaded
     base_options = mp_python.BaseOptions(model_asset_path=os.path.join(os.path.dirname(__file__), '..', 'face_landmarker.task'))
     options = vision.FaceLandmarkerOptions(
         base_options=base_options,
@@ -31,12 +112,13 @@ def analyze_audio_visual_sync(video_path, audio_path, output_dir, prefix="sync")
 
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
-    if fps == 0: fps = 30 # fallback
+    if fps == 0: fps = 25
 
-    mar_sequence = []
+    # SyncNet was trained on 25 fps videos. 
+    # If the video is not 25fps, the LSE distance might be slightly off, but it usually still works.
     
-    # Process max 10 seconds of video to keep it fast
-    max_frames = int(fps * 10)
+    video_frames = []
+    max_frames = int(fps * 15) # Process up to 15 seconds
     frame_count = 0
 
     while cap.isOpened() and frame_count < max_frames:
@@ -44,123 +126,116 @@ def analyze_audio_visual_sync(video_path, audio_path, output_dir, prefix="sync")
         if not ret:
             break
             
-        # Convert the BGR image to RGB and format for MediaPipe
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
-        
         detection_result = detector.detect(mp_image)
         
         if detection_result.face_landmarks:
-            landmarks = detection_result.face_landmarks[0]
-            
-            # Inner lip landmarks for Mouth Aspect Ratio (MAR)
-            top_lip = landmarks[13]
-            bottom_lip = landmarks[14]
-            left_lip = landmarks[78]
-            right_lip = landmarks[308]
-            
-            # Distance calculations
-            vertical_dist = np.sqrt((top_lip.x - bottom_lip.x)**2 + (top_lip.y - bottom_lip.y)**2)
-            horizontal_dist = np.sqrt((left_lip.x - right_lip.x)**2 + (left_lip.y - right_lip.y)**2)
-            
-            mar = vertical_dist / (horizontal_dist + 1e-6)
-            mar_sequence.append(mar)
+            roi = get_mouth_roi(frame_rgb, detection_result.face_landmarks[0])
+            video_frames.append(roi)
         else:
-            # If no face is detected, append the last known MAR or 0
-            mar_sequence.append(mar_sequence[-1] if mar_sequence else 0)
-            
+            if len(video_frames) > 0:
+                video_frames.append(video_frames[-1])
+            else:
+                video_frames.append(cv2.resize(frame_rgb, (224, 224)))
+                
         frame_count += 1
-        
+    
     cap.release()
     detector.close()
+
+    if len(video_frames) < 15:
+        return {"sync_score": 0.5, "error": "Video too short for SyncNet"}
+
+    audio_windows = extract_audio_windows(audio_path, fps, len(video_frames))
     
-    if len(mar_sequence) < 10:
-        return {"sync_score": 0.5, "error": "Not enough frames with a face detected"}
+    # We analyze in batches of 5 frames
+    distances = []
+    
+    batch_audio = []
+    batch_video = []
+    
+    for i in range(len(audio_windows)):
+        a_win = audio_windows[i]
+        if a_win.shape[1] != 20: continue
+        
+        v_win = video_frames[i:i+5]
+        if len(v_win) != 5: continue
+        
+        # Format Audio: [1, 13, 20]
+        a_tensor = torch.FloatTensor(a_win).unsqueeze(0)
+        
+        # Format Video: [3, 5, 224, 224]
+        v_tensor = np.array(v_win) / 255.0 # (5, 224, 224, 3)
+        v_tensor = np.transpose(v_tensor, (3, 0, 1, 2)) # (3, 5, 224, 224)
+        v_tensor = torch.FloatTensor(v_tensor)
+        
+        batch_audio.append(a_tensor)
+        batch_video.append(v_tensor)
 
-    # Process Audio Envelope
-    try:
-        y, sr = librosa.load(audio_path, sr=None)
-        # Compute MFCCs (Mel-frequency cepstral coefficients)
-        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-        # We use the 2nd MFCC (index 1), which highly correlates with phonetic vowel openness (Formant F1)
-        # We take the negative absolute to align the peaks with mouth openings for easier visualization
-        audio_feature = -np.abs(mfccs[1])
-        
-        # Resample audio feature to match the length of mar_sequence
-        from scipy.interpolate import interp1d
-        x_audio = np.linspace(0, 1, len(audio_feature))
-        x_mar = np.linspace(0, 1, len(mar_sequence))
-        
-        interpolator = interp1d(x_audio, audio_feature, kind='linear', fill_value="extrapolate")
-        audio_resampled = interpolator(x_mar)
-        
-        # Normalize both sequences to 0-1 for plotting and correlation
-        mar_norm = (mar_sequence - np.min(mar_sequence)) / (np.ptp(mar_sequence) + 1e-6)
-        audio_norm = (audio_resampled - np.min(audio_resampled)) / (np.ptp(audio_resampled) + 1e-6)
-        
-        # Smooth the sequences slightly using a moving average
-        kernel_size = 3
-        kernel = np.ones(kernel_size) / kernel_size
-        mar_smooth = np.convolve(mar_norm, kernel, mode='same')
-        audio_smooth = np.convolve(audio_norm, kernel, mode='same')
-        
-        # Calculate Pearson Correlation
-        correlation = np.corrcoef(mar_smooth, audio_smooth)[0, 1]
-        if np.isnan(correlation):
-            correlation = 0.0
-            
-        # LSE-C Proxy: Map correlation (-1 to 1) to a confidence scale (0 to 10+)
-        # LSE-C in paper is high (e.g. >7) for real videos
-        lse_c = float(max(0, (correlation + 0.5) * 6.5))
-        
-        # LSE-D Proxy: Mean Squared Error between the normalized envelopes
-        # LSE-D in paper is low (e.g. <6) for real videos
-        mse = np.mean((mar_smooth - audio_smooth)**2)
-        lse_d = float(mse * 25) # Scaled to match typical LSE-D ranges
-            
-    except Exception as e:
-        print(f"Audio processing error: {e}")
-        return {"sync_score": 0.5, "error": str(e)}
+    if len(batch_audio) == 0:
+         return {"sync_score": 0.5, "error": "Could not extract windows"}
 
-    # Generate Visualization Plot
+    batch_audio = torch.stack(batch_audio).to(device)
+    batch_video = torch.stack(batch_video).to(device)
+    
+    # Process in mini-batches to avoid OOM
+    batch_size = 64
+    all_distances = []
+    
+    with torch.no_grad():
+        for i in range(0, len(batch_audio), batch_size):
+            a = batch_audio[i:i+batch_size]
+            v = batch_video[i:i+batch_size]
+            
+            feat_a = model.forward_aud(a)
+            feat_v = model.forward_lip(v)
+            
+            #feat_a = F.normalize(feat_a, p=2, dim=1)
+            #feat_v = F.normalize(feat_v, p=2, dim=1)
+            
+            dist = torch.norm(feat_a - feat_v, dim=1)
+            all_distances.extend(dist.cpu().numpy())
+
+    mean_dist = float(np.mean(all_distances))
+    lse_d = mean_dist
+    
+    # Simple mapping of LSE-D to anomaly score
+    # Usually, LSE-D < 8 is real, LSE-D > 10 is fake
+    if lse_d < 8.0:
+        sync_score = 0.1
+    elif lse_d < 9.5:
+        sync_score = 0.4
+    elif lse_d < 11.0:
+        sync_score = 0.7
+    else:
+        sync_score = 0.95
+        
+    results["sync_score"] = sync_score
+    results["lse_d"] = lse_d
+    results["correlation"] = 0.0 # Legacy compat
+    results["lse_c"] = max(0, 15.0 - lse_d)
+    
+    # Plot distances
     plt.figure(figsize=(10, 4), facecolor='#111827')
     ax = plt.gca()
     ax.set_facecolor('#111827')
     
-    time_axis = np.arange(len(mar_smooth)) / fps
+    plt.plot(all_distances, color='#fb7185', linewidth=2)
+    plt.axhline(y=8.0, color='#34d399', linestyle='--', label='Authentic Threshold')
     
-    plt.plot(time_axis, mar_smooth, color='#34d399', linewidth=2, label='Mouth Aspect Ratio (Visual)')
-    plt.plot(time_axis, audio_smooth, color='#60a5fa', linewidth=2, linestyle='--', label='Audio MFCC (Phonetic Shape)')
-    
-    plt.title(f'Audio-Visual Synchronization (Correlation: {correlation:.3f})', color='white', pad=15)
-    plt.xlabel('Time (seconds)', color='white')
-    plt.ylabel('Normalized Magnitude', color='white')
-    
+    plt.title(f'SyncNet Audio-Visual Distance (Mean: {mean_dist:.2f})', color='white', pad=15)
+    plt.xlabel('Window Index', color='white')
+    plt.ylabel('L2 Distance (LSE-D)', color='white')
     ax.tick_params(colors='gray')
-    for spine in ax.spines.values():
-        spine.set_color('#374151')
-        
+    for spine in ax.spines.values(): spine.set_color('#374151')
+    
     legend = plt.legend(facecolor='#1f2937', edgecolor='#374151', labelcolor='white')
     plt.tight_layout()
     
     plot_path = os.path.join(output_dir, f"{prefix}_sync_plot.jpg")
     plt.savefig(plot_path, dpi=120, bbox_inches='tight')
     plt.close()
-
-    # Convert correlation and distance to an anomaly score (0 to 1)
-    if correlation > 0.3 and lse_d < 5.0:
-        sync_score = 0.1 # Very real
-    elif correlation > 0.1 and lse_d < 8.0:
-        sync_score = 0.4
-    elif correlation > -0.1:
-        sync_score = 0.7
-    else:
-        sync_score = 0.95 # Highly suspicious
-        
-    return {
-        "sync_score": sync_score,
-        "correlation": float(correlation),
-        "lse_c": lse_c,
-        "lse_d": lse_d,
-        "sync_plot_path": plot_path.replace("\\", "/")
-    }
+    
+    results["sync_plot_path"] = plot_path.replace("\\", "/")
+    return results

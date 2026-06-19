@@ -84,54 +84,65 @@ def detect_face(image_rgb):
         "right_mouth": get_pt(61), # Person's right mouth corner
         "left_mouth": get_pt(291), # Person's left mouth corner
         "face_center": (x_min + fw // 2, y_min + fh // 2),
+        "all_landmarks": [get_pt(i) for i in range(len(face_landmarks))],
+        "all_landmarks_3d": [(lm.x * w, lm.y * h, lm.z * w) for lm in face_landmarks],
     }
 
 
 
-def compute_face_symmetry(image_rgb, face_bbox, output_dir=None, prefix="face"):
+def compute_face_symmetry(image_rgb, landmarks_first, output_dir=None, prefix="face"):
     """
-    Measure facial symmetry by comparing pixel intensities on
-    the left and right halves of the detected face.
+    Measure facial symmetry using purely geometric distances to isolate lighting.
+    We also generate a pixel-intensity difference heatmap for visualization.
     """
+    face_bbox = landmarks_first["face_bbox"]
     x, y, w, h = face_bbox
     ih, iw = image_rgb.shape[:2]
 
-    # Clamp to image bounds
+    # 1. Pixel Heatmap (For Visualization Only)
     x1, y1 = max(0, x), max(0, y)
     x2, y2 = min(iw, x + w), min(ih, y + h)
     face_crop = image_rgb[y1:y2, x1:x2]
 
-    if face_crop.size == 0 or face_crop.shape[1] < 4:
-        return 0.5, None
-
-    gray = cv2.cvtColor(face_crop, cv2.COLOR_RGB2GRAY)
-
-    mid = gray.shape[1] // 2
-    left_half = gray[:, :mid]
-    right_half = cv2.flip(gray[:, mid:2 * mid], 1)
-
-    if left_half.shape != right_half.shape:
-        min_w = min(left_half.shape[1], right_half.shape[1])
-        left_half = left_half[:, :min_w]
-        right_half = right_half[:, :min_w]
-
-    if left_half.size == 0:
-        return 0.5, None
-
-    diff = np.abs(left_half.astype(float) - right_half.astype(float))
-    
     symmetry_map_path = None
-    if output_dir:
-        # Reconstruct the full face diff for visualization by mirroring the diff
-        diff_full = np.hstack((diff, cv2.flip(diff, 1)))
-        
-        # Visualize the asymmetry (diff_full) using a heatmap
-        diff_vis = cv2.normalize(diff_full, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        diff_vis = cv2.applyColorMap(diff_vis, cv2.COLORMAP_MAGMA)
-        symmetry_map_path = os.path.join(output_dir, f"{prefix}_symmetry_map.jpg")
-        cv2.imwrite(symmetry_map_path, diff_vis)
+    if face_crop.size > 0 and face_crop.shape[1] >= 4:
+        gray = cv2.cvtColor(face_crop, cv2.COLOR_RGB2GRAY)
+        mid = gray.shape[1] // 2
+        left_half = gray[:, :mid]
+        right_half = cv2.flip(gray[:, mid:2 * mid], 1)
 
-    symmetry_score = 1.0 - (np.mean(diff) / 255.0)
+        if left_half.shape == right_half.shape and left_half.size > 0:
+            diff = np.abs(left_half.astype(float) - right_half.astype(float))
+            if output_dir:
+                diff_full = np.hstack((diff, cv2.flip(diff, 1)))
+                diff_vis = cv2.normalize(diff_full, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+                diff_vis = cv2.applyColorMap(diff_vis, cv2.COLORMAP_MAGMA)
+                diff_vis = cv2.resize(diff_vis, (face_crop.shape[1], face_crop.shape[0]))
+                face_crop_bgr = cv2.cvtColor(face_crop, cv2.COLOR_RGB2BGR)
+                blended = cv2.addWeighted(face_crop_bgr, 0.4, diff_vis, 0.8, 0)
+                symmetry_map_path = os.path.join(output_dir, f"{prefix}_symmetry_map.jpg")
+                cv2.imwrite(symmetry_map_path, blended)
+
+    # 2. Geometric Symmetry Score (Highly Accurate)
+    re = landmarks_first.get("right_eye")
+    le = landmarks_first.get("left_eye")
+    nt = landmarks_first.get("nose_tip")
+    rm = landmarks_first.get("right_mouth")
+    lm = landmarks_first.get("left_mouth")
+
+    if not all([re, le, nt, rm, lm]):
+        return 0.5, symmetry_map_path
+
+    def dist(p1, p2):
+        return np.linalg.norm(np.array(p1) - np.array(p2))
+
+    eye_sym = abs(dist(re, nt) - dist(le, nt)) / max(1, max(dist(re, nt), dist(le, nt)))
+    mouth_sym = abs(dist(rm, nt) - dist(lm, nt)) / max(1, max(dist(rm, nt), dist(lm, nt)))
+    jaw_sym = abs(dist(re, rm) - dist(le, lm)) / max(1, max(dist(re, rm), dist(le, lm)))
+
+    avg_asymmetry = np.mean([eye_sym, mouth_sym, jaw_sym])
+    symmetry_score = max(0.0, 1.0 - (avg_asymmetry * 2.0)) # Multiply by 2 to make it more sensitive
+    
     return float(symmetry_score), symmetry_map_path
 
 
@@ -161,8 +172,13 @@ def compute_texture_consistency(image_rgb, face_bbox, output_dir=None, prefix="f
         # Visualize the Laplacian texture as a heatmap
         tex_vis = cv2.normalize(np.abs(laplacian), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         tex_vis = cv2.applyColorMap(tex_vis, cv2.COLORMAP_TWILIGHT_SHIFTED)
+        
+        # Alpha blend over original face
+        face_crop_bgr = cv2.cvtColor(image_rgb[y1:y2, x1:x2], cv2.COLOR_RGB2BGR)
+        blended = cv2.addWeighted(face_crop_bgr, 0.4, tex_vis, 0.8, 0)
+        
         texture_map_path = os.path.join(output_dir, f"{prefix}_texture_map.jpg")
-        cv2.imwrite(texture_map_path, tex_vis)
+        cv2.imwrite(texture_map_path, blended)
 
     inner_h, inner_w = face_region.shape
     inner_margin = int(min(inner_h, inner_w) * 0.2)
@@ -322,13 +338,13 @@ def compute_interocular_ratio(landmarks):
 
 def compute_face_aspect_ratio(landmarks):
     """
-    Computes the aspect ratio of the face bounding box (width / height).
+    Computes the aspect ratio of the face bounding box (height / width).
     Faces generated by AI sometimes have unnatural aspect ratios due to latent space stretching.
     """
     x, y, w, h = landmarks["face_bbox"]
-    if h == 0:
+    if w == 0:
         return 1.0
-    return float(w / h)
+    return float(h / w)
 
 def compute_nose_mouth_ratio(landmarks):
     """
@@ -349,77 +365,202 @@ def compute_nose_mouth_ratio(landmarks):
     if mouth_width == 0: return 1.0
     return float(nose_to_mouth / mouth_width)
 
-def visualize_landmarks(image_rgb, landmarks, metrics=None, save_path=None):
+def compute_3d_head_pose(landmarks, w, h, return_vectors=False):
     """
-    Draw YuNet landmarks on the image with an elegant Constellation Wireframe.
+    Use cv2.solvePnP to mathematically project 2D landmarks onto a canonical 3D human skull model.
+    This exposes deepfakes by calculating the true 3D Pitch, Yaw, and Roll of the head.
     """
-    vis = image_rgb.copy()
-
-    if landmarks is None:
-        if save_path:
-            cv2.imwrite(save_path, cv2.cvtColor(vis, cv2.COLOR_RGB2BGR))
-        return vis
-
-    x, y, w, h = landmarks["face_bbox"]
-    
-    # 1. Draw Bounding Box Corners (more elegant than full box)
-    corner_length = max(10, int(w * 0.1))
-    bbox_color = (200, 200, 255) # Light blueish white
-    thickness = 2
-    
-    # Top-left
-    cv2.line(vis, (x, y), (x + corner_length, y), bbox_color, thickness, cv2.LINE_AA)
-    cv2.line(vis, (x, y), (x, y + corner_length), bbox_color, thickness, cv2.LINE_AA)
-    # Top-right
-    cv2.line(vis, (x + w, y), (x + w - corner_length, y), bbox_color, thickness, cv2.LINE_AA)
-    cv2.line(vis, (x + w, y), (x + w, y + corner_length), bbox_color, thickness, cv2.LINE_AA)
-    # Bottom-left
-    cv2.line(vis, (x, y + h), (x + corner_length, y + h), bbox_color, thickness, cv2.LINE_AA)
-    cv2.line(vis, (x, y + h), (x, y + h - corner_length), bbox_color, thickness, cv2.LINE_AA)
-    # Bottom-right
-    cv2.line(vis, (x + w, y + h), (x + w - corner_length, y + h), bbox_color, thickness, cv2.LINE_AA)
-    cv2.line(vis, (x + w, y + h), (x + w, y + h - corner_length), bbox_color, thickness, cv2.LINE_AA)
-
-    # 2. Draw Constellation Wireframe
     re = landmarks.get("right_eye")
     le = landmarks.get("left_eye")
     nt = landmarks.get("nose_tip")
     rm = landmarks.get("right_mouth")
     lm = landmarks.get("left_mouth")
     
-    wireframe_color = (129, 248, 200) # Mint Green
+    # Extract chin from all_landmarks (MediaPipe index 152)
+    all_pts = landmarks.get("all_landmarks", [])
+    if len(all_pts) > 152:
+        chin = all_pts[152]
+    else:
+        return None
     
-    if all([re, le, nt, rm, lm]):
-        # Connect Eyes
-        cv2.line(vis, re, le, wireframe_color, 1, cv2.LINE_AA)
-        # Connect Eyes to Nose
-        cv2.line(vis, re, nt, wireframe_color, 1, cv2.LINE_AA)
-        cv2.line(vis, le, nt, wireframe_color, 1, cv2.LINE_AA)
-        # Connect Nose to Mouths
-        cv2.line(vis, nt, rm, wireframe_color, 1, cv2.LINE_AA)
-        cv2.line(vis, nt, lm, wireframe_color, 1, cv2.LINE_AA)
-        # Connect Mouths
-        cv2.line(vis, rm, lm, wireframe_color, 1, cv2.LINE_AA)
+    if not all([re, le, nt, rm, lm, chin]):
+        return None
         
-    # 3. Draw Landmark Dots
-    pts = [re, le, nt, rm, lm]
-    for pt in pts:
-        if pt:
-            cv2.circle(vis, pt, 4, (0, 0, 0), -1, cv2.LINE_AA)
-            cv2.circle(vis, pt, 2, (255, 255, 255), -1, cv2.LINE_AA)
+    # 2D image points from MediaPipe (6 points required for solvePnP)
+    image_points = np.array([
+        nt,       # Nose tip
+        lm,       # Left mouth corner
+        rm,       # Right mouth corner
+        le,       # Left eye
+        re,       # Right eye
+        chin      # Chin
+    ], dtype="double")
+    
+    # Canonical 3D skull points (X, Y, Z)
+    model_points = np.array([
+        (0.0, 0.0, 0.0),             # Nose tip
+        (-225.0, 170.0, -135.0),     # Left mouth corner
+        (225.0, 170.0, -135.0),      # Right mouth corner
+        (-225.0, -150.0, -125.0),    # Left eye
+        (225.0, -150.0, -125.0),     # Right eye
+        (0.0, 330.0, -65.0)          # Chin
+    ])
+    
+    # Camera internals
+    focal_length = w
+    center = (w / 2, h / 2)
+    camera_matrix = np.array([
+        [focal_length, 0, center[0]],
+        [0, focal_length, center[1]],
+        [0, 0, 1]
+    ], dtype="double")
+    
+    dist_coeffs = np.zeros((4, 1)) # Assume zero lens distortion
+    
+    success, rotation_vector, translation_vector = cv2.solvePnP(
+        model_points, image_points, camera_matrix, dist_coeffs, flags=cv2.SOLVEPNP_ITERATIVE
+    )
+    
+    if not success:
+        return None
+        
+    if return_vectors:
+        return rotation_vector, translation_vector, camera_matrix, dist_coeffs
+        
+    # Convert rotation vector to Euler angles
+    rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
+    proj_matrix = np.hstack((rotation_matrix, translation_vector))
+    _, _, _, _, _, _, euler_angles = cv2.decomposeProjectionMatrix(proj_matrix)
+    
+    pitch, yaw, roll = euler_angles.flatten()
+    return (pitch, yaw, roll)
 
-    # 4. Optional: Print minimal stats at bottom left instead of a huge HUD
+def visualize_landmarks(image_rgb, landmarks, metrics=None, save_path=None, pose_save_path=None):
+    """
+    Draw 468-point full 3D face mesh using MediaPipe connections.
+    Creates a glowing hologram effect on the original image.
+    """
+    vis = image_rgb.copy()
+
+    if landmarks is None or "all_landmarks" not in landmarks:
+        if save_path:
+            cv2.imwrite(save_path, cv2.cvtColor(vis, cv2.COLOR_RGB2BGR))
+        return vis
+
+    # Draw Face Mesh
+    overlay = np.zeros_like(vis, dtype=np.uint8)
+    all_pts = landmarks["all_landmarks"]
+    
+    # Define color for mesh
+    mesh_color = (200, 248, 129) # Glowing mint
+    
+    # Try to get connections
+    connections = None
+    try:
+        import mediapipe as mp
+        if hasattr(mp, 'solutions') and hasattr(mp.solutions, 'face_mesh'):
+            connections = mp.solutions.face_mesh.FACEMESH_TESSELATION
+        else:
+            from mediapipe.python.solutions import face_mesh_connections
+            connections = face_mesh_connections.FACEMESH_TESSELATION
+    except Exception:
+        pass
+        
+    if connections:
+        # Draw connections
+        for connection in connections:
+            start_idx = connection[0]
+            end_idx = connection[1]
+            if start_idx < len(all_pts) and end_idx < len(all_pts):
+                pt1 = all_pts[start_idx]
+                pt2 = all_pts[end_idx]
+                cv2.line(overlay, pt1, pt2, mesh_color, 1, cv2.LINE_AA)
+    else:
+        # Fallback to dense point cloud
+        for pt in all_pts:
+            cv2.circle(overlay, pt, 1, mesh_color, -1, cv2.LINE_AA)
+            
+    # Add dots for key points (eyes, nose, mouth)
+    key_pts = [landmarks.get("right_eye"), landmarks.get("left_eye"), landmarks.get("nose_tip"), landmarks.get("right_mouth"), landmarks.get("left_mouth")]
+    for pt in key_pts:
+        if pt:
+            cv2.circle(overlay, pt, 4, (0, 0, 0), -1, cv2.LINE_AA)
+            cv2.circle(overlay, pt, 2, (255, 255, 255), -1, cv2.LINE_AA)
+            
+    # Apply glow effect
+    glow = cv2.GaussianBlur(overlay, (7, 7), 0)
+    overlay_with_glow = cv2.addWeighted(overlay, 0.8, glow, 0.6, 0)
+    
+    # Blend with original
+    vis = cv2.addWeighted(vis, 1.0, overlay_with_glow, 0.7, 0)
+    
+    # Draw 3D axes (Pitch, Yaw, Roll) on a SEPARATE clean image
+    ih, iw = vis.shape[:2]
+    pose_data = compute_3d_head_pose(landmarks, iw, ih, return_vectors=True)
+    if pose_data and pose_save_path:
+        # Create a fresh copy of the original image
+        pose_vis = image_rgb.copy()
+        
+        rvec, tvec, camera_matrix, dist_coeffs = pose_data
+        axis_length = landmarks.get("face_bbox", [0, 0, 200, 200])[2] * 1.2 # Scale to 1.2x face width
+        
+        # 3D points representing X, Y, Z axes
+        axis_points = np.array([
+            (axis_length, 0.0, 0.0),       # X axis (Pitch)
+            (0.0, -axis_length, 0.0),      # Y axis (Yaw)
+            (0.0, 0.0, -axis_length)       # Z axis (Roll)
+        ], dtype="double")
+        
+        projected_axes, _ = cv2.projectPoints(axis_points, rvec, tvec, camera_matrix, dist_coeffs)
+        nose_tip = landmarks.get("nose_tip")
+        
+        if nose_tip:
+            p1 = (int(projected_axes[0][0][0]), int(projected_axes[0][0][1]))
+            p2 = (int(projected_axes[1][0][0]), int(projected_axes[1][0][1]))
+            p3 = (int(projected_axes[2][0][0]), int(projected_axes[2][0][1]))
+            
+            # Helper to draw shadowed text, pushed out from the arrow tip
+            def draw_hud_text(img, text, start_pt, end_pt, color):
+                length = np.sqrt((end_pt[0]-start_pt[0])**2 + (end_pt[1]-start_pt[1])**2)
+                if length == 0: length = 1
+                dx = (end_pt[0] - start_pt[0]) / length
+                dy = (end_pt[1] - start_pt[1]) / length
+                
+                # Push text 25 pixels past the tip
+                pos = (int(end_pt[0] + dx * 25) - 30, int(end_pt[1] + dy * 25) + 5)
+                
+                cv2.putText(img, text, (pos[0]+2, pos[1]+2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 3, cv2.LINE_AA)
+                cv2.putText(img, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+
+            # Draw center origin point
+            cv2.circle(pose_vis, nose_tip, 4, (255, 255, 255), -1, cv2.LINE_AA)
+            cv2.circle(pose_vis, nose_tip, 6, (0, 0, 0), 2, cv2.LINE_AA)
+
+            # Note: image_rgb is in RGB format, so colors are (R, G, B)
+            
+            # Z axis (Roll Axis) - Blue
+            cv2.arrowedLine(pose_vis, nose_tip, p3, (50, 150, 255), 3, cv2.LINE_AA, tipLength=0.15)
+            draw_hud_text(pose_vis, "Z (Roll Axis)", nose_tip, p3, (50, 150, 255))
+            
+            # Y axis (Yaw Axis) - Green
+            cv2.arrowedLine(pose_vis, nose_tip, p2, (50, 255, 50), 3, cv2.LINE_AA, tipLength=0.15)
+            draw_hud_text(pose_vis, "Y (Yaw Axis)", nose_tip, p2, (50, 255, 50))
+            
+            # X axis (Pitch Axis) - Red
+            cv2.arrowedLine(pose_vis, nose_tip, p1, (255, 50, 50), 3, cv2.LINE_AA, tipLength=0.15)
+            draw_hud_text(pose_vis, "X (Pitch Axis)", nose_tip, p1, (255, 50, 50))
+            
+            cv2.imwrite(pose_save_path, cv2.cvtColor(pose_vis, cv2.COLOR_RGB2BGR))
+
+    # Print stats
     if metrics:
         conf_str = metrics.get('Confidence', '')
         sym_str = metrics.get('Symmetry', '')
         text = f"CONF: {conf_str} | SYM: {sym_str}"
-        # Measure text to place it at bottom
         (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
         ih, iw = vis.shape[:2]
         tx, ty = 10, ih - 10
-        # Shadow
         cv2.putText(vis, text, (tx+1, ty+1), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
-        # Text
         cv2.putText(vis, text, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
 
     if save_path:
@@ -452,7 +593,7 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
         }
 
     bbox = landmarks_first["face_bbox"]
-    symmetry, sym_map_path = compute_face_symmetry(image_rgb, bbox, output_dir, prefix)
+    symmetry, sym_map_path = compute_face_symmetry(image_rgb, landmarks_first, output_dir, prefix)
     texture, tex_map_path = compute_texture_consistency(image_rgb, bbox, output_dir, prefix)
     noise = compute_noise_consistency(image_rgb, bbox)
     eye_angle = compute_eye_alignment(landmarks_first)
@@ -461,8 +602,12 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
     interoc_ratio = compute_interocular_ratio(landmarks_first)
     aspect_ratio = compute_face_aspect_ratio(landmarks_first)
     nose_mouth_ratio = compute_nose_mouth_ratio(landmarks_first)
+    
+    ih, iw = image_rgb.shape[:2]
+    first_head_pose = compute_3d_head_pose(landmarks_first, iw, ih)
 
     temporal_jitter = 0.0
+    head_pose_jitter = 0.0
     is_video = False
 
     # Temporal Geometric Jitter Analysis for Videos
@@ -474,6 +619,12 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
         
         gr_history = []
         io_history = []
+        sym_history = []
+        ar_history = []
+        nm_history = []
+        tex_history = []
+        noise_history = []
+        conf_history = []
 
         for idx in indices:
             frame_path = frame_files[idx]
@@ -485,15 +636,90 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
             if lms:
                 gr = compute_golden_ratio(lms)
                 io = compute_interocular_ratio(lms)
+                ar = compute_face_aspect_ratio(lms)
+                nm = compute_nose_mouth_ratio(lms)
+                sym, _ = compute_face_symmetry(frame_rgb, lms, output_dir=None)
+                tex, _ = compute_texture_consistency(frame_rgb, lms["face_bbox"], output_dir=None)
+                ns = compute_noise_consistency(frame_rgb, lms["face_bbox"])
+                cnf = lms.get("confidence", 0.95)
+
                 if gr is not None: gr_history.append(gr)
                 if io is not None: io_history.append(io)
+                if ar is not None: ar_history.append(ar)
+                if nm is not None: nm_history.append(nm)
+                if sym is not None: sym_history.append(sym)
+                if tex is not None: tex_history.append(tex)
+                if ns is not None: noise_history.append(ns)
+                if cnf is not None: conf_history.append(cnf)
+                
+                # 3D Head Pose tracking
+                pose = compute_3d_head_pose(lms, iw, ih)
+                if pose:
+                    if not 'pose_history' in locals():
+                        pose_history = []
+                    pose_history.append(pose)
 
         # Calculate standard deviation (jitter) across frames
-        if len(gr_history) > 3 and len(io_history) > 3:
-            gr_variance = np.std(gr_history)
-            io_variance = np.std(io_history)
-            # Normalize jitter: Webcams have high noise which shifts landmarks. We use 0.15 std as the threshold for true deepfake jitter
-            temporal_jitter = min(1.0, (gr_variance / 0.15) * 0.5 + (io_variance / 0.15) * 0.5)
+        if len(gr_history) > 3:
+            # We compute a combined jitter score based on the variance of all key proportions
+            var_gr = np.std(gr_history) / 0.15
+            var_io = np.std(io_history) / 0.15
+            var_ar = np.std(ar_history) / 0.15
+            var_nm = np.std(nm_history) / 0.15
+            var_sym = np.std(sym_history) / 0.10
+            
+            avg_var = np.mean([var_gr, var_io, var_ar, var_nm, var_sym])
+            temporal_jitter = min(1.0, avg_var)
+            
+            # Compute 3D Head Pose Jitter
+            if 'pose_history' in locals() and len(pose_history) > 3:
+                poses = np.array(pose_history)
+                # Compute angular velocity (diff between adjacent frames)
+                angular_velocity = np.diff(poses, axis=0)
+                # Jitter is the variance of the angular velocity
+                pitch_jitter = np.var(angular_velocity[:, 0])
+                yaw_jitter = np.var(angular_velocity[:, 1])
+                roll_jitter = np.var(angular_velocity[:, 2])
+                
+                # Normalize jitter. Real faces have smooth velocity.
+                # Deepfakes snap and snap with high velocity variance.
+                head_pose_jitter = min(1.0, (pitch_jitter + yaw_jitter + roll_jitter) / 150.0)
+
+            # Generate Temporal Geometric Jitter Plot
+            from matplotlib.figure import Figure
+            from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+            
+            fig = Figure(figsize=(8, 4), facecolor='#0f172a')
+            canvas = FigureCanvas(fig)
+            ax = fig.subplots()
+            
+            ax.set_facecolor('#0f172a')
+            time_axis = np.arange(len(gr_history))
+            
+            def norm_history(hist):
+                if not hist or len(hist) == 0: return []
+                mean_val = np.mean(hist)
+                if mean_val == 0: return [0] * len(hist)
+                return [(x - mean_val) / mean_val * 100 for x in hist]
+            
+            ax.plot(time_axis, norm_history(gr_history), color='#f43f5e', linewidth=2, label='Golden Ratio', marker='o', markersize=3)
+            ax.plot(time_axis, norm_history(io_history), color='#2dd4bf', linewidth=2, label='Interocular', marker='s', markersize=3)
+            ax.plot(time_axis, norm_history(sym_history), color='#a855f7', linewidth=1.5, label='Symmetry', alpha=0.8)
+            ax.plot(time_axis, norm_history(ar_history), color='#3b82f6', linewidth=1.5, label='Aspect Ratio', alpha=0.8)
+            ax.plot(time_axis, norm_history(tex_history), color='#eab308', linewidth=1, label='Texture', alpha=0.5, linestyle='--')
+            ax.plot(time_axis, norm_history(noise_history), color='#94a3b8', linewidth=1, label='Noise', alpha=0.5, linestyle='--')
+            
+            ax.set_title("Temporal Jitter Tracker (All Proportions)", color='white', fontsize=11, pad=10)
+            ax.set_xlabel("Sampled Frame Window", color='#94a3b8', fontsize=9)
+            ax.set_ylabel("Deviation from Mean (%)", color='#94a3b8', fontsize=9)
+            ax.tick_params(colors='#94a3b8', labelsize=8)
+            ax.legend(facecolor='#0f172a', edgecolor='#1e293b', labelcolor='white', loc='upper right', fontsize=8, ncol=2)
+            for spine in ax.spines.values(): spine.set_color('#1e293b')
+            ax.grid(True, color='#1e293b', linestyle='--', alpha=0.5)
+            
+            temporal_plot_path = os.path.join(output_dir, f"{prefix}_temporal_jitter.jpg")
+            fig.tight_layout()
+            canvas.print_figure(temporal_plot_path, dpi=120, bbox_inches='tight', facecolor='#0f172a')
 
     # Build HUD metrics
     hud_metrics = {
@@ -505,13 +731,14 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
     }
 
     # Call visualize
-    visualize_landmarks(image_rgb, landmarks_first, metrics=hud_metrics, save_path=vis_path)
+    pose_vis_path = os.path.join(output_dir, f"{prefix}_head_pose.jpg")
+    visualize_landmarks(image_rgb, landmarks_first, metrics=hud_metrics, save_path=vis_path, pose_save_path=pose_vis_path)
 
     # Overall geometry anomaly score
     if is_video:
-        # Videos suffer from compression, ruining texture/noise. Rely heavily on symmetry and temporal stability.
-        base_score = symmetry * 0.50 + texture * 0.25 + noise * 0.25
-        anomaly_score = (1.0 - base_score) * 0.60 + (temporal_jitter * 0.40)
+        # Videos suffer from compression, ruining texture/noise. Rely heavily on symmetry, temporal stability, and 3D head pose.
+        base_score = symmetry * 0.40 + texture * 0.20 + noise * 0.20
+        anomaly_score = (1.0 - base_score) * 0.40 + (temporal_jitter * 0.30) + (head_pose_jitter * 0.30)
     else:
         base_score = symmetry * 0.30 + texture * 0.40 + noise * 0.30
         anomaly_score = 1.0 - base_score
@@ -542,17 +769,77 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
     anomaly_score = float(np.clip(anomaly_score, 0, 1))
 
     # Interpretation
-    if temporal_jitter > 0.4:
+    if head_pose_jitter > 0.4:
+        interpretation = "High 3D Head Pose Inconsistency! The angular velocity of the head exhibits unnatural snapping and jitter (solvePnP violation), which is physically impossible for a real human. Extremely likely to be a Deepfake."
+    elif temporal_jitter > 0.4:
         interpretation = "High Temporal Geometric Jitter detected! Facial proportions fluctuate unnaturally across frames, strongly indicating a synthetic video generation."
     elif anomaly_score > 0.5:
         interpretation = "Significant facial geometry anomalies detected. Asymmetrical features or incorrect biological proportions suggest synthetic generation."
     elif anomaly_score > 0.3:
         interpretation = "Minor geometric inconsistencies found. Subtle texture boundary artifacts or skewed proportions."
     else:
-        interpretation = "Facial geometry appears consistent. Biological proportions, symmetry, and temporal stability are natural."
+        interpretation = "Facial geometry appears consistent. 3D pose tracking, biological proportions, and temporal stability are natural."
 
     conf = landmarks_first.get("confidence", 0.0)
     det_conf = round(float(conf), 4) if isinstance(conf, (int, float, str)) else 0.0
+
+    # === Radar Chart Generation ===
+    labels = [
+        "Symmetry", "Golden Ratio", "Interocular",
+        "Face Aspect", "Nose-Mouth", "Texture", "Noise", "Confidence"
+    ]
+    
+    # Normalize values (1.0 = Perfect, 0.0 = Bad)
+    def norm_ratio(val, ideal, tol=0.4):
+        if val is None: return 0.5
+        return max(0.0, 1.0 - (abs(val - ideal) / tol))
+        
+    v_sym = float(symmetry)
+    # The Vertical Proportion (eyes-to-nose vs nose-to-mouth) is typically 1.0 to 1.2
+    v_gr = norm_ratio(golden_ratio, 1.0, 0.5)
+    # The Interocular vs Mouth Width is typically 1.2
+    v_io = norm_ratio(interoc_ratio, 1.2, 0.5)
+    # YuNet BBox is square, so aspect ratio is 1.0
+    v_ar = norm_ratio(aspect_ratio, 1.0, 0.4)
+    v_nm = norm_ratio(nose_mouth_ratio, 0.8, 0.4)
+    v_tex = float(texture)
+    v_noise = float(noise)
+    v_conf = float(det_conf)
+    
+    values = [v_sym, v_gr, v_io, v_ar, v_nm, v_tex, v_noise, v_conf]
+    
+    # Close the loop
+    values += values[:1]
+    
+    # Angles
+    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
+    angles += angles[:1]
+    
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+    
+    fig = Figure(figsize=(5, 5), facecolor='#0f172a')
+    canvas = FigureCanvas(fig)
+    ax = fig.add_subplot(111, polar=True)
+    ax.set_facecolor('#0f172a')
+    
+    # Draw radar
+    ax.plot(angles, values, color='#a855f7', linewidth=2)
+    ax.fill(angles, values, color='#a855f7', alpha=0.25)
+    
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels, color='#94a3b8', size=8)
+    
+    ax.set_yticks([0.2, 0.4, 0.6, 0.8, 1.0])
+    ax.set_yticklabels([], color='#1e293b')
+    ax.spines['polar'].set_color('#1e293b')
+    ax.grid(color='#1e293b', linestyle='--', alpha=0.5)
+    
+    ax.set_title("Biological Proportions (Radar Map)", color='white', pad=20, size=11)
+    
+    radar_path = os.path.join(output_dir, f"{prefix}_radar_chart.jpg")
+    fig.tight_layout()
+    canvas.print_figure(radar_path, dpi=120, bbox_inches='tight', facecolor='#0f172a')
 
     result = {
         "face_detected": True,
@@ -562,18 +849,28 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
         "noise_consistency": round(noise, 4),
         "geometry_anomaly_score": round(anomaly_score, 4),
         "landmark_visualization_path": vis_path.replace("\\", "/"),
+        "head_pose_visualization_path": pose_vis_path.replace("\\", "/"),
         "symmetry_map_path": sym_map_path.replace("\\", "/") if sym_map_path else None,
         "texture_map_path": tex_map_path.replace("\\", "/") if tex_map_path else None,
+        "radar_chart_path": radar_path.replace("\\", "/"),
         "face_geometry_interpretation": interpretation,
     }
 
     if is_video:
         result["temporal_jitter_score"] = round(temporal_jitter, 4)
+        result["head_pose_jitter_score"] = round(head_pose_jitter, 4)
         result["temporal_history"] = {
             "golden_ratio": [round(x, 3) for x in gr_history] if 'gr_history' in locals() and gr_history else [],
             "interocular_ratio": [round(x, 3) for x in io_history] if 'io_history' in locals() and io_history else [],
+            "symmetry": [round(x, 3) for x in sym_history] if 'sym_history' in locals() and sym_history else [],
+            "aspect_ratio": [round(x, 3) for x in ar_history] if 'ar_history' in locals() and ar_history else [],
+            "nose_mouth": [round(x, 3) for x in nm_history] if 'nm_history' in locals() and nm_history else [],
+            "texture": [round(x, 3) for x in tex_history] if 'tex_history' in locals() and tex_history else [],
+            "noise": [round(x, 3) for x in noise_history] if 'noise_history' in locals() and noise_history else [],
             "frames": [int(x) for x in indices] if 'indices' in locals() and indices is not None and len(indices) > 0 else []
         }
+        if 'temporal_plot_path' in locals():
+            result["temporal_jitter_plot_path"] = temporal_plot_path.replace("\\", "/")
 
     if eye_angle is not None:
         result["eye_alignment_angle"] = round(eye_angle, 2)

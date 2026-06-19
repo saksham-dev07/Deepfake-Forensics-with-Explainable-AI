@@ -24,8 +24,13 @@ def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplie
     
     cb_path = os.path.join(output_dir, f"{prefix}_cb_map.jpg")
     cr_path = os.path.join(output_dir, f"{prefix}_cr_map.jpg")
-    cv2.imwrite(cb_path, cv2.cvtColor(cb_vis_rgb, cv2.COLOR_RGB2BGR))
-    cv2.imwrite(cr_path, cv2.cvtColor(cr_vis_rgb, cv2.COLOR_RGB2BGR))
+    
+    image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+    blended_cb = cv2.addWeighted(image_bgr, 0.4, cv2.cvtColor(cb_vis_rgb, cv2.COLOR_RGB2BGR), 0.8, 0)
+    blended_cr = cv2.addWeighted(image_bgr, 0.4, cv2.cvtColor(cr_vis_rgb, cv2.COLOR_RGB2BGR), 0.8, 0)
+    
+    cv2.imwrite(cb_path, blended_cb)
+    cv2.imwrite(cr_path, blended_cr)
     
     # 2. HSV Analysis (Saturation/Vibrancy Variance)
     hsv = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2HSV)
@@ -33,8 +38,9 @@ def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplie
     
     # Create Saturation heatmap (Viridis colormap)
     s_vis = cv2.applyColorMap(s, cv2.COLORMAP_VIRIDIS)
+    blended_s = cv2.addWeighted(image_bgr, 0.4, s_vis, 0.8, 0)
     s_path = os.path.join(output_dir, f"{prefix}_s_map.jpg")
-    cv2.imwrite(s_path, s_vis)
+    cv2.imwrite(s_path, blended_s)
     
     # 3. LAB Analysis (Skin Subsurface Scattering)
     lab = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2LAB)
@@ -42,8 +48,9 @@ def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplie
     
     # Create a* (Red/Green) heatmap (Plasma colormap to highlight blood flow)
     a_vis = cv2.applyColorMap(a, cv2.COLORMAP_PLASMA)
+    blended_a = cv2.addWeighted(image_bgr, 0.4, a_vis, 0.8, 0)
     a_path = os.path.join(output_dir, f"{prefix}_a_map.jpg")
-    cv2.imwrite(a_path, a_vis)
+    cv2.imwrite(a_path, blended_a)
     
     # Calculate variances across all critical non-luma channels
     cb_var = np.var(cb)
