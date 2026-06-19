@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import os
 import math
-from pipeline.face_geometry import detect_face_yunet
+from pipeline.face_geometry import detect_face
 
 def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplier=1.0):
     """
@@ -29,7 +29,7 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
     angle = cv2.phase(grad_x, grad_y, angleInDegrees=True)
 
     # Face detection
-    landmarks = detect_face_yunet(image_rgb)
+    landmarks = detect_face(image_rgb)
     
     face_mask = np.zeros((h, w), dtype=np.uint8)
     x_min, y_min, box_w, box_h = 0, 0, 0, 0

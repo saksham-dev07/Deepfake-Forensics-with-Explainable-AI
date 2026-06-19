@@ -18,63 +18,104 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
             return {"corneal_score": 0.5, "error": "Could not read image"}
             
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        h, w = img.shape[:2]
         
-        # Load Haar cascades for face and eyes
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+        import mediapipe as mp
+        from pipeline.face_geometry import get_landmarker
         
-        # Try to use provided face box, otherwise detect
-        face_box = None
-        if face_results and "box" in face_results:
-            face_box = face_results["box"]
-        else:
-            faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-            if len(faces) > 0:
-                face_box = faces[0]
-                
-        if face_box is None:
-            # No face found, cannot do corneal analysis
+        landmarker = get_landmarker()
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
+        detection_result = landmarker.detect(mp_image)
+            
+        if not detection_result.face_landmarks:
             return {
                 "corneal_score": 0.5,
                 "warning": "No face detected for corneal analysis",
                 "corneal_map_path": None
             }
             
-        fx, fy, fw, fh = face_box
-        roi_gray = gray[fy:fy+fh, fx:fx+fw]
-        roi_color = img[fy:fy+fh, fx:fx+fw]
+        face_landmarks = detection_result.face_landmarks[0]
         
-        # Detect eyes within the face ROI
-        eyes = eye_cascade.detectMultiScale(roi_gray, 1.1, 4)
+        # Create a mask for the face to exclude bright backgrounds (like curtains)
+        face_oval_indices = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109]
+        face_mask = np.zeros(img.shape[:2], dtype=np.uint8)
+        oval_pts = np.array([[int(face_landmarks[i].x * w), int(face_landmarks[i].y * h)] for i in face_oval_indices], dtype=np.int32)
+        cv2.fillPoly(face_mask, [oval_pts], 255)
         
-        if len(eyes) < 2:
+        # Apply mask to grayscale image to ignore background reflections
+        gray_masked = cv2.bitwise_and(gray, gray, mask=face_mask)
+        
+        # Person's left eye (appears on the right side of the image)
+        le_indices = [263, 362, 386, 374]
+        lx_coords = [int(face_landmarks[i].x * w) for i in le_indices]
+        ly_coords = [int(face_landmarks[i].y * h) for i in le_indices]
+        lx_min, lx_max = min(lx_coords), max(lx_coords)
+        ly_min, ly_max = min(ly_coords), max(ly_coords)
+        
+        def pad_bbox(x_min, x_max, y_min, y_max, pad_ratio=1.5):
+            bw, bh = x_max - x_min, y_max - y_min
+            px, py = int(bw * pad_ratio), int(bh * pad_ratio)
+            return (
+                max(0, x_min - px), min(w, x_max + px),
+                max(0, y_min - py), min(h, y_max + py)
+            )
+            
+        lx_min, lx_max, ly_min, ly_max = pad_bbox(lx_min, lx_max, ly_min, ly_max)
+        
+        # Person's right eye (appears on the left side of the image)
+        re_indices = [33, 133, 159, 145]
+        rx_coords = [int(face_landmarks[i].x * w) for i in re_indices]
+        ry_coords = [int(face_landmarks[i].y * h) for i in re_indices]
+        rx_min, rx_max = min(rx_coords), max(rx_coords)
+        ry_min, ry_max = min(ry_coords), max(ry_coords)
+        
+        rx_min, rx_max, ry_min, ry_max = pad_bbox(rx_min, rx_max, ry_min, ry_max)
+        
+        # Crop eye regions (using raw RGB image to access color channels)
+        left_eye_rgb = img_rgb[ly_min:ly_max, lx_min:lx_max]
+        right_eye_rgb = img_rgb[ry_min:ry_max, rx_min:rx_max]
+        
+        # Crop masks
+        left_mask = face_mask[ly_min:ly_max, lx_min:lx_max]
+        right_mask = face_mask[ry_min:ry_max, rx_min:rx_max]
+        
+        if left_eye_rgb.size == 0 or right_eye_rgb.size == 0:
              return {
                 "corneal_score": 0.5,
-                "warning": "Could not detect both eyes clearly",
+                "warning": "Eye regions could not be cropped clearly",
                 "corneal_map_path": None
             }
             
-        # Sort eyes by X coordinate to get Left and Right
-        eyes = sorted(eyes, key=lambda e: e[0])
-        left_eye = eyes[0]
-        right_eye = eyes[-1] # Usually index 1
-        
-        # Extract eye images
-        lx, ly, lw, lh = left_eye
-        rx, ry, rw, rh = right_eye
-        
-        left_eye_img = roi_gray[ly:ly+lh, lx:lx+lw]
-        right_eye_img = roi_gray[ry:ry+rh, rx:rx+rw]
-        
-        # Resize to same dimensions for comparison
+        # Resize to standard size for comparison
         target_size = (64, 64)
-        left_eye_img = cv2.resize(left_eye_img, target_size)
-        right_eye_img = cv2.resize(right_eye_img, target_size)
+        left_eye_rgb = cv2.resize(left_eye_rgb, target_size)
+        right_eye_rgb = cv2.resize(right_eye_rgb, target_size)
         
-        # Find specular highlights (brightest pixels)
-        # We use a high threshold to isolate the reflections
-        _, left_thresh = cv2.threshold(left_eye_img, 200, 255, cv2.THRESH_BINARY)
-        _, right_thresh = cv2.threshold(right_eye_img, 200, 255, cv2.THRESH_BINARY)
+        left_mask = cv2.resize(left_mask, target_size, interpolation=cv2.INTER_NEAREST)
+        right_mask = cv2.resize(right_mask, target_size, interpolation=cv2.INTER_NEAREST)
+        
+        # Isolate specular highlights using Color-Informed Brightness:
+        # Human skin is highly red-dominant (R > G > B). 
+        # Specular reflections from screens/windows are neutral/cool and bright (R ≈ G ≈ B or B > R).
+        # Taking min(B, G) perfectly suppresses warm skin while preserving true reflections!
+        def extract_highlights(eye_rgb, mask):
+            r, g, b = cv2.split(eye_rgb)
+            min_bg = np.minimum(b.astype(np.float32), g.astype(np.float32))
+            min_bg = np.clip(min_bg, 0, 255).astype(np.uint8)
+            min_bg = cv2.bitwise_and(min_bg, min_bg, mask=mask)
+            
+            _, mx, _, _ = cv2.minMaxLoc(min_bg)
+            thresh_val = max(90, mx * 0.80)
+            _, thresh = cv2.threshold(min_bg, thresh_val, 255, cv2.THRESH_BINARY)
+            return thresh
+            
+        left_thresh = extract_highlights(left_eye_rgb, left_mask)
+        right_thresh = extract_highlights(right_eye_rgb, right_mask)
+        
+        # Create grayscale versions for the visualization at the end
+        left_eye_img = cv2.cvtColor(left_eye_rgb, cv2.COLOR_RGB2GRAY)
+        right_eye_img = cv2.cvtColor(right_eye_rgb, cv2.COLOR_RGB2GRAY)
         
         # Calculate Intersection over Union (IoU) of the highlights
         intersection = np.logical_and(left_thresh, right_thresh).sum()
@@ -103,40 +144,72 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         corneal_score = corneal_score * quality_multiplier
         
         # --- Visualization Generation ---
-        plt.style.use('dark_background')
-        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        scale = 6
+        img_size = 64 * scale
         
-        # Create RGB versions for overlay plotting
-        left_eye_rgb = cv2.cvtColor(left_eye_img, cv2.COLOR_GRAY2RGB)
-        right_eye_rgb = cv2.cvtColor(right_eye_img, cv2.COLOR_GRAY2RGB)
+        # Resize base images first (using NEAREST to keep masks pixel-perfect)
+        left_big = cv2.resize(cv2.cvtColor(left_eye_img, cv2.COLOR_GRAY2RGB), (img_size, img_size), interpolation=cv2.INTER_NEAREST)
+        right_big = cv2.resize(cv2.cvtColor(right_eye_img, cv2.COLOR_GRAY2RGB), (img_size, img_size), interpolation=cv2.INTER_NEAREST)
         
-        # Left Eye Highlight (Bright Red overlay)
-        left_eye_overlay = left_eye_rgb.copy()
-        left_eye_overlay[left_thresh > 0] = [255, 50, 50] 
-        axes[0].imshow(left_eye_overlay)
-        axes[0].set_title("Left Eye Specular Highlight")
-        axes[0].axis('off')
+        left_big_thresh = cv2.resize(left_thresh, (img_size, img_size), interpolation=cv2.INTER_NEAREST)
+        right_big_thresh = cv2.resize(right_thresh, (img_size, img_size), interpolation=cv2.INTER_NEAREST)
         
-        # Right Eye Highlight (Bright Cyan overlay)
-        right_eye_overlay = right_eye_rgb.copy()
-        right_eye_overlay[right_thresh > 0] = [50, 255, 255] 
-        axes[1].imshow(right_eye_overlay)
-        axes[1].set_title("Right Eye Specular Highlight")
-        axes[1].axis('off')
+        # Overlays
+        left_big_overlay = left_big.copy()
+        left_big_overlay[left_big_thresh > 0] = [255, 50, 50] 
         
-        # Intersection Overlay (Left = Red, Right = Cyan, Intersection = White)
-        composite = np.zeros_like(left_eye_rgb)
-        composite[left_thresh > 0, 0] = 255 # Red channel for left
-        composite[right_thresh > 0, 1] = 255 # Green channel for right
-        composite[right_thresh > 0, 2] = 255 # Blue channel for right
+        right_big_overlay = right_big.copy()
+        right_big_overlay[right_big_thresh > 0] = [50, 255, 255] 
         
-        axes[2].imshow(composite)
+        # Composite
+        comp_big = np.zeros_like(left_big)
+        comp_big[left_big_thresh > 0, 0] = 255 # Red
+        comp_big[right_big_thresh > 0, 1] = 255 # Green
+        comp_big[right_big_thresh > 0, 2] = 255 # Blue
         
+        # Build Canvas
+        pad = 40
+        top_pad = 80
+        w = pad * 4 + img_size * 3
+        h = top_pad + img_size + pad
+        
+        # Dark Slate background (BGR format)
+        canvas = np.full((h, w, 3), (40, 30, 25), dtype=np.uint8)
+        
+        x1 = pad
+        x2 = x1 + img_size + pad
+        x3 = x2 + img_size + pad
+        y = top_pad
+        
+        # Place Images
+        canvas[y:y+img_size, x1:x1+img_size] = cv2.cvtColor(left_big_overlay, cv2.COLOR_RGB2BGR)
+        canvas[y:y+img_size, x2:x2+img_size] = cv2.cvtColor(right_big_overlay, cv2.COLOR_RGB2BGR)
+        canvas[y:y+img_size, x3:x3+img_size] = cv2.cvtColor(comp_big, cv2.COLOR_RGB2BGR)
+        
+        # Draw Borders
+        border_color = (80, 80, 80)
+        thickness = 2
+        cv2.rectangle(canvas, (x1-thickness, y-thickness), (x1+img_size+thickness-1, y+img_size+thickness-1), border_color, thickness)
+        cv2.rectangle(canvas, (x2-thickness, y-thickness), (x2+img_size+thickness-1, y+img_size+thickness-1), border_color, thickness)
+        cv2.rectangle(canvas, (x3-thickness, y-thickness), (x3+img_size+thickness-1, y+img_size+thickness-1), border_color, thickness)
+        
+        # Add text
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.8
+        
+        def put_centered_text(img, text, cx, cy, color):
+            text_size, _ = cv2.getTextSize(text, font, font_scale, 2)
+            tx = cx - text_size[0] // 2
+            cv2.putText(img, text, (tx, cy), font, font_scale, color, 2, cv2.LINE_AA)
+            
         status = "Consistent" if iou > 0.3 else "Mismatched"
-        axes[2].set_title(f"3D Reflection Alignment: {status}\n(IoU: {iou:.2f} | Anomaly: {corneal_score:.2f})")
-        axes[2].axis('off')
+        comp_title = f"Alignment: {status} (IoU: {iou:.2f})"
         
-        plt.tight_layout()
+        put_centered_text(canvas, "Left Eye Reflection", x1 + img_size//2, top_pad - 25, (220, 220, 220))
+        put_centered_text(canvas, "Right Eye Reflection", x2 + img_size//2, top_pad - 25, (220, 220, 220))
+        put_centered_text(canvas, comp_title, x3 + img_size//2, top_pad - 25, (255, 255, 255))
+        
+        final_vis_bgr = canvas
         
         filename = f"corneal_{uuid.uuid4().hex[:8]}.png"
         
@@ -145,8 +218,7 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         os.makedirs(save_dir, exist_ok=True)
         save_path = os.path.join(save_dir, filename)
         
-        plt.savefig(save_path, bbox_inches='tight', facecolor='black')
-        plt.close(fig)
+        cv2.imwrite(save_path, final_vis_bgr)
         
         # Calculate web relative path
         if "uploads" in str(save_path):

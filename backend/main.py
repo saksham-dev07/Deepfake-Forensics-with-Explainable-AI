@@ -433,7 +433,7 @@ def run_analysis_pipeline(job_id: str, file_path: str):
                 "metadata_score": 0.05,
                 "lighting_score": phys_weight_minor,
                 "cfa_score": 0.10,
-                "corneal_score": 0.10
+                "corneal_score": 0.02
             }
         
         # Normalize weights to exactly 1.0

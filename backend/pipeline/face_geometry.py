@@ -17,117 +17,75 @@ Analysis techniques:
 import numpy as np
 import cv2
 import os
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 
-# Path to YuNet ONNX model (relative to backend/)
-YUNET_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "face_detection_yunet_2023mar.onnx")
+MP_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "face_landmarker.task")
+_landmarker = None
 
-
-def detect_face_yunet(image_rgb):
-    """
-    Detect faces using OpenCV's DNN-based YuNet detector.
-    Returns the strongest detection with 14-point landmarks:
-      [x, y, w, h, x_re, y_re, x_le, y_le, x_nt, y_nt, x_rcm, y_rcm, x_lcm, y_lcm, score]
-      (right eye, left eye, nose tip, right corner mouth, left corner mouth)
-    """
-    image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
-    h, w = image_bgr.shape[:2]
-
-    if not os.path.exists(YUNET_MODEL_PATH):
-        print(f"Warning: YuNet model not found at {YUNET_MODEL_PATH}, falling back to Haar cascade.")
-        return _detect_face_haar(image_rgb)
-
-    try:
-        detector = cv2.FaceDetectorYN.create(
-            YUNET_MODEL_PATH,
-            "",
-            (w, h),
-            score_threshold=0.5,
-            nms_threshold=0.3,
-            top_k=5000
+def get_landmarker():
+    global _landmarker
+    if _landmarker is None:
+        base_options = python.BaseOptions(model_asset_path=MP_MODEL_PATH)
+        options = vision.FaceLandmarkerOptions(
+            base_options=base_options,
+            output_face_blendshapes=False,
+            output_facial_transformation_matrixes=False,
+            num_faces=1,
         )
+        _landmarker = vision.FaceLandmarker.create_from_options(options)
+    return _landmarker
 
-        # First pass at original resolution
-        _, faces = detector.detect(image_bgr)
+def detect_face(image_rgb):
+    """
+    Detect faces using MediaPipe Face Mesh (Tasks API) for highly accurate 3D landmarks.
+    Returns the strongest detection with constellation landmarks:
+      [face_bbox, confidence, right_eye, left_eye, nose_tip, right_mouth, left_mouth, face_center]
+    """
+    h, w = image_rgb.shape[:2]
 
-        # If no face found, try upscaling small images
-        if faces is None or len(faces) == 0:
-            scale = 2.0
-            upscaled = cv2.resize(image_bgr, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
-            detector.setInputSize((int(w * scale), int(h * scale)))
-            _, faces = detector.detect(upscaled)
+    landmarker = get_landmarker()
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
+    detection_result = landmarker.detect(mp_image)
 
-            if faces is not None and len(faces) > 0:
-                # Scale coordinates back down
-                faces[:, :4] = faces[:, :4] / scale
-                faces[:, 4:14] = faces[:, 4:14] / scale
-
-        if faces is None or len(faces) == 0:
-            # Last resort: try with lower confidence threshold
-            detector2 = cv2.FaceDetectorYN.create(
-                YUNET_MODEL_PATH,
-                "",
-                (w, h),
-                score_threshold=0.3,
-                nms_threshold=0.3,
-                top_k=5000
-            )
-            _, faces = detector2.detect(image_bgr)
-
-        if faces is None or len(faces) == 0:
-            return None
-
-        # Take the face with highest confidence
-        best_idx = np.argmax(faces[:, -1])
-        face = faces[best_idx]
-
-        x, y, fw, fh = int(face[0]), int(face[1]), int(face[2]), int(face[3])
-        confidence = float(face[-1])
-
-        landmarks = {
-            "face_bbox": (x, y, fw, fh),
-            "confidence": confidence,
-            "right_eye": (int(face[4]), int(face[5])),
-            "left_eye": (int(face[6]), int(face[7])),
-            "nose_tip": (int(face[8]), int(face[9])),
-            "right_mouth": (int(face[10]), int(face[11])),
-            "left_mouth": (int(face[12]), int(face[13])),
-            "face_center": (x + fw // 2, y + fh // 2),
-        }
-
-        return landmarks
-
-    except Exception as e:
-        print(f"YuNet detection failed: {e}, falling back to Haar cascade.")
-        return _detect_face_haar(image_rgb)
-
-
-def _detect_face_haar(image_rgb):
-    """Fallback: Haar cascade face detection for environments without YuNet."""
-    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-
-    # Try multiple scale factors for better detection
-    for scale in [1.05, 1.1, 1.2]:
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=scale, minNeighbors=3, minSize=(30, 30))
-        if len(faces) > 0:
-            break
-
-    if len(faces) == 0:
+    if not detection_result.face_landmarks:
         return None
 
-    face = max(faces, key=lambda f: f[2] * f[3])
-    x, y, w, h = face
+    face_landmarks = detection_result.face_landmarks[0]
+
+    # Calculate bounding box
+    x_min, y_min = w, h
+    x_max, y_max = 0, 0
+    for landmark in face_landmarks:
+        x, y = int(landmark.x * w), int(landmark.y * h)
+        x_min = min(x_min, x)
+        y_min = min(y_min, y)
+        x_max = max(x_max, x)
+        y_max = max(y_max, y)
+
+    # Ensure within bounds
+    x_min, y_min = max(0, x_min), max(0, y_min)
+    x_max, y_max = min(w, x_max), min(h, y_max)
+    fw = x_max - x_min
+    fh = y_max - y_min
+
+    # Extract Constellation Landmarks
+    def get_pt(idx):
+        lm = face_landmarks[idx]
+        return (int(lm.x * w), int(lm.y * h))
 
     return {
-        "face_bbox": (int(x), int(y), int(w), int(h)),
-        "confidence": 0.5,  # Unknown for Haar
-        "right_eye": None,
-        "left_eye": None,
-        "nose_tip": None,
-        "right_mouth": None,
-        "left_mouth": None,
-        "face_center": (int(x + w // 2), int(y + h // 2)),
+        "face_bbox": (x_min, y_min, fw, fh),
+        "confidence": 0.95,
+        "right_eye": get_pt(468), # Person's right iris
+        "left_eye": get_pt(473),  # Person's left iris
+        "nose_tip": get_pt(1),    # Nose tip
+        "right_mouth": get_pt(61), # Person's right mouth corner
+        "left_mouth": get_pt(291), # Person's left mouth corner
+        "face_center": (x_min + fw // 2, y_min + fh // 2),
     }
+
 
 
 def compute_face_symmetry(image_rgb, face_bbox, output_dir=None, prefix="face"):
@@ -479,7 +437,7 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
     os.makedirs(output_dir, exist_ok=True)
 
     # Always process the first frame for static metrics and visualization
-    landmarks_first = detect_face_yunet(image_rgb)
+    landmarks_first = detect_face(image_rgb)
     vis_path = os.path.join(output_dir, f"{prefix}_landmarks.jpg")
 
     if landmarks_first is None:
@@ -523,7 +481,7 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
             if frame is None:
                 continue
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            lms = detect_face_yunet(frame_rgb)
+            lms = detect_face(frame_rgb)
             if lms:
                 gr = compute_golden_ratio(lms)
                 io = compute_interocular_ratio(lms)

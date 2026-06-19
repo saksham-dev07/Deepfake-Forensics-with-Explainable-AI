@@ -905,6 +905,14 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
               <p>
                 A person's eyes act as spherical mirrors. In a real, unedited photo, the reflection of light sources (specular highlights) must be geometrically consistent across both eyes. Generative AI models struggle with 3D physical consistency and often render mismatched reflections in the left and right eyes.
               </p>
+              <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '3px solid var(--danger)', borderRadius: '4px' }}>
+                <strong style={{ color: 'var(--danger)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <AlertTriangle size={14} /> WARNING: Inaccuracy on Blurry/Far Images
+                </strong>
+                <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  This metric requires extremely high-resolution, clear, and well-lit closeups of the eyes to function correctly. If the person is far away, the image is blurry, or lighting is extremely dim, the anomaly score may be inaccurate or highly elevated. Its weight in the final ensemble calculation is heavily reduced to prevent false positives.
+                </p>
+              </div>
             </div>
           </div>
 

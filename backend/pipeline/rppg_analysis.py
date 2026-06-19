@@ -5,7 +5,7 @@ from scipy.signal import butter, filtfilt, detrend
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from pipeline.face_geometry import detect_face_yunet
+from pipeline.face_geometry import detect_face
 
 def butter_bandpass(lowcut, highcut, fs, order=3):
     nyq = 0.5 * fs
@@ -46,7 +46,7 @@ def extract_rppg_signal(video_path, output_dir, prefix="rppg"):
             break
 
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        landmarks = detect_face_yunet(rgb_frame)
+        landmarks = detect_face(rgb_frame)
 
         if landmarks is not None:
             x, y, w, h = landmarks["face_bbox"]
