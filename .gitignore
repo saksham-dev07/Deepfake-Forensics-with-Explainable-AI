@@ -1,0 +1,26 @@
+# Environment and Virtual Environments
+venv/
+env/
+.env
+__pycache__/
+*.pyc
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Backend Output Caches
+backend/uploads/
+backend/test_out/
+backend/reports/
+backend/weights/
+*.log
