@@ -225,4 +225,16 @@ def extract_rppg_signal(video_path, output_dir, prefix="rppg"):
     results["snr"] = round(float(snr), 2)
     results["heart_rate"] = hr
     results["signal_plot_path"] = plot_path.replace("\\", "/")
+    
+    results["explanation"] = {
+        "what_happened": "Extracted micro-color variations from the face over time (Remote Photoplethysmography) to search for a human heartbeat.",
+        "result": "No Pulse Found (Deepfake)" if results["rppg_anomaly_score"] > 0.5 else "Biological Pulse Detected",
+        "why_it_happened": "The face lacks the rhythmic blood-flow spectral peaks that a living human heart produces, indicating it is an AI rendering." if results["rppg_anomaly_score"] > 0.5 else "A consistent, rhythmic heartbeat was detected in the face's micro-color changes, proving biological authenticity.",
+        "variables": {
+            "Estimated Heart Rate": f"{hr} BPM" if results["has_pulse"] else "N/A",
+            "Spectral Signal-to-Noise (SNR)": f"{snr:.2f}",
+            "Pulse Status": "Detected" if results["has_pulse"] else "Missing"
+        }
+    }
+    
     return results

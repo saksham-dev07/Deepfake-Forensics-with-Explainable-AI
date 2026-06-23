@@ -96,6 +96,19 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
     results["flow_anomaly_score"] = float(anomaly_score)
     results["mean_motion_variance"] = float(round(mean_var, 3))
     
+    # Generate Explanation
+    explanation = {
+        "what_happened": "Temporal consistency was analyzed using Farneback Dense Optical Flow to track pixel movement across consecutive frames.",
+        "result": "Motion vectors appear temporally consistent." if anomaly_score < 0.5 else "Detected abnormal temporal flickering and inconsistent motion trajectories.",
+        "why_it_happened": "Face-swapping AI models often struggle to maintain exact spatial alignment between frames. This results in microscopic 'jittering' or 'flickering' in the synthesized facial mask which creates spikes in motion variance.",
+        "variables": {
+            "Mean Motion Variance": f"{mean_var:.3f}",
+            "Variance of Variances (Jitter)": f"{var_of_vars:.2f}",
+            "Anomaly Score": f"{anomaly_score:.2f}"
+        }
+    }
+    results["explanation"] = explanation
+    
     # Plot Variance over time
     plt.figure(figsize=(8, 3))
     plt.style.use('dark_background')

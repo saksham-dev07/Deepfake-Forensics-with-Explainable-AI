@@ -185,6 +185,20 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
     results["blink_rate_per_min"] = float(round(blink_rate, 1))
     results["gaze_asymmetry"] = float(round(gaze_asymmetry, 3))
     
+    # Generate Explanation
+    explanation = {
+        "what_happened": "Blink rate and gaze convergence consistency over time were evaluated using Eye Aspect Ratio (EAR) mapping.",
+        "result": "Gaze and blink characteristics appear biologically natural." if anomaly_score < 0.5 else "Detected unnatural eye behaviors such as asynchronous gaze or abnormal blinking frequency.",
+        "why_it_happened": "Deepfakes often fail to render both eyes blinking synchronously or struggle with steady gaze convergence, leading to a 'lazy eye' effect or missing blinks entirely.",
+        "variables": {
+            "Blinks Detected": int(blinks),
+            "Blink Rate (per min)": f"{blink_rate:.1f}",
+            "Gaze Asymmetry Score": f"{gaze_asymmetry:.3f}",
+            "Anomaly Score": f"{anomaly_score:.2f}"
+        }
+    }
+    results["explanation"] = explanation
+    
     # Generate Plot
     plt.figure(figsize=(8, 3))
     plt.style.use('dark_background')

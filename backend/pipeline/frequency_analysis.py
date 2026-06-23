@@ -879,6 +879,19 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
         }
     }
 
+    # Generate Explanation
+    explanation = {
+        "what_happened": "Fourier Transforms (FFT) and Discrete Cosine Transforms (DCT) were applied to analyze the frequency-domain spectrum of the image.",
+        "result": "Spectral energy appears naturally distributed." if spectral_anomaly < 0.5 else "Detected synthetic spectral fingerprints, such as high-frequency GAN checkerboarding or unusual periodic artifacts.",
+        "why_it_happened": "Neural networks generate images iteratively using transpose convolutions, which often leave behind microscopic, invisible 'checkerboard' artifacts in the high-frequency spectrum that physical cameras do not produce.",
+        "variables": {
+            "Spectral Anomaly Score": f"{spectral_anomaly:.2f}",
+            "High-Freq Energy Ratio": f"{hf_ratio:.5f}",
+            "Saliency Variance": f"{saliency_variance:.1f}",
+            "Block Variance": f"{block_variance:.1f}"
+        }
+    }
+
     return {
         "dct_spectrum_path": dct_path.replace("\\", "/"),
         "block_dct_path": block_dct_path.replace("\\", "/"),
@@ -905,5 +918,6 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
         "spectral_anomaly_score": round(spectral_anomaly, 4),
         "radial_profile_length": len(radial_profile),
         "radial_profile": [round(float(x), 4) for x in radial_profile] if len(radial_profile) > 0 else [],
-        "verdicts": verdicts
+        "verdicts": verdicts,
+        "explanation": explanation
     }

@@ -5,20 +5,53 @@ import torch.optim as optim
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
 
+class ResidualBlock(nn.Module):
+    def __init__(self, dim):
+        super(ResidualBlock, self).__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(dim, dim),
+            nn.BatchNorm1d(dim),
+            nn.ReLU(),
+            nn.Dropout(0.2)
+        )
+    def forward(self, x):
+        return x + self.fc(x)
+
+class SelfAttention(nn.Module):
+    def __init__(self, dim):
+        super(SelfAttention, self).__init__()
+        self.query = nn.Linear(dim, dim)
+        self.key = nn.Linear(dim, dim)
+        self.value = nn.Linear(dim, dim)
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, x):
+        x_reshaped = x.unsqueeze(1) # [B, 1, Dim]
+        q = self.query(x_reshaped)
+        k = self.key(x_reshaped)
+        v = self.value(x_reshaped)
+        
+        scores = torch.bmm(q, k.transpose(1, 2)) / (x.size(-1) ** 0.5)
+        attn = self.softmax(scores)
+        out = torch.bmm(attn, v).squeeze(1)
+        return out + x # Residual connection
+
 class DeepfakeMetaClassifier(nn.Module):
     def __init__(self, input_dim=15):
         super(DeepfakeMetaClassifier, self).__init__()
-        # 3-layer MLP
+        # Advanced Tabular ResNet + Self-Attention
         self.network = nn.Sequential(
-            nn.Linear(input_dim, 32),
+            nn.Linear(input_dim, 64),
+            nn.BatchNorm1d(64),
+            nn.ReLU(),
+            ResidualBlock(64),
+            SelfAttention(64), # Dynamic Sensor Weighing
+            ResidualBlock(64),
+            nn.Linear(64, 32),
             nn.BatchNorm1d(32),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(32, 16),
-            nn.BatchNorm1d(16),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(16, 1),
+            nn.Linear(32, 1),
             nn.Sigmoid()
         )
         
@@ -55,33 +88,74 @@ class DeepfakeMetaClassifier(nn.Module):
 
         # Generate "Real" samples
         for _ in range(num_samples // 2):
-            # Real samples generally have low anomaly scores (mostly 0.1 to 0.4)
             features = np.clip(np.random.normal(loc=0.2, scale=0.15, size=15), 0.0, 1.0)
             
-            # Occasionally the Neural Network might be fooled (false positive), but physical sensors will stay low
-            if np.random.rand() < 0.1:
+            rand_val = np.random.rand()
+            if rand_val < 0.1:
+                # 1. NN is fooled (false positive), but physical sensors stay low
                 features[0] = np.random.uniform(0.6, 0.9) # NN fooled
+            elif rand_val < 0.3:
+                # 2. NN knows it's Real, but physical heuristics throw FALSE POSITIVES
+                # (e.g. Corneal reflection fails because of glasses, Geometry fails because of motion blur)
+                features[0] = np.random.uniform(0.05, 0.35)
+                # Spike 1 or 2 physical sensors to simulate real-world false positives
+                false_positive_sensors = np.random.choice(range(1, 15), size=2, replace=False)
+                features[false_positive_sensors[0]] = np.random.uniform(0.6, 0.95)
+                if np.random.rand() < 0.5:
+                    features[false_positive_sensors[1]] = np.random.uniform(0.5, 0.8)
                 
+            # Randomize metadata_score (7) to prevent it from becoming a shortcut
+            features[7] = np.random.uniform(0.0, 1.0)
             X.append(features)
             y.append(0.15) # Real (Soft Label)
 
         # Generate "Fake" samples
         for _ in range(num_samples // 2):
-            # Fake samples: The NN might catch it, or it might be a highly realistic deepfake
-            features = np.clip(np.random.normal(loc=0.7, scale=0.2, size=15), 0.0, 1.0)
-            
             rand_val = np.random.rand()
-            if rand_val < 0.4:
-                # Highly realistic deepfake: NN is fooled (predicts real < 0.4), but physical/biological sensors catch it
-                features[0] = np.random.uniform(0.1, 0.4) # NN thinks it's real
-                # Make sure at least one biological/physical sensor catches it
-                sensor_to_spike = np.random.choice([3, 7, 9, 10, 11]) # geometry, rppg, eye, voice, flow
-                features[sensor_to_spike] = np.random.uniform(0.7, 1.0)
-            elif rand_val < 0.6:
-                # Audio-only spoofing (face is real, but voice is fake)
-                features = np.clip(np.random.normal(loc=0.2, scale=0.1, size=15), 0.0, 1.0) # Everything looks real
-                features[11] = np.random.uniform(0.8, 1.0) # Voice score is completely anomalous
             
+            if rand_val < 0.3:
+                # 1. Standard Low-Quality Deepfake (Everything is highly anomalous)
+                features = np.clip(np.random.normal(loc=0.7, scale=0.2, size=15), 0.0, 1.0)
+                
+            elif rand_val < 0.6:
+                # 2. Highly realistic pure-generative (Midjourney/Sora)
+                # NN might be fooled, but pure synthetic signals (CFA, Noise, Spectral) catch it
+                features = np.clip(np.random.normal(loc=0.2, scale=0.1, size=15), 0.0, 1.0)
+                features[0] = np.random.uniform(0.1, 0.4) # NN thinks it's real
+                features[4] = np.random.uniform(0.7, 1.0) # Noise
+                features[13] = np.random.uniform(0.7, 1.0) # CFA
+                features[1] = np.random.uniform(0.7, 1.0) # Spectral
+                
+            elif rand_val < 0.75:
+                # 3. High-Quality Face Swap (Celeb-DF) -> CRITICAL FIX!
+                # Global background is completely authentic (CFA, Noise, Lighting = low)
+                # But NN catches the swapped face, and Geometry/Face sensors catch it
+                features = np.clip(np.random.normal(loc=0.15, scale=0.1, size=15), 0.0, 1.0)
+                features[0] = np.random.uniform(0.6, 1.0) # NN successfully catches the face
+                
+                # Make sure at least one face-specific physical sensor catches the swap boundary
+                sensor_to_spike = np.random.choice([2, 3, 10, 14]) # ELA, Geometry, Eye, Corneal
+                features[sensor_to_spike] = np.random.uniform(0.6, 1.0)
+                
+            elif rand_val < 0.9:
+                # 4. Neural Network is FOOLED, but biological sensors catch the flaw!
+                # (e.g. Corneal mismatch is 80% or Geometry is anomalous, even though NN outputs 30%)
+                features = np.clip(np.random.normal(loc=0.15, scale=0.1, size=15), 0.0, 1.0)
+                features[0] = np.random.uniform(0.1, 0.4) # NN thinks it's completely real!
+                
+                # At least two biological/face sensors catch it
+                sensors_to_spike = np.random.choice([2, 3, 10, 14], size=2, replace=False)
+                features[sensors_to_spike[0]] = np.random.uniform(0.7, 1.0)
+                features[sensors_to_spike[1]] = np.random.uniform(0.5, 0.9)
+                
+            else:
+                # 5. Audio-only spoofing (face is completely real, but voice/sync is fake)
+                features = np.clip(np.random.normal(loc=0.2, scale=0.1, size=15), 0.0, 1.0)
+                features[11] = np.random.uniform(0.8, 1.0) # Voice score anomalous
+                features[6] = np.random.uniform(0.7, 1.0) # Sync score anomalous
+            
+            # Randomize metadata_score (7) to prevent it from becoming a shortcut
+            features[7] = np.random.uniform(0.0, 1.0)
             X.append(features)
             y.append(0.85) # Fake (Soft Label)
 
@@ -122,7 +196,29 @@ class DeepfakeMetaClassifier(nn.Module):
 
     def load_model(self, model_path="weights/ensemble_mlp.pth"):
         if os.path.exists(model_path):
-            self.load_state_dict(torch.load(model_path, map_location=self.device, weights_only=True))
+            state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
+            
+            # Check if this is the legacy 3-layer MLP (V1) or the new Tabular ResNet (V2)
+            is_legacy = "network.0.weight" in state_dict and state_dict["network.0.weight"].shape[0] == 32
+            
+            if is_legacy:
+                print(f"Detected Legacy V1 Meta-Classifier weights at {model_path}. Downgrading architecture on the fly...")
+                self.network = nn.Sequential(
+                    nn.Linear(15, 32),
+                    nn.BatchNorm1d(32),
+                    nn.ReLU(),
+                    nn.Dropout(0.2),
+                    nn.Linear(32, 16),
+                    nn.BatchNorm1d(16),
+                    nn.ReLU(),
+                    nn.Dropout(0.2),
+                    nn.Linear(16, 1),
+                    nn.Sigmoid()
+                ).to(self.device)
+            else:
+                print(f"Detected Advanced V2 Meta-Classifier weights at {model_path}. Using Tabular ResNet with Self-Attention!")
+                
+            self.load_state_dict(state_dict)
             self.eval()
             self.is_trained = True
             print(f"Loaded pre-trained Meta-Classifier from {model_path}")

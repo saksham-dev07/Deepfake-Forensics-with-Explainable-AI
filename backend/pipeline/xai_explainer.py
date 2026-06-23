@@ -29,7 +29,8 @@ class XAIExplainer:
         if not self.available:
             return None, None
             
-        targets = [ClassifierOutputTarget(1)] # Target class 1 (deepfake)
+        # The Kaggle model maps: Index 0 = FAKE, Index 1 = REAL
+        targets = [ClassifierOutputTarget(0)] # Target class 0 (deepfake)
         
         # Generate heatmap
         grayscale_cam = self.cam(input_tensor=input_tensor, targets=targets)
@@ -50,7 +51,7 @@ class XAIExplainer:
             from pytorch_grad_cam import GuidedBackpropReLUModel
             guided_model = GuidedBackpropReLUModel(model=self.model, device=self.device)
             
-            cam_gb = guided_model(input_tensor, target_category=1)
+            cam_gb = guided_model(input_tensor, target_category=0)
             # Element-wise multiply the GradCAM mask with the guided backprop to get Guided Grad-CAM
             guided_gradcam = np.multiply(cam_gb, np.expand_dims(grayscale_cam, axis=-1))
             

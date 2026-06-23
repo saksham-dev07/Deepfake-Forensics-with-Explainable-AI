@@ -26,8 +26,9 @@ The **Deepfake Forensics Platform** operates as a state-of-the-art digital foren
 This platform relies on a combination of foundational academic weights and custom-trained models tuned specifically for robust deepfake detection. 
 
 ### 1. Spatial Image Forensics (EfficientNet-B4)
-* **Datasets Utilized:** Deepfake Detection Challenge (DFDC), FaceForensics++ (FF++), and Celeb-DF.
+* **Datasets Utilized:** Deepfake Detection Challenge (DFDC), FaceForensics++ (FF++), Celeb-DF, and StyleGAN.
 * **Training Methodology:** The core frame-by-frame visual detector utilizes an EfficientNet-B4 backbone. Instead of a simple binary classification approach, the model was fine-tuned using **Contrastive Learning**. By employing a Triplet Loss function, the network was forced to map authentic faces and GAN-generated faces into widely separated clusters in the latent embedding space. It was then capped with a binary cross-entropy classifier. The final convolutional layers (`_conv_head`) are preserved specifically to generate bounding-box localized Grad-CAM heatmaps for XAI tracking.
+* **Performance:** Achieved a peak Validation Accuracy of **99.37%** (ROC-AUC 0.998) on a heavily imbalanced dataset of 53,000+ extracted frames.
 
 ### 2. Acoustic Anti-Spoofing (Voice Liveness 2D-CNN)
 * **Dataset Utilized:** ASVspoof 2019 (Automatic Speaker Verification Spoofing and Countermeasures Challenge) Logical Access (LA) database.

@@ -302,5 +302,15 @@ def analyze_ela(image_rgb, output_dir, prefix="ela", quality_multiplier=1.0):
         "hsv_variance": round(hsv_var, 4),
         "smooth_mean_intensity": round(smooth_mean, 2),
         "ela_interpretation": interpretation,
-        "verdicts": verdicts
+        "verdicts": verdicts,
+        "explanation": {
+            "what_happened": "Mathematically exposed areas of the image saved at different JPEG compression levels.",
+            "result": "Splicing Detected" if final_ela_score > 0.5 else "Authentic Compression",
+            "why_it_happened": interpretation,
+            "variables": {
+                "Smooth Anomaly": f"{edge_anomaly_score:.2f}",
+                "Ghost Variance": f"{ghost_var:.1f}",
+                "HSV Variance": f"{hsv_var:.1f}"
+            }
+        }
     }

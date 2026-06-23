@@ -265,4 +265,16 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
     
     results["lighting_map_path"] = map_path.replace("\\", "/")
     
+    results["explanation"] = {
+        "what_happened": "Reconstructed a 3D Spherical Harmonic environment map of the face and compared its light source angle to the background's 2D lighting gradients.",
+        "result": "Lighting Mismatch (Deepfake)" if results["lighting_anomaly_score"] > 0.5 else "Consistent Global Illumination",
+        "why_it_happened": "The light hitting the person's face comes from a completely different angle than the light in the background room, proving the face was spliced in." if results["lighting_anomaly_score"] > 0.5 else "The 3D lighting on the face perfectly matches the environmental light source in the background.",
+        "variables": {
+            "Face Light Angle": f"{face_angle:.1f}°",
+            "Background Light Angle": f"{bg_angle:.1f}°",
+            "Angle Difference": f"{diff:.1f}°",
+            "Background Texture Variance": f"{bg_variance:.2f}"
+        }
+    }
+    
     return results

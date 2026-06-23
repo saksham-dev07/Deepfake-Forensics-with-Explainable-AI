@@ -396,14 +396,15 @@ def compute_3d_head_pose(landmarks, w, h, return_vectors=False):
         chin      # Chin
     ], dtype="double")
     
-    # Canonical 3D skull points (X, Y, Z)
+    # Canonical 3D skull points (X, Y, Z) in standard right-handed coordinates
+    # X points right, Y points down, Z points into the screen
     model_points = np.array([
         (0.0, 0.0, 0.0),             # Nose tip
-        (-225.0, 170.0, -135.0),     # Left mouth corner
-        (225.0, 170.0, -135.0),      # Right mouth corner
-        (-225.0, -150.0, -125.0),    # Left eye
-        (225.0, -150.0, -125.0),     # Right eye
-        (0.0, 330.0, -65.0)          # Chin
+        (225.0, 170.0, 135.0),       # Left mouth corner
+        (-225.0, 170.0, 135.0),      # Right mouth corner
+        (225.0, -150.0, 125.0),      # Left eye
+        (-225.0, -150.0, 125.0),     # Right eye
+        (0.0, 330.0, 65.0)           # Chin
     ])
     
     # Camera internals
@@ -508,7 +509,7 @@ def visualize_landmarks(image_rgb, landmarks, metrics=None, save_path=None, pose
         axis_points = np.array([
             (axis_length, 0.0, 0.0),       # X axis (Pitch)
             (0.0, -axis_length, 0.0),      # Y axis (Yaw)
-            (0.0, 0.0, -axis_length)       # Z axis (Roll)
+            (0.0, 0.0, axis_length)        # Z axis (Roll) - Positive points into screen
         ], dtype="double")
         
         projected_axes, _ = cv2.projectPoints(axis_points, rvec, tvec, camera_matrix, dist_coeffs)
@@ -519,12 +520,16 @@ def visualize_landmarks(image_rgb, landmarks, metrics=None, save_path=None, pose
             p2 = (int(projected_axes[1][0][0]), int(projected_axes[1][0][1]))
             p3 = (int(projected_axes[2][0][0]), int(projected_axes[2][0][1]))
             
-            # Helper to draw shadowed text, pushed out from the arrow tip
-            def draw_hud_text(img, text, start_pt, end_pt, color):
+            # Helper to draw shadowed text, using a specific 2D push direction to prevent overlapping
+            def draw_hud_text(img, text, start_pt, end_pt, color, fallback_dir):
                 length = np.sqrt((end_pt[0]-start_pt[0])**2 + (end_pt[1]-start_pt[1])**2)
-                if length == 0: length = 1
-                dx = (end_pt[0] - start_pt[0]) / length
-                dy = (end_pt[1] - start_pt[1]) / length
+                
+                if length > 15:
+                    dx = (end_pt[0] - start_pt[0]) / length
+                    dy = (end_pt[1] - start_pt[1]) / length
+                else:
+                    # If arrow is pointing at camera, it's a dot. Use the fallback direction.
+                    dx, dy = fallback_dir
                 
                 # Push text 25 pixels past the tip
                 pos = (int(end_pt[0] + dx * 25) - 30, int(end_pt[1] + dy * 25) + 5)
@@ -538,17 +543,17 @@ def visualize_landmarks(image_rgb, landmarks, metrics=None, save_path=None, pose
 
             # Note: image_rgb is in RGB format, so colors are (R, G, B)
             
-            # Z axis (Roll Axis) - Blue
+            # Z axis (Roll Axis) - Blue. Fallback points down-left
             cv2.arrowedLine(pose_vis, nose_tip, p3, (50, 150, 255), 3, cv2.LINE_AA, tipLength=0.15)
-            draw_hud_text(pose_vis, "Z (Roll Axis)", nose_tip, p3, (50, 150, 255))
+            draw_hud_text(pose_vis, "Z (Roll Axis)", nose_tip, p3, (50, 150, 255), (-0.7, 0.7))
             
-            # Y axis (Yaw Axis) - Green
+            # Y axis (Yaw Axis) - Green. Fallback points up
             cv2.arrowedLine(pose_vis, nose_tip, p2, (50, 255, 50), 3, cv2.LINE_AA, tipLength=0.15)
-            draw_hud_text(pose_vis, "Y (Yaw Axis)", nose_tip, p2, (50, 255, 50))
+            draw_hud_text(pose_vis, "Y (Yaw Axis)", nose_tip, p2, (50, 255, 50), (0.0, -1.0))
             
-            # X axis (Pitch Axis) - Red
+            # X axis (Pitch Axis) - Red. Fallback points right
             cv2.arrowedLine(pose_vis, nose_tip, p1, (255, 50, 50), 3, cv2.LINE_AA, tipLength=0.15)
-            draw_hud_text(pose_vis, "X (Pitch Axis)", nose_tip, p1, (255, 50, 50))
+            draw_hud_text(pose_vis, "X (Pitch Axis)", nose_tip, p1, (255, 50, 50), (1.0, 0.0))
             
             cv2.imwrite(pose_save_path, cv2.cvtColor(pose_vis, cv2.COLOR_RGB2BGR))
 
@@ -662,14 +667,15 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
         # Calculate standard deviation (jitter) across frames
         if len(gr_history) > 3:
             # We compute a combined jitter score based on the variance of all key proportions
-            var_gr = np.std(gr_history) / 0.15
-            var_io = np.std(io_history) / 0.15
-            var_ar = np.std(ar_history) / 0.15
-            var_nm = np.std(nm_history) / 0.15
-            var_sym = np.std(sym_history) / 0.10
+            # Increase the tolerance drastically since these are sparsely sampled frames (e.g. 1 frame every 2-3 secs)
+            var_gr = np.std(gr_history) / 0.50
+            var_io = np.std(io_history) / 0.50
+            var_ar = np.std(ar_history) / 0.60
+            var_nm = np.std(nm_history) / 0.60
+            var_sym = np.std(sym_history) / 0.30
             
             avg_var = np.mean([var_gr, var_io, var_ar, var_nm, var_sym])
-            temporal_jitter = min(1.0, avg_var)
+            temporal_jitter = min(1.0, avg_var * 0.3) # Scale down the overall impact
             
             # Compute 3D Head Pose Jitter
             if 'pose_history' in locals() and len(pose_history) > 3:
@@ -683,7 +689,8 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
                 
                 # Normalize jitter. Real faces have smooth velocity.
                 # Deepfakes snap and snap with high velocity variance.
-                head_pose_jitter = min(1.0, (pitch_jitter + yaw_jitter + roll_jitter) / 150.0)
+                # Increase denominator from 150.0 to 3000.0 since sparse frames have naturally massive variance!
+                head_pose_jitter = min(1.0, (pitch_jitter + yaw_jitter + roll_jitter) / 3000.0)
 
             # Generate Temporal Geometric Jitter Plot
             from matplotlib.figure import Figure
@@ -736,13 +743,19 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
 
     # Overall geometry anomaly score
     if is_video:
-        # Videos suffer from compression, ruining texture/noise. Rely heavily on symmetry, temporal stability, and 3D head pose.
-        base_score = symmetry * 0.40 + texture * 0.20 + noise * 0.20
-        anomaly_score = (1.0 - base_score) * 0.40 + (temporal_jitter * 0.30) + (head_pose_jitter * 0.30)
+        # A deepfake face swap might have perfect symmetry, but terrible texture mismatch.
+        # We must penalize based on the WORST spatial metric, not the average!
+        worst_spatial_metric = min(symmetry, texture, noise)
+        spatial_anomaly = 1.0 - worst_spatial_metric
+        
+        temporal_anomaly = (temporal_jitter + head_pose_jitter) / 2.0
+        # A deepfake might have perfect temporal stability but terrible spatial boundaries, or vice versa.
+        # We take the max of either to ensure we don't average down a critical failure.
+        anomaly_score = max(spatial_anomaly, temporal_anomaly)
     else:
-        base_score = symmetry * 0.30 + texture * 0.40 + noise * 0.30
-        anomaly_score = 1.0 - base_score
-
+        worst_spatial_metric = min(symmetry, texture, noise)
+        spatial_anomaly = 1.0 - worst_spatial_metric
+        anomaly_score = spatial_anomaly
     # Factor in landmark-based analysis if available
     if eye_angle is not None:
         eye_penalty = min(0.15, max(0, (eye_angle - 15)) / 100)
@@ -753,15 +766,15 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
         anomaly_score += mouth_penalty
 
     if golden_ratio is not None:
-        gr_deviation = abs(golden_ratio - 1.618)
-        gr_penalty = min(0.20, gr_deviation * 0.2)
+        gr_deviation = abs(golden_ratio - 1.4)
+        gr_penalty = min(0.20, gr_deviation * 0.15)
         anomaly_score += gr_penalty
 
     if interoc_ratio is not None:
-        if interoc_ratio < 0.8:
-            io_penalty = (0.8 - interoc_ratio) * 0.5
-        elif interoc_ratio > 1.4:
-            io_penalty = (interoc_ratio - 1.4) * 0.5
+        if interoc_ratio < 1.0:
+            io_penalty = (1.0 - interoc_ratio) * 0.5
+        elif interoc_ratio > 1.6:
+            io_penalty = (interoc_ratio - 1.6) * 0.5
         else:
             io_penalty = 0.0
         anomaly_score += min(0.15, io_penalty)
@@ -795,13 +808,14 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
         return max(0.0, 1.0 - (abs(val - ideal) / tol))
         
     v_sym = float(symmetry)
-    # The Vertical Proportion (eyes-to-nose vs nose-to-mouth) is typically 1.0 to 1.2
-    v_gr = norm_ratio(golden_ratio, 1.0, 0.5)
-    # The Interocular vs Mouth Width is typically 1.2
-    v_io = norm_ratio(interoc_ratio, 1.2, 0.5)
-    # YuNet BBox is square, so aspect ratio is 1.0
-    v_ar = norm_ratio(aspect_ratio, 1.0, 0.4)
-    v_nm = norm_ratio(nose_mouth_ratio, 0.8, 0.4)
+    # The Vertical Proportion using MediaPipe landmarks is typically around 1.4
+    v_gr = norm_ratio(golden_ratio, 1.4, 0.6)
+    # The Interocular vs Mouth Width is typically around 1.3
+    v_io = norm_ratio(interoc_ratio, 1.3, 0.5)
+    # MediaPipe Face Mesh BBox aspect ratio is typically ~1.3
+    v_ar = norm_ratio(aspect_ratio, 1.3, 0.3)
+    # Nose-Mouth to Mouth Width ratio is typically ~0.65
+    v_nm = norm_ratio(nose_mouth_ratio, 0.65, 0.3)
     v_tex = float(texture)
     v_noise = float(noise)
     v_conf = float(det_conf)
@@ -884,5 +898,17 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
         result["face_aspect_ratio"] = round(aspect_ratio, 3)
     if nose_mouth_ratio is not None:
         result["nose_mouth_ratio"] = round(nose_mouth_ratio, 3)
+
+    result["explanation"] = {
+        "what_happened": "Extracted 468 3D facial landmarks and analyzed biological proportions, spatial symmetry, and temporal pose jitter.",
+        "result": "Geometry Anomalies Detected" if anomaly_score > 0.5 else "Biologically Authentic Geometry",
+        "why_it_happened": interpretation,
+        "variables": {
+            "Symmetry Anomaly": f"{(1.0 - symmetry) * 100:.1f}%",
+            "Temporal Jitter": f"{(temporal_jitter * 100):.1f}%" if is_video else "N/A",
+            "3D Head Pose Snap": f"{(head_pose_jitter * 100):.1f}%" if is_video else "N/A",
+            "Worst Spatial Mismatch": f"{(spatial_anomaly * 100):.1f}%"
+        }
+    }
 
     return result

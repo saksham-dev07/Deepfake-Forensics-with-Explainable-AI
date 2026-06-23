@@ -101,7 +101,7 @@ def analyze_audio_visual_sync(video_path, audio_path, output_dir, prefix="sync")
     from mediapipe.tasks import python as mp_python
     from mediapipe.tasks.python import vision
     
-    base_options = mp_python.BaseOptions(model_asset_path=os.path.join(os.path.dirname(__file__), '..', 'face_landmarker.task'))
+    base_options = mp_python.BaseOptions(model_asset_path=os.path.join(os.path.dirname(__file__), '..', 'weights', 'face_landmarker.task'))
     options = vision.FaceLandmarkerOptions(
         base_options=base_options,
         output_face_blendshapes=False,
@@ -236,6 +236,16 @@ def analyze_audio_visual_sync(video_path, audio_path, output_dir, prefix="sync")
     plot_path = os.path.join(output_dir, f"{prefix}_sync_plot.jpg")
     plt.savefig(plot_path, dpi=120, bbox_inches='tight')
     plt.close()
-    
     results["sync_plot_path"] = plot_path.replace("\\", "/")
+    
+    results["explanation"] = {
+        "what_happened": "Analyzed the phonetic lip movements and compared them to the audio speech tract using a dual-stream SyncNet neural network.",
+        "result": "Lip-Sync Mismatch (Deepfake)" if sync_score > 0.5 else "Authentic Audio-Visual Sync",
+        "why_it_happened": "The person's lip movements mathematically do not match the spoken words, a common flaw when AI generates audio or video separately and splices them." if sync_score > 0.5 else "The lip movements perfectly match the phonemes of the spoken audio tract.",
+        "variables": {
+            "LSE-D (Distance)": f"{lse_d:.2f} (Expected < 8.0)",
+            "LSE-C (Confidence)": f"{results['lse_c']:.2f}"
+        }
+    }
+    
     return results

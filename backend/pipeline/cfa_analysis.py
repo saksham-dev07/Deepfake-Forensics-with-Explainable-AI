@@ -83,23 +83,33 @@ def analyze_cfa_artifacts(image_path, save_dir=None, face_results=None, quality_
             
             # Score calculation: 
             # Normal ratio is around 0.8 - 1.2. 
-            # If ratio < 0.3 (Face is completely smooth GAN), anomaly is very high
-            # If ratio > 3.0 (Face is heavily compressed splice), anomaly is high
             if ratio < 0.5:
                 cfa_score = 1.0 - (ratio / 0.5)  # 0.0 ratio = 1.0 score
             elif ratio > 2.0:
                 cfa_score = min(1.0, (ratio - 2.0) / 2.0)
             else:
                 cfa_score = abs(1.0 - ratio) * 0.5 # Small penalty for normal variance
+                
+            # NEW: If the ENTIRE image lacks CFA noise, it's heavily compressed or fully AI-generated!
+            global_variance = np.mean(variance_map)
+            
+            # If both regions have very low variance, it's heavily compressed video. 
+            # The ratio becomes mathematically unstable and meaningless.
+            if face_cfa_variance < 15.0 and bg_cfa_variance < 15.0:
+                # Bypass ratio penalty for compressed videos, just use global smoothness
+                cfa_score = max(0.0, min(1.0, (5 - global_variance) / 5)) * 0.4 # Cap confidence
+            else:
+                if global_variance < 10.0:
+                    # Override the ratio score if the whole image is smooth
+                    cfa_score = max(cfa_score, min(1.0, (15 - global_variance) / 15))
         else:
             # No face detected. Measure global CFA strength.
-            # Real images have detectable CFA variance. AI generated completely lack it.
             global_variance = np.mean(variance_map)
-            # Thresholds tuned heuristically. GANs have var < 5. Real have var > 20
-            cfa_score = max(0.0, min(1.0, (15 - global_variance) / 15))
+            cfa_score = max(0.0, min(1.0, (5 - global_variance) / 5))
             
         # Scale score by quality (low quality = lower confidence)
         cfa_score = cfa_score * quality_multiplier
+        cfa_score = float(np.clip(cfa_score, 0.05, 0.95))
             
         # --- Visualization Generation ---
         plt.style.use('dark_background')
@@ -139,11 +149,25 @@ def analyze_cfa_artifacts(image_path, save_dir=None, face_results=None, quality_
         else:
             web_path = f"static/results/{filename}"
         
+        face_var = float(face_cfa_variance) if 'face_cfa_variance' in locals() else 0.0
+        bg_var = float(bg_cfa_variance) if 'bg_cfa_variance' in locals() else 0.0
+        score = float(np.clip(cfa_score, 0.05, 0.95))
+
         return {
-            "cfa_score": float(np.clip(cfa_score, 0.05, 0.95)),
-            "face_variance": float(face_cfa_variance) if 'face_cfa_variance' in locals() else 0.0,
-            "bg_variance": float(bg_cfa_variance) if 'bg_cfa_variance' in locals() else 0.0,
-            "cfa_map_path": web_path
+            "cfa_score": score,
+            "face_variance": face_var,
+            "bg_variance": bg_var,
+            "cfa_map_path": web_path,
+            "explanation": {
+                "what_happened": "Extracted the microscopic Color Filter Array (Bayer) grid pattern created by physical camera sensors.",
+                "result": "Grid Disrupted (Deepfake)" if score > 0.5 else "Authentic Sensor Grid",
+                "why_it_happened": "The face region's microscopic pixel grid was completely destroyed or out-of-sync compared to the background, which happens when AI generates new pixels." if score > 0.5 else "The physical camera pixel grid is perfectly consistent across the entire image.",
+                "variables": {
+                    "Face Grid Variance": f"{face_var:.4f}",
+                    "Background Grid Variance": f"{bg_var:.4f}",
+                    "Mismatch Ratio": f"{(bg_var / max(0.0001, face_var)):.2f}x"
+                }
+            }
         }
         
     except Exception as e:

@@ -52,7 +52,7 @@ def analyze_voice_spoofing(audio_path, output_dir, prefix="voice"):
         return results
 
     try:
-        y, sr = librosa.load(audio_path, sr=None)
+        y, sr = librosa.load(audio_path, sr=16000)
     except Exception as e:
         results["error"] = f"Failed to load audio: {e}"
         return results
@@ -114,8 +114,17 @@ def analyze_voice_spoofing(audio_path, output_dir, prefix="voice"):
         from pipeline.voice_model import LightweightAudioAntiSpoof
         model = LightweightAudioAntiSpoof()
         model.load_weights()
-        anomaly_score = model.predict(M_cnn_input)
+        cnn_score = model.predict(M_cnn_input)
         
+        # Domain-Shift Correction for Mobile Audio:
+        # ASVspoof-trained CNNs notoriously misinterpret mobile mic background hiss as vocoder artifacts.
+        # If the CNN predicts fake but the physical heuristics (ZCR variance, High-Freq energy) 
+        # are low (indicating natural human speech without vocoder static), veto the CNN score.
+        if cnn_score > 0.6 and hf_ratio < 0.05 and zcr_var < 0.03:
+            anomaly_score = cnn_score * 0.25
+        else:
+            anomaly_score = cnn_score
+            
         # Add interpretation warning
         if anomaly_score > 0.8:
             results["warnings"].append("CNN detected high probability of AI synthesis/vocoder artifacts.")
@@ -167,5 +176,17 @@ def analyze_voice_spoofing(audio_path, output_dir, prefix="voice"):
     canvas.print_figure(plot_path, dpi=120, bbox_inches='tight', facecolor='#0f172a')
     
     results["voice_plot_path"] = plot_path.replace("\\", "/")
+    
+    results["explanation"] = {
+        "what_happened": "Converted the audio into a Mel-Frequency Spectrogram and ran an ASVspoof CNN to detect AI vocoder artifacts.",
+        "result": "Synthetic Voice Detected" if anomaly_score > 0.5 else "Authentic Human Voice",
+        "why_it_happened": "The spectrogram contains high-frequency metallic artifacts and abnormal zero-crossing rates characteristic of AI speech synthesis." if anomaly_score > 0.5 else "The spectral roll-off and frequency distributions are perfectly consistent with physical human vocal cords.",
+        "variables": {
+            "CNN Synthesis Probability": f"{(anomaly_score * 100):.1f}%",
+            "High Freq Ratio": f"{hf_ratio:.4f}",
+            "ZCR Variance": f"{zcr_var:.4f}",
+            "Spectral Rolloff Mean": f"{rolloff_mean:.0f} Hz"
+        }
+    }
     
     return results

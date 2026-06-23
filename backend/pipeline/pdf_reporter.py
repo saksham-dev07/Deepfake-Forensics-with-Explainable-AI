@@ -359,18 +359,22 @@ def generate_pdf_report(result_data: dict, output_path: str):
                     target_w = 140
                     target_h = target_w * aspect_ratio
                     
-                    if pdf.get_y() + target_h + 20 > 270:
+                    current_y = pdf.get_y()
+                    
+                    if current_y + target_h + 20 > 270:
                         pdf.add_page()
+                        current_y = pdf.get_y()
                     
                     # Center the image
                     x_pos = (210 - target_w) / 2
                     
                     # Draw subtle border
                     pdf.set_draw_color(200, 200, 200)
-                    pdf.rect(x_pos - 1, pdf.get_y() - 1, target_w + 2, target_h + 2)
+                    pdf.rect(x_pos - 1, current_y - 1, target_w + 2, target_h + 2)
                     
-                    pdf.image(img_path, x=x_pos, w=target_w)
-                    pdf.set_y(pdf.get_y() + target_h + 4)
+                    # Pass explicit Y to prevent auto-advancement
+                    pdf.image(img_path, x=x_pos, y=current_y, w=target_w)
+                    pdf.set_y(current_y + target_h + 4)
                     
                     # Caption
                     pdf.set_font("Arial", 'B', 10)
@@ -413,6 +417,8 @@ def generate_pdf_report(result_data: dict, output_path: str):
         embed_image("Switching Noise (SWN) Map", freq.get('swn_noise_path'))
     if freq.get('phase_spectrum_path'):
         embed_image("Structural Phase Spectrum", freq.get('phase_spectrum_path'))
+    if freq.get('saliency_map_path'):
+        embed_image("Spectral Residual Saliency (GAN Checkerboard)", freq.get('saliency_map_path'))
     if freq.get('pca_spectrum_path'):
         embed_image("PCA Spectral Component", freq.get('pca_spectrum_path'))
     if freq.get('cepstrum_path'):
@@ -421,10 +427,16 @@ def generate_pdf_report(result_data: dict, output_path: str):
         embed_image("Discrete Wavelet Transform (DWT)", freq.get('dwt_diagonal_path'))
 
     # Group 3: Face
+    if face.get('radar_chart_path'):
+        embed_image("Face Geometry Radar Chart", face.get('radar_chart_path'))
     if face.get('landmark_visualization_path'):
         embed_image("Facial Landmark Mapping", face.get('landmark_visualization_path'))
+    if face.get('head_pose_visualization_path'):
+        embed_image("3D Head Pose", face.get('head_pose_visualization_path'))
     if face.get('symmetry_map_path'):
         embed_image("Facial Symmetry Deformation", face.get('symmetry_map_path'))
+    if face.get('temporal_jitter_plot_path'):
+        embed_image("Temporal Geometric Jitter", face.get('temporal_jitter_plot_path'))
     if face.get('texture_map_path'):
         embed_image("Face Texture Anomaly", face.get('texture_map_path'))
 

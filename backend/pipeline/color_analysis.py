@@ -91,5 +91,16 @@ def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplie
         "s_variance": round(float(s_var), 4),
         "a_variance": round(float(a_var), 4),
         "b_variance": round(float(b_var), 4),
-        "color_anomaly_score": color_score
+        "color_anomaly_score": color_score,
+        "explanation": {
+            "what_happened": "Analyzed chrominance variance across YCbCr, HSV, and LAB color spaces to detect synthetic skin rendering.",
+            "result": "Color Space Anomalies Detected" if color_score > 0.5 else "Natural Chrominance Profiles",
+            "why_it_happened": "The image exhibits unnaturally flat color variance in the skin tones (a* blood-flow channel or saturation), which strongly indicates AI generation." if color_score > 0.5 else "The image contains rich, natural color variance across all spectral channels, consistent with real subsurface scattering in human skin.",
+            "variables": {
+                "Cb/Cr Variance": f"Cb: {cb_var:.1f} / Cr: {cr_var:.1f}",
+                "Saturation Variance": f"{s_var:.1f}",
+                "a* (Redness) Variance": f"{a_var:.1f}",
+                "Threshold Factor": f"{anomaly_factors}/4 channels failed"
+            }
+        }
     }

@@ -110,5 +110,14 @@ def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multipli
         "denoised_map_path": denoised_path.replace("\\", "/"),
         "srm_map_path": srm_path.replace("\\", "/"),
         "noise_variance": round(float(variance), 4),
-        "noise_score": noise_score
+        "noise_score": noise_score,
+        "explanation": {
+            "what_happened": "Extracted the Photo Response Non-Uniformity (PRNU) noise residual using Non-Local Means Denoising.",
+            "result": "Unnaturally Smooth (Deepfake)" if noise_score > 0.5 else "Natural PRNU Sensor Noise",
+            "why_it_happened": "The image lacks the natural microscopic noise grain produced by physical camera sensors, indicating it was synthetically generated." if noise_score > 0.5 else "The image exhibits standard sensor noise variance consistent with a real digital camera.",
+            "variables": {
+                "Noise Variance": f"{variance:.2f}",
+                "Expected Range": f"[{t_min:.1f} - {t_max:.1f}]"
+            }
+        }
     }

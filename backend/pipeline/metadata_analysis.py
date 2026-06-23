@@ -1,5 +1,7 @@
 import os
 import exifread
+import subprocess
+import re
 
 def analyze_metadata(file_path):
     """
@@ -61,8 +63,57 @@ def analyze_metadata(file_path):
             results["warnings"].append(f"Error reading EXIF: {str(e)}")
 
     elif ext in ['.mp4', '.avi', '.mov', '.mkv']:
-        results["warnings"].append("Advanced video metadata analysis skipped. EXIF mostly applies to images.")
-        # Minimal penalty for video
-        results["metadata_anomaly_score"] = 0.1
-        
+        # Advanced Video Metadata Analysis using FFMpeg
+        try:
+            import imageio_ffmpeg
+            ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+            
+            # Run ffmpeg -i and capture stderr (where ffmpeg prints metadata)
+            process = subprocess.run(
+                [ffmpeg_path, "-i", file_path, "-hide_banner"],
+                capture_output=True,
+                text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            )
+            output = process.stderr
+            
+            # Parse the metadata block
+            in_metadata = False
+            for line in output.split('\n'):
+                if "Metadata:" in line:
+                    in_metadata = True
+                    continue
+                if in_metadata and not line.startswith("    "):
+                    in_metadata = False
+                    
+                if in_metadata:
+                    parts = line.split(":", 1)
+                    if len(parts) == 2:
+                        key = parts[0].strip()
+                        val = parts[1].strip()
+                        results["extracted_tags"][key] = val
+                        
+                        val_lower = val.lower()
+                        # Check software tags (encoders)
+                        if key in ["encoder", "software", "tool"]:
+                            for sus in suspicious_software + ["lavf", "ffmpeg"]:
+                                if sus in val_lower:
+                                    results["warnings"].append(f"Suspicious video encoder/software found: {val}")
+                                    results["metadata_anomaly_score"] = max(results["metadata_anomaly_score"], 0.7)
+                        
+                        # Check suspicious creation dates
+                        if key in ["creation_time"]:
+                            if val.startswith("0000") or "1970" in val:
+                                results["warnings"].append(f"Suspicious video timestamp: {val}")
+                                results["metadata_anomaly_score"] = max(results["metadata_anomaly_score"], 0.6)
+                                
+            if not results["extracted_tags"]:
+                results["is_stripped"] = True
+                results["warnings"].append("No metadata found in video. It may have been stripped by an AI generator or social media platform.")
+                results["metadata_anomaly_score"] += 0.3
+                
+        except Exception as e:
+            results["warnings"].append(f"Failed to extract video metadata: {str(e)}")
+            results["metadata_anomaly_score"] = 0.1
+
     return results

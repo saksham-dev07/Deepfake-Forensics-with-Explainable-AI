@@ -22,11 +22,21 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         h, w = img.shape[:2]
         
         import mediapipe as mp
-        from pipeline.face_geometry import get_landmarker
+        from mediapipe.tasks import python
+        from mediapipe.tasks.python import vision
         
-        landmarker = get_landmarker()
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
-        detection_result = landmarker.detect(mp_image)
+        MP_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "face_landmarker.task")
+        base_options = python.BaseOptions(model_asset_path=MP_MODEL_PATH)
+        options = vision.FaceLandmarkerOptions(
+            base_options=base_options,
+            output_face_blendshapes=False,
+            output_facial_transformation_matrixes=False,
+            num_faces=1,
+        )
+        
+        with vision.FaceLandmarker.create_from_options(options) as landmarker:
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
+            detection_result = landmarker.detect(mp_image)
             
         if not detection_result.face_landmarks:
             return {
@@ -115,22 +125,41 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         left_eye_img = cv2.cvtColor(left_eye_rgb, cv2.COLOR_RGB2GRAY)
         right_eye_img = cv2.cvtColor(right_eye_rgb, cv2.COLOR_RGB2GRAY)
         
-        # Calculate IoU
-        intersection = np.logical_and(left_thresh, right_thresh).sum()
-        union = np.logical_or(left_thresh, right_thresh).sum()
+        # Dilate the highlights to give spatial tolerance for bounding box misalignment
+        kernel = np.ones((7, 7), np.uint8)
+        left_dilated = cv2.dilate(left_thresh, kernel, iterations=1)
+        right_dilated = cv2.dilate(right_thresh, kernel, iterations=1)
+        
+        # Calculate IoU on the dilated masks
+        intersection = np.logical_and(left_dilated, right_dilated).sum()
+        union = np.logical_or(left_dilated, right_dilated).sum()
         
         if union == 0:
             iou = 1.0 # Both have no highlights
         else:
             iou = intersection / union
             
-        # Calculate Structural Similarity
+        # Calculate Structural Similarity on the original thresholds
         sim_score, _ = ssim(left_thresh, right_thresh, full=True, data_range=255)
         
         combined_sim = (iou + max(0, sim_score)) / 2.0
         anomaly = 1.0 - combined_sim
-        corneal_score = np.clip(anomaly * 1.5, 0.1, 0.95)
-        corneal_score = corneal_score * quality_multiplier
+        
+        # Calculate glare area difference to prevent FALSE POSITIVES from glasses or side lighting
+        left_area = left_dilated.sum() / 255.0
+        right_area = right_dilated.sum() / 255.0
+        total_glare_area = left_area + right_area
+        area_diff_ratio = abs(left_area - right_area) / max(1.0, total_glare_area)
+        
+        # If total glare is unusually large, it's almost certainly glasses. Dampen heavily.
+        if total_glare_area > 150:
+            anomaly *= 0.2
+        # If the glares are asymmetric, it's likely side lighting. Dampen proportional to difference.
+        elif area_diff_ratio > 0.3:
+            anomaly *= (1.0 - area_diff_ratio)
+            
+        corneal_score = anomaly * 1.5 * quality_multiplier
+        corneal_score = np.clip(corneal_score, 0.1, 0.95)
         
         # --- Premium Visualization Generation ---
         scale = 6
@@ -142,7 +171,12 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         left_big_thresh = cv2.resize(left_thresh, (img_size, img_size), interpolation=cv2.INTER_NEAREST)
         right_big_thresh = cv2.resize(right_thresh, (img_size, img_size), interpolation=cv2.INTER_NEAREST)
         
-        # Alpha blended overlays
+        # Dilate the high-res thresholds so the visualization matches the spatial tolerance scoring
+        big_kernel = np.ones((15, 15), np.uint8) # Scale kernel for the high-res canvas
+        left_big_dilated = cv2.dilate(left_big_thresh, big_kernel, iterations=1)
+        right_big_dilated = cv2.dilate(right_big_thresh, big_kernel, iterations=1)
+        
+        # Alpha blended overlays (use dilated for glow base)
         def apply_glow_overlay(base, thresh, color):
             overlay = np.zeros_like(base)
             overlay[thresh > 0] = color
@@ -155,16 +189,16 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
             result = cv2.addWeighted(base, 1.0, overlay_with_glow, 0.7, 0)
             return result
             
-        left_big_overlay = apply_glow_overlay(left_big, left_big_thresh, [50, 50, 255])   # Red in BGR
-        right_big_overlay = apply_glow_overlay(right_big, right_big_thresh, [255, 255, 50]) # Cyan in BGR
+        left_big_overlay = apply_glow_overlay(left_big, left_big_dilated, [50, 50, 255])   # Red in BGR
+        right_big_overlay = apply_glow_overlay(right_big, right_big_dilated, [255, 255, 50]) # Cyan in BGR
         
         # Composite (Heatmap Diff)
         comp_big = np.zeros_like(left_big)
-        comp_big[left_big_thresh > 0] = [50, 50, 255] # Red
-        comp_big[right_big_thresh > 0] = [255, 255, 50] # Cyan
+        comp_big[left_big_dilated > 0] = [50, 50, 255] # Red
+        comp_big[right_big_dilated > 0] = [255, 255, 50] # Cyan
         
         # Find intersection
-        intersect_mask = cv2.bitwise_and(left_big_thresh, right_big_thresh)
+        intersect_mask = cv2.bitwise_and(left_big_dilated, right_big_dilated)
         comp_big[intersect_mask > 0] = [255, 255, 255] # White where they overlap
         
         comp_big = cv2.addWeighted(comp_big, 1.0, cv2.GaussianBlur(comp_big, (21, 21), 0), 0.6, 0)
@@ -237,7 +271,22 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
             "corneal_score": float(corneal_score),
             "iou": float(iou),
             "ssim": float(sim_score),
-            "corneal_map_path": web_path.replace("\\", "/")
+            "total_glare_area": float(total_glare_area),
+            "area_diff_ratio": float(area_diff_ratio),
+            "suppressed": bool(total_glare_area > 150 or area_diff_ratio > 0.3),
+            "suppression_reason": "Total glare area is extremely high, indicating glasses." if total_glare_area > 150 else ("Asymmetric glare detected, indicating side-lighting." if area_diff_ratio > 0.3 else None),
+            "corneal_map_path": web_path.replace("\\", "/"),
+            "explanation": {
+                "what_happened": "Extracted the micro-reflections from the left and right corneas and mathematically compared their geometry.",
+                "result": "Mismatched Reflections (Deepfake)" if corneal_score > 0.5 and not (total_glare_area > 150 or area_diff_ratio > 0.3) else ("Suppressed: Glasses/Lighting Detected" if (total_glare_area > 150 or area_diff_ratio > 0.3) else "Consistent Eye Reflections"),
+                "why_it_happened": "The reflections in the left and right eyes are geometrically completely different, which violates the laws of physics." if corneal_score > 0.5 and not (total_glare_area > 150 or area_diff_ratio > 0.3) else ("The anomaly score was suppressed because massive reflection blocks (glasses) or high asymmetry (side lighting) naturally distort the corneal reading." if (total_glare_area > 150 or area_diff_ratio > 0.3) else "The reflections in both eyes perfectly match the physical lighting environment."),
+                "variables": {
+                    "Intersection over Union (IoU)": f"{(iou * 100):.1f}%",
+                    "Structural Similarity (SSIM)": f"{(sim_score * 100):.1f}%",
+                    "Total Glare Area": f"{total_glare_area:.1f} px",
+                    "Asymmetry Ratio": f"{area_diff_ratio:.2f}"
+                }
+            }
         }
         
     except Exception as e:
