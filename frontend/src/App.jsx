@@ -170,53 +170,54 @@ function App() {
               {status === 'idle' && (
                 <>
                   <section className="hero">
-                    <div className="hero-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <div className="hero-bg-glow"></div>
+                    <div className="hero-badge fade-in-stagger" style={{ animationDelay: '0.1s', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
                       <Lock size={14} /> Court-Grade Forensic Analysis
                     </div>
-                    <h1>Deepfake Detection<br />with Explainable AI</h1>
-                    <p className="hero-subtitle">
+                    <h1 className="fade-in-stagger" style={{ animationDelay: '0.2s' }}>Deepfake Detection<br />with Explainable AI</h1>
+                    <p className="hero-subtitle fade-in-stagger" style={{ animationDelay: '0.3s' }}>
                       An enterprise-grade, multi-modal pipeline for synthetic media detection. 
                       Upload any video or image to generate comprehensive visual evidence and a court-ready PDF report.
                     </p>
                   </section>
 
                   <div className="stats-grid">
-                    <div className="stat-card">
+                    <div className="stat-card fade-in-stagger" style={{ animationDelay: '0.4s' }}>
                       <div className="stat-card-header">
                         <BrainCircuit size={16} className="stat-card-icon" /> Core Engine
                       </div>
                       <div className="stat-card-value">PyTorch Meta-Classifier</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>15-Feature ML Ensemble</div>
                     </div>
-                    <div className="stat-card">
+                    <div className="stat-card fade-in-stagger" style={{ animationDelay: '0.5s' }}>
                       <div className="stat-card-header">
                         <ScanSearch size={16} className="stat-card-icon" style={{ color: 'var(--primary)' }} /> Explainability
                       </div>
                       <div className="stat-card-value">GradCAM & SHAP</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Visual Evidence Heatmaps</div>
                     </div>
-                    <div className="stat-card">
+                    <div className="stat-card fade-in-stagger" style={{ animationDelay: '0.6s' }}>
                       <div className="stat-card-header">
                         <Activity size={16} className="stat-card-icon" style={{ color: 'var(--danger)' }} /> Signal Analysis
                       </div>
                       <div className="stat-card-value">Frequency & ELA</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>DCT & Compression Analysis</div>
                     </div>
-                    <div className="stat-card">
+                    <div className="stat-card fade-in-stagger" style={{ animationDelay: '0.7s' }}>
                       <div className="stat-card-header">
                         <Camera size={16} className="stat-card-icon" style={{ color: '#a855f7' }} /> Sensor Forensics
                       </div>
                       <div className="stat-card-value">PRNU Extraction</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Camera Noise Fingerprinting</div>
                     </div>
-                    <div className="stat-card">
+                    <div className="stat-card fade-in-stagger" style={{ animationDelay: '0.8s' }}>
                       <div className="stat-card-header">
                         <Focus size={16} className="stat-card-icon" style={{ color: 'var(--warning)' }} /> Temporal
                       </div>
                       <div className="stat-card-value">Face Geometry</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Frame-by-frame Jitter Tracking</div>
                     </div>
-                    <div className="stat-card">
+                    <div className="stat-card fade-in-stagger" style={{ animationDelay: '0.9s' }}>
                       <div className="stat-card-header">
                         <Volume2 size={16} className="stat-card-icon" style={{ color: 'var(--secondary)' }} /> Audio-Visual
                       </div>
@@ -282,100 +283,110 @@ function App() {
                     </div>
                   </section>
 
-                  <section className="detailed-features" style={{ marginTop: '4rem', marginBottom: '2rem' }}>
-                    <div className="section-title" style={{ marginBottom: '2rem', textAlign: 'center' }}>How We Detect Deepfakes</div>
+                  <section className="detailed-features" style={{ marginTop: '5rem', marginBottom: '4rem' }}>
+                    <div className="section-title" style={{ marginBottom: '3rem', textAlign: 'center' }}>How We Detect Deepfakes</div>
                     
-                    <div className="feature-showcase" style={{ display: 'grid', gap: '2rem' }}>
-                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={24} /> Spectral & Frequency Analysis</h3>
-                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                            Real cameras capture a natural balance of high and low frequencies. AI generators, however, struggle to reproduce microscopic high-frequency details (like skin pores or natural sensor noise), resulting in mathematically "smooth" pixels. We use Fast Fourier Transforms (FFT) and Discrete Cosine Transforms (DCT) to detect this unnatural lack of high-frequency energy.
-                          </p>
+                    <div className="features-grid">
+                      {/* Feature 1 */}
+                      <div className="feature-card-modern">
+                        <div className="feature-card-icon-wrapper" style={{ background: 'rgba(34, 211, 238, 0.1)', color: 'var(--primary)' }}>
+                          <Activity size={24} />
                         </div>
-                        <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '2rem' }}>
-                          <ul style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            <li>• <strong>Switching Noise (SWN):</strong> Isolates pure AI generation noise and highlights deepfake splicing seams.</li>
-                            <li>• <strong>8x8 Block DCT:</strong> Detects localized disruptions in the JPEG compression grid.</li>
-                            <li>• <strong>Phase Spectrum:</strong> Identifies structural phase angle anomalies caused by face swapping.</li>
-                          </ul>
-                        </div>
+                        <h3 style={{ color: 'var(--primary)', fontSize: '1.1rem' }}>Spectral & Frequency Analysis</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                          Real cameras capture high frequencies naturally. AI generators produce mathematically "smooth" pixels. We use <strong>FFT</strong> and <strong>DCT</strong> to detect this unnatural lack of high-frequency energy.
+                        </p>
+                        <ul style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingLeft: '1.2rem' }}>
+                          <li>Switching Noise (SWN) Filters</li>
+                          <li>8x8 Block DCT Disruption</li>
+                          <li>Phase Spectrum Anomalies</li>
+                        </ul>
                       </div>
 
-                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ color: '#a855f7', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><ScanSearch size={24} /> Hardware Noise & ELA Forensics</h3>
-                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                            Images taken by real physical cameras have a baked-in Bayer filter pattern (CFA) and uniform JPEG compression. We analyze these microscopic spatial properties.
-                          </p>
+                      {/* Feature 2 */}
+                      <div className="feature-card-modern">
+                        <div className="feature-card-icon-wrapper" style={{ background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
+                          <ScanSearch size={24} />
                         </div>
-                        <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '2rem' }}>
-                          <ul style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            <li>• <strong>Error Level Analysis (ELA):</strong> Exposes differences in JPEG compression histories to reveal spliced fake faces.</li>
-                            <li>• <strong>CFA Artifacts:</strong> Generative AI (Midjourney/DALL-E) completely lacks the Color Filter Array demosaicing patterns produced by real camera hardware.</li>
-                          </ul>
-                        </div>
+                        <h3 style={{ color: '#a855f7', fontSize: '1.1rem' }}>Hardware Noise & ELA</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                          Images have a baked-in Bayer filter pattern (CFA) and uniform JPEG compression. We analyze <strong>Error Level Analysis (ELA)</strong> and missing <strong>CFA Artifacts</strong> to expose splicing.
+                        </p>
+                        <ul style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingLeft: '1.2rem' }}>
+                          <li>Error Level Analysis (ELA)</li>
+                          <li>Color Filter Array (CFA) Democaising</li>
+                        </ul>
                       </div>
 
-                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ color: 'var(--warning)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Focus size={24} /> Face Geometry & Temporal Jitter</h3>
-                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                            While AI can generate a perfect fake face in a single frame, it struggles to keep the 3D geometry of that face perfectly stable across time in a video. We track 468 facial landmarks across every frame to measure micro-jitters, unnatural head pose variations, and blinking anomalies that human eyes can't detect.
-                          </p>
+                      {/* Feature 3 */}
+                      <div className="feature-card-modern">
+                        <div className="feature-card-icon-wrapper" style={{ background: 'rgba(251, 191, 36, 0.1)', color: 'var(--warning)' }}>
+                          <Focus size={24} />
                         </div>
-                        <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '2rem' }}>
-                          <ul style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                            <li>• <strong>Landmark Jitter:</strong> Microscopic shaking of facial anchor points.</li>
-                            <li>• <strong>Optical Flow:</strong> Tracks dense pixel motion vectors to flag blocky unnatural flickering around fake masks.</li>
-                            <li>• <strong>Eye Aspect Ratio (EAR):</strong> Detection of unnatural "lazy eye" or missing blink patterns.</li>
-                          </ul>
-                        </div>
+                        <h3 style={{ color: 'var(--warning)', fontSize: '1.1rem' }}>Face Geometry & Temporal Jitter</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                          We track 468 facial landmarks across every frame to measure micro-jitters, unnatural head pose variations, and blinking anomalies that human eyes cannot detect.
+                        </p>
+                        <ul style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingLeft: '1.2rem' }}>
+                          <li>Landmark Jitter Detection</li>
+                          <li>Farneback Dense Optical Flow</li>
+                          <li>Eye Aspect Ratio (EAR) Blink Tracking</li>
+                        </ul>
                       </div>
 
-                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ color: 'var(--secondary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Volume2 size={24} /> Audio CNN & Forensic Pre-Processing</h3>
-                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                            Audio deepfakes and lip-syncing (Wav2Lip) are common manipulation techniques. We process audio through a robust forensic pipeline including <strong>Cubic Spline De-Clipping</strong> and <strong>Spectral Gating Denoising</strong> to handle real-world corruption. The cleaned audio is then fed into a <strong>Lightweight PyTorch 2D-CNN</strong> that analyzes 128-channel Mel-Spectrograms to calculate a highly accurate voice spoofing probability. Lip-sync desynchronization is concurrently measured using a dual-stream SyncNet architecture.
-                          </p>
+                      {/* Feature 4 */}
+                      <div className="feature-card-modern">
+                        <div className="feature-card-icon-wrapper" style={{ background: 'rgba(129, 140, 248, 0.1)', color: 'var(--secondary)' }}>
+                          <Volume2 size={24} />
                         </div>
+                        <h3 style={{ color: 'var(--secondary)', fontSize: '1.1rem' }}>Audio CNN & SyncNet</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                          We process audio through a lightweight <strong>PyTorch 2D-CNN</strong> to calculate voice spoofing probability, while measuring lip-sync desynchronization using a dual-stream <strong>SyncNet</strong>.
+                        </p>
                       </div>
 
-                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ color: 'var(--primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><BrainCircuit size={24} /> PyTorch AI Meta-Classifier</h3>
-                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                            Instead of relying on rigid, hardcoded thresholds that cause false positives, our system uses a fully trained Multi-Layer Perceptron (MLP). The AI Meta-Classifier evaluates the outputs of all 15 visual, biological, and acoustic sensors simultaneously, learning their mathematical relationships to determine an ironclad, explainable final verdict.
-                          </p>
+                      {/* Feature 5 */}
+                      <div className="feature-card-modern">
+                        <div className="feature-card-icon-wrapper" style={{ background: 'rgba(251, 113, 133, 0.1)', color: 'var(--danger)' }}>
+                          <Activity size={24} />
                         </div>
+                        <h3 style={{ color: 'var(--danger)', fontSize: '1.1rem' }}>Biological Signal (rPPG)</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                          Real human faces exhibit microscopic color changes with every heartbeat. AI-generated faces completely lack these <strong>photoplethysmography (rPPG)</strong> signals.
+                        </p>
                       </div>
 
-                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ color: 'var(--danger)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={24} /> Biological Signal (rPPG) Detection</h3>
-                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                            Real human faces exhibit microscopic color changes with every heartbeat as blood pumps through the capillaries. AI-generated and swapped faces completely lack these photoplethysmography (rPPG) signals. We isolate the green color channel of the face and run a Fast Fourier Transform to search for a human pulse frequency.
-                          </p>
+                      {/* Feature 6 */}
+                      <div className="feature-card-modern">
+                        <div className="feature-card-icon-wrapper" style={{ background: 'rgba(56, 189, 248, 0.1)', color: 'var(--info)' }}>
+                          <Lightbulb size={24} />
                         </div>
+                        <h3 style={{ color: 'var(--info)', fontSize: '1.1rem' }}>Illumination & Optics</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                          We extract and compare the <strong>Corneal Specular Highlights</strong> (reflections in the eyes). GANs notoriously fail to render matching 3D geometric reflections in both eyes.
+                        </p>
                       </div>
 
-                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ color: 'var(--info)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Lightbulb size={24} /> Illumination & Optics Analysis</h3>
-                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                            When a face is spliced into a new image, or generated entirely by an AI, the 3D lighting environment almost never matches perfectly. We compute image gradients to estimate 2D illumination directions. Additionally, we extract and compare the <strong>Corneal Specular Highlights</strong> (the reflections in the eyes)—GANs notoriously fail to render matching geometric reflections in both eyes.
-                          </p>
+                      {/* Feature 7 */}
+                      <div className="feature-card-modern">
+                        <div className="feature-card-icon-wrapper" style={{ background: 'rgba(52, 211, 153, 0.1)', color: 'var(--success)' }}>
+                          <FileText size={24} />
                         </div>
+                        <h3 style={{ color: 'var(--success)', fontSize: '1.1rem' }}>EXIF & Metadata Forensics</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                          We automatically extract and analyze the EXIF payload, detecting manipulation software signatures (Photoshop, Stable Diffusion), stripped metadata, and suspicious timestamps.
+                        </p>
                       </div>
 
-                      <div className="glass-panel" style={{ display: 'flex', gap: '2rem', padding: '2rem', alignItems: 'center', background: 'rgba(15, 23, 42, 0.6)' }}>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ color: 'var(--success)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><FileText size={24} /> EXIF & Metadata Forensics</h3>
-                          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                            Generative AI tools (Midjourney, Stable Diffusion) and editing software (Photoshop) often leave distinct signatures in the file metadata. We automatically extract and analyze the EXIF payload, detecting manipulation software signatures, stripped metadata, and suspicious generation timestamps.
-                          </p>
+                      {/* Feature 8 */}
+                      <div className="feature-card-modern">
+                        <div className="feature-card-icon-wrapper" style={{ background: 'rgba(34, 211, 238, 0.1)', color: 'var(--primary)' }}>
+                          <BrainCircuit size={24} />
                         </div>
+                        <h3 style={{ color: 'var(--primary)', fontSize: '1.1rem' }}>PyTorch AI Meta-Classifier</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                          Instead of rigid thresholds, a fully trained Multi-Layer Perceptron (MLP) evaluates all 15 visual, biological, and acoustic sensors to determine an ironclad, explainable final verdict.
+                        </p>
                       </div>
                     </div>
                   </section>
@@ -519,12 +530,13 @@ function App() {
                 </p>
               </section>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div className="glass-panel" style={{ padding: '2rem' }}>
-                  <h3 style={{ marginBottom: '1rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <BrainCircuit size={24} /> EfficientNet-B4 Classifier
-                  </h3>
-                  <p style={{ color: 'var(--text-secondary)', lineHeight: '1.8', fontSize: '0.95rem' }}>
+              <div className="features-grid">
+                <div className="feature-card-modern">
+                  <div className="feature-card-icon-wrapper" style={{ background: 'rgba(34, 211, 238, 0.1)', color: 'var(--primary)' }}>
+                    <BrainCircuit size={24} />
+                  </div>
+                  <h3 style={{ color: 'var(--primary)', fontSize: '1.1rem' }}>EfficientNet-B4 Classifier</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
                     We use a fine-tuned EfficientNet-B4 backbone trained with a hybrid loss combining
                     cross-entropy and contrastive learning using the Self-Blended Images (SBI) framework.
                     The model extracts a 1792-dimensional feature vector from 380×380 face crops, achieving
@@ -532,51 +544,56 @@ function App() {
                   </p>
                 </div>
 
-                <div className="glass-panel" style={{ padding: '2rem' }}>
-                  <h3 style={{ marginBottom: '1rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <ScanSearch size={24} /> GradCAM Visual Explanations
-                  </h3>
-                  <p style={{ color: 'var(--text-secondary)', lineHeight: '1.8', fontSize: '0.95rem' }}>
+                <div className="feature-card-modern">
+                  <div className="feature-card-icon-wrapper" style={{ background: 'rgba(251, 113, 133, 0.1)', color: 'var(--danger)' }}>
+                    <ScanSearch size={24} />
+                  </div>
+                  <h3 style={{ color: 'var(--danger)', fontSize: '1.1rem' }}>GradCAM Visual Explanations</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
                     Gradient-weighted Class Activation Mapping (GradCAM) generates spatial heatmaps
                     highlighting which regions of the face the neural network focused on when making
                     its deepfake classification. Red areas indicate strong evidence of manipulation artifacts.
                   </p>
                 </div>
 
-                <div className="glass-panel" style={{ padding: '2rem' }}>
-                  <h3 style={{ marginBottom: '1rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <BarChart3 size={24} /> SHAP Feature Importance
-                  </h3>
-                  <p style={{ color: 'var(--text-secondary)', lineHeight: '1.8', fontSize: '0.95rem' }}>
+                <div className="feature-card-modern">
+                  <div className="feature-card-icon-wrapper" style={{ background: 'rgba(129, 140, 248, 0.1)', color: 'var(--secondary)' }}>
+                    <BarChart3 size={24} />
+                  </div>
+                  <h3 style={{ color: 'var(--secondary)', fontSize: '1.1rem' }}>SHAP Feature Importance</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
                     SHapley Additive exPlanations (SHAP) quantify how each facial region contributes
                     to the model's final decision. This provides human-interpretable evidence that can
                     be presented alongside the visual heatmaps in forensic proceedings.
                   </p>
                 </div>
 
-                <div className="glass-panel" style={{ padding: '2rem' }}>
-                  <h3 style={{ marginBottom: '1rem', color: '#a855f7', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Activity size={24} /> Frequency & Signal Forensics
-                  </h3>
-                  <p style={{ color: 'var(--text-secondary)', lineHeight: '1.8', fontSize: '0.95rem' }}>
+                <div className="feature-card-modern">
+                  <div className="feature-card-icon-wrapper" style={{ background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
+                    <Activity size={24} />
+                  </div>
+                  <h3 style={{ color: '#a855f7', fontSize: '1.1rem' }}>Frequency & Signal Forensics</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
                     We analyze the frequency domain (DCT and FFT) to detect unnatural high-frequency suppression typical of GANs. We also measure compression artifacts via Error Level Analysis (ELA) and employ Switching Noise (SWN) filters to reveal hidden splicing boundaries and synthetic noise zero-crossings.
                   </p>
                 </div>
 
-                <div className="glass-panel" style={{ padding: '2rem' }}>
-                  <h3 style={{ marginBottom: '1rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Focus size={24} /> Biological & Sensor Tracking
-                  </h3>
-                  <p style={{ color: 'var(--text-secondary)', lineHeight: '1.8', fontSize: '0.95rem' }}>
+                <div className="feature-card-modern">
+                  <div className="feature-card-icon-wrapper" style={{ background: 'rgba(52, 211, 153, 0.1)', color: 'var(--success)' }}>
+                    <Focus size={24} />
+                  </div>
+                  <h3 style={{ color: 'var(--success)', fontSize: '1.1rem' }}>Biological & Sensor Tracking</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
                     Deepfakes often fail to replicate perfect temporal consistency and camera hardware fingerprints. Our pipeline tracks facial geometry frame-by-frame to catch temporal jitter, and extracts Photo Response Non-Uniformity (PRNU) to verify sensor consistency across the image.
                   </p>
                 </div>
 
-                <div className="glass-panel" style={{ padding: '2rem' }}>
-                  <h3 style={{ marginBottom: '1rem', color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Volume2 size={24} /> SyncNet Audio Analysis
-                  </h3>
-                  <p style={{ color: 'var(--text-secondary)', lineHeight: '1.8', fontSize: '0.95rem' }}>
+                <div className="feature-card-modern">
+                  <div className="feature-card-icon-wrapper" style={{ background: 'rgba(251, 191, 36, 0.1)', color: 'var(--warning)' }}>
+                    <Volume2 size={24} />
+                  </div>
+                  <h3 style={{ color: 'var(--warning)', fontSize: '1.1rem' }}>SyncNet Audio Analysis</h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
                     For video files with audio, our pipeline uses a SyncNet-based model to detect
                     micro-desynchronization between lip movements and speech audio — a common
                     artifact in lip-sync deepfakes that is imperceptible to the human eye.
