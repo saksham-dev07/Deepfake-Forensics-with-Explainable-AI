@@ -1,11 +1,3 @@
----
-title: Deepfake Forensics API
-emoji: 🕵️
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-pinned: false
----
 
 # Deepfake Forensics API (Backend)
 
