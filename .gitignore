@@ -24,3 +24,6 @@ backend/test_out/
 backend/reports/
 
 *.log
+
+# Vite Cache
+frontend/.vite/
