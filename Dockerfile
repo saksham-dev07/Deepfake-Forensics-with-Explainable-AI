@@ -18,15 +18,15 @@ USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 
-# Set the working directory
-WORKDIR $HOME/app
+# Set the working directory directly to backend
+WORKDIR $HOME/app/backend
 
 # Copy the requirements file and install dependencies
 COPY --chown=user:user backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the backend files
-COPY --chown=user:user backend/ ./backend/
+# Copy the rest of the backend files directly into the current directory
+COPY --chown=user:user backend/ .
 
 # Ensure the upload and report directories exist and are writable
 RUN mkdir -p uploads reports weights
@@ -34,5 +34,5 @@ RUN mkdir -p uploads reports weights
 # Hugging Face Spaces exposes port 7860 by default
 EXPOSE 7860
 
-# Start the FastAPI application (we need to specify backend module)
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Start the FastAPI application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
