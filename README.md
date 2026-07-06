@@ -173,26 +173,34 @@ graph TD
     TP --> NN[EfficientNet-B4 + GradCAM]
     TP --> FA[Frequency Analysis: FFT, DCT, PCA]
     TP --> ELA[Error Level Analysis]
-    TP --> GEO[Face Geometry & Blinks]
+    TP --> GEO[Face Geometry]
+    TP --> EYE[Eye Movement & Blinks]
     TP --> NOISE[Sensor Noise: PRNU, SRM]
     TP --> COLOR[Color Space Chromaticity]
     TP --> SYNC[Audio-Visual SyncNet]
-    TP --> OPTIC[Corneal & CFA Optics]
+    TP --> CFA[CFA Optics]
+    TP --> CORNEAL[Corneal Reflections]
     TP --> PHYS[rPPG Heartbeat Detection]
     TP --> VOICE[Acoustic Anti-Spoofing]
     TP --> FLOW[Temporal Optical Flow]
+    TP --> META[Metadata Integrity]
+    TP --> LIGHT[Lighting Consistency]
     
     NN --> AGG[Meta-Classifier Ensemble MLP]
     FA --> AGG
     ELA --> AGG
     GEO --> AGG
+    EYE --> AGG
     NOISE --> AGG
     COLOR --> AGG
     SYNC --> AGG
-    OPTIC --> AGG
+    CFA --> AGG
+    CORNEAL --> AGG
     PHYS --> AGG
     VOICE --> AGG
     FLOW --> AGG
+    META --> AGG
+    LIGHT --> AGG
     
     AGG --> PDF[PDF Report Generator]
     AGG --> JSON[JSON API Response]
