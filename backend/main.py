@@ -308,9 +308,9 @@ def run_analysis_pipeline(job_id: str, file_path: str):
 
         is_video = len(frame_files) > 1
         
-        # OPTIMIZATION: Removed artificial max_workers=3 bottleneck. 
-        # Python will now auto-scale to use all available CPU cores for the 14 parallel tasks.
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        # OPTIMIZATION: Removed artificial max_workers=3 bottleneck, but capped to 4 for Hugging Face Spaces stability.
+        # Python will safely scale across the 2 available CPU cores without thrashing memory.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             future_freq = executor.submit(
                 run_with_fallback, analyze_frequency_domain, 
                 {"score": 0.5, "visualizations": []}, 

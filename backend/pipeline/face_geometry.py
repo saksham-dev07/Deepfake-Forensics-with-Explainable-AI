@@ -23,18 +23,21 @@ from mediapipe.tasks.python import vision
 
 MP_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "face_landmarker.task")
 _landmarker = None
+_landmarker_lock = threading.Lock()
 
 def get_landmarker():
     global _landmarker
     if _landmarker is None:
-        base_options = python.BaseOptions(model_asset_path=MP_MODEL_PATH)
-        options = vision.FaceLandmarkerOptions(
-            base_options=base_options,
-            output_face_blendshapes=False,
-            output_facial_transformation_matrixes=False,
-            num_faces=1,
-        )
-        _landmarker = vision.FaceLandmarker.create_from_options(options)
+        with _landmarker_lock:
+            if _landmarker is None:
+                base_options = python.BaseOptions(model_asset_path=MP_MODEL_PATH)
+                options = vision.FaceLandmarkerOptions(
+                    base_options=base_options,
+                    output_face_blendshapes=False,
+                    output_facial_transformation_matrixes=False,
+                    num_faces=1,
+                )
+                _landmarker = vision.FaceLandmarker.create_from_options(options)
     return _landmarker
 
 def detect_face(image_rgb):
@@ -47,7 +50,8 @@ def detect_face(image_rgb):
 
     landmarker = get_landmarker()
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
-    detection_result = landmarker.detect(mp_image)
+    with _landmarker_lock:
+        detection_result = landmarker.detect(mp_image)
 
     if not detection_result.face_landmarks:
         return None
