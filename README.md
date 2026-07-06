@@ -148,6 +148,20 @@ npm run dev
 
 ---
 
+## Configuration & Constraints
+
+Before deploying the platform, be aware of the following system constraints and configurations:
+
+* **File Upload Limits:** For memory protection during tensor allocations, the API enforces a strict **100 MB** upload limit. Video analysis is capped at the first **60 seconds** of playback. Supported extensions include `mp4`, `avi`, `mov`, `mkv`, `webm`, `png`, `jpg`, and `jpeg`.
+* **API Security:** The FastAPI backend is secured via an API Key. By default, it expects the `x-api-key` header to equal `deepforensics-dev-key`. You can override this by setting the `API_KEY` environment variable in the backend, and configuring a `.env` file in the frontend with `VITE_API_KEY=your-key`.
+* **Required Model Weights:** Ensure the following pre-trained models are downloaded into the `backend/weights/` directory:
+    * `improved_finetuned_model.pth` (EfficientNet Backbone)
+    * `ensemble_mlp.pth` (Meta-Classifier)
+    * `voice_spoofing.pth` (Audio Anti-Spoofing CNN)
+    * `syncnet_v2.model` (Wav2Lip Audio-Visual Sync)
+
+---
+
 ## System Architecture
 
 ```mermaid

@@ -13,6 +13,11 @@ This is the React + Vite frontend for the **Deepfake Forensics Platform**. It pr
 - **Recharts** (Data Visualization)
 - **Lucide React** (Icons)
 
+## Component Architecture
+- `App.jsx`: The main entry point that manages global state, API polling, file upload constraints, and renders the primary navigation.
+- `ModelsOverview.jsx`: A purely informational dashboard displaying deep learning architectures, dataset compositions, and evaluation metrics (ROC-AUC).
+- `ReportDashboard.jsx`: The core analytical view that parses the 15-dimensional forensic JSON response and maps the data to interactive Recharts (Radar, Area, Bar charts). It dynamically updates as background tasks progress.
+
 ## Installation & Setup
 
 1. Install Dependencies:
@@ -28,4 +33,9 @@ This is the React + Vite frontend for the **Deepfake Forensics Platform**. It pr
 The dashboard will be accessible at `http://localhost:5173`.
 
 ## Connecting to Backend
-Ensure that the FastAPI backend is running on `http://127.0.0.1:8000` (or update your API base URL accordingly) so that video uploads and API requests can be successfully routed.
+Ensure that the FastAPI backend is running on `http://127.0.0.1:8000`. By default, the application will attempt to connect to `http://localhost:8000` using the default dev API key. 
+If your backend is running on a different URL/port, or you've configured a custom API key for security, create a `.env` file in the root of the `frontend` directory:
+```env
+VITE_API_URL=http://your-backend-ip:8000
+VITE_API_KEY=your-custom-api-key
+```

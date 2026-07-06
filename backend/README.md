@@ -25,7 +25,10 @@ This is the FastAPI backend for the **Deepfake Forensics Platform**. It provides
 
 ## Installation & Setup
 
-1. Create a Virtual Environment:
+1. System Dependencies:
+   - Ensure you have `ffmpeg` installed and available in your system's PATH, as it is required for video and audio processing.
+
+2. Create a Virtual Environment:
    ```bash
    python -m venv venv
    # On Windows:
@@ -34,14 +37,31 @@ This is the FastAPI backend for the **Deepfake Forensics Platform**. It provides
    source venv/bin/activate
    ```
 
-2. Install Dependencies:
+3. Install Dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. Run the Server:
+4. Run the Server:
    ```bash
    uvicorn main:app --reload
    ```
 
 The API will be available at `http://127.0.0.1:8000`.
+
+## Environment Variables
+The application uses the following optional environment variables for configuration:
+- `API_KEY`: Secures the API endpoints. (Defaults to `"deepforensics-dev-key"`). You must pass this in the `x-api-key` header when making requests.
+- `ALLOWED_ORIGINS`: A comma-separated list of origins for CORS. (Defaults to `"*"`).
+
+## Required Model Weights
+Ensure the following pre-trained weight files are placed in the `weights/` directory for full functionality:
+- `improved_finetuned_model.pth` or `finetuned_model.pth`: Custom EfficientNet-B4 weights. If missing, the system falls back to the standard ImageNet pre-trained timm model.
+- `ensemble_mlp.pth`: Weights for the Meta-Classifier MLP.
+- `voice_spoofing.pth`: Weights for the Acoustic Anti-Spoofing 2D-CNN.
+- `syncnet_v2.model`: Pre-trained Wav2Lip SyncNet model (can be downloaded from the Wav2Lip official repository).
+
+## API Specifications
+- **Upload Limit:** Maximum file size is strictly capped at **100 MB**.
+- **Supported Formats:** `mp4`, `avi`, `mov`, `mkv`, `webm`, `png`, `jpg`, `jpeg`.
+- **Processing Time limit:** Video analyses are capped at the first 60 seconds of playback to prevent memory overflow.
