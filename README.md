@@ -1,6 +1,6 @@
 ---
 title: Deepfake Forensics API
-emoji: ???
+emoji: 🚀
 colorFrom: purple
 colorTo: blue
 sdk: docker
