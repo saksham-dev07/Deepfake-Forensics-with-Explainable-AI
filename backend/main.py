@@ -187,19 +187,20 @@ def run_analysis_pipeline(job_id: str, file_path: str):
         # CRITICAL FIX: The neural network was trained on CROPPED FACES. 
         # Squishing a 1080p full frame into 380x380 destroys all facial high-frequency 
         # artifacts and causes the model to blindly predict "Authentic".
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
         def extract_face_crop(img_rgb):
-            gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
-            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(100, 100))
-            if len(faces) > 0:
-                faces = sorted(faces, key=lambda f: f[2]*f[3], reverse=True)
-                x, y, w, h = faces[0]
-                exp = int(0.2 * w) # 20% expansion margin
-                x1, y1 = max(0, x - exp), max(0, y - exp)
-                x2, y2 = min(img_rgb.shape[1], x + w + exp), min(img_rgb.shape[0], y + h + exp)
-                return img_rgb[y1:y2, x1:x2]
+            from pipeline.face_geometry import detect_face
+            try:
+                landmarks = detect_face(img_rgb)
+                if landmarks and "face_bbox" in landmarks:
+                    x, y, w, h = landmarks["face_bbox"]
+                    exp = int(0.2 * w) # 20% expansion margin
+                    x1, y1 = max(0, x - exp), max(0, y - exp)
+                    x2, y2 = min(img_rgb.shape[1], x + w + exp), min(img_rgb.shape[0], y + h + exp)
+                    return img_rgb[y1:y2, x1:x2]
+            except Exception as e:
+                print(f"Face crop detection failed: {e}")
             
-            # Fallback to center crop if Haar cascade fails
+            # Fallback to center crop if face detection fails
             fh, fw = img_rgb.shape[:2]
             min_dim = min(fh, fw)
             y1, x1 = (fh - min_dim) // 2, (fw - min_dim) // 2
