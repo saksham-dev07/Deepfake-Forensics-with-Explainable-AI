@@ -166,47 +166,95 @@ Before deploying the platform, be aware of the following system constraints and 
 
 ```mermaid
 graph TD
-    UI[React/Vite Frontend] -->|Multipart Upload| API[FastAPI Gateway]
-    API --> VP[Video Processor: Extract Frames & Audio]
-    VP --> TP[Concurrent Thread Pool Executor]
+    %% Styling Definitions
+    classDef frontend fill:#3b82f6,stroke:#2563eb,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef backend fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef processor fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff;
+    classDef module fill:#1e293b,stroke:#475569,stroke-width:1px,color:#f8fafc;
+    classDef meta fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef output fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+
+    %% Client & API Layer
+    UI[React/Vite Glassmorphic Dashboard]:::frontend -->|Multipart Media Upload| API[FastAPI High-Performance Gateway]:::backend
+    API --> VP[Video Processor: Frame Extraction & Audio Split]:::processor
+    VP --> TP[Concurrent Thread Pool Executor]:::processor
     
-    TP --> NN[EfficientNet-B4 + GradCAM]
-    TP --> FA[Frequency Analysis: FFT, DCT, PCA]
-    TP --> ELA[Error Level Analysis]
-    TP --> GEO[Face Geometry]
-    TP --> EYE[Eye Movement & Blinks]
-    TP --> NOISE[Sensor Noise: PRNU, SRM]
-    TP --> COLOR[Color Space Chromaticity]
-    TP --> SYNC[Audio-Visual SyncNet]
-    TP --> CFA[CFA Optics]
-    TP --> CORNEAL[Corneal Reflections]
-    TP --> PHYS[rPPG Heartbeat Detection]
-    TP --> VOICE[Acoustic Anti-Spoofing]
-    TP --> FLOW[Temporal Optical Flow]
-    TP --> META[Metadata Integrity]
-    TP --> LIGHT[Lighting Consistency]
+    %% The 15-Dimensional Forensic Engines
+    subgraph Core_Neural_Analysis["🧠 Core Neural Analysis"]
+        NN[EfficientNet-B4 + GradCAM XAI]:::module
+    end
     
-    NN --> AGG[Meta-Classifier Ensemble MLP]
-    FA --> AGG
-    ELA --> AGG
+    subgraph Biological_Physiological["🫀 Biological & Physiological"]
+        GEO[Face Geometry & Asymmetry]:::module
+        EYE[Dynamic Blink & Gaze Analysis]:::module
+        PHYS[rPPG Volumetric Heartbeat]:::module
+    end
+    
+    subgraph Digital_Physical_Optics["📸 Physical Optics & Sensors"]
+        NOISE[Sensor Noise: PRNU & SRM]:::module
+        CFA[Bayer CFA Interpolation]:::module
+        CORNEAL[Corneal Specular Highlights]:::module
+        LIGHT[Lighting Consistency]:::module
+        COLOR[Chrominance YCbCr/LAB Mapping]:::module
+    end
+    
+    subgraph Temporal_Artifacts["⏱️ Temporal & Compression"]
+        ELA[Error Level Analysis]:::module
+        FLOW[Dense Optical Flow & Jitter]:::module
+    end
+    
+    subgraph Audio_Forensics["🎙️ Acoustic Forensics"]
+        SYNC[Native 3D-CNN A/V SyncNet]:::module
+        VOICE[Voice Liveness Anti-Spoofing]:::module
+    end
+
+    subgraph Spectral_Integrity["📡 Spectral & Integrity"]
+        FA[Frequency: 2D-DCT & FFT]:::module
+        META[Cryptographic Metadata & EXIF]:::module
+    end
+
+    %% Routing to modules
+    TP --> NN
+    TP --> GEO
+    TP --> EYE
+    TP --> PHYS
+    TP --> NOISE
+    TP --> CFA
+    TP --> CORNEAL
+    TP --> LIGHT
+    TP --> COLOR
+    TP --> ELA
+    TP --> FLOW
+    TP --> SYNC
+    TP --> VOICE
+    TP --> FA
+    TP --> META
+
+    %% Meta-Classifier Aggregation
+    NN --> AGG
     GEO --> AGG
     EYE --> AGG
+    PHYS --> AGG
     NOISE --> AGG
-    COLOR --> AGG
-    SYNC --> AGG
     CFA --> AGG
     CORNEAL --> AGG
-    PHYS --> AGG
-    VOICE --> AGG
-    FLOW --> AGG
-    META --> AGG
     LIGHT --> AGG
+    COLOR --> AGG
+    ELA --> AGG
+    FLOW --> AGG
+    SYNC --> AGG
+    VOICE --> AGG
+    FA --> AGG
+    META --> AGG
+
+    AGG{Meta-Classifier Ensemble MLP}:::meta
     
-    AGG --> PDF[PDF Report Generator]
-    AGG --> JSON[JSON API Response]
+    %% Outputs
+    AGG -->|Inference Complete| PDF[Court-Ready PDF Report Generator]:::output
+    AGG -->|JSON Response| JSON[REST API JSON Payload]:::output
     
-    JSON --> UI
-    PDF --> UI
+    JSON -->|State Update| UI
+    PDF -->|Download| UI
 ```
 
 ---
