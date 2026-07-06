@@ -276,12 +276,22 @@ subgraph group_backend["Backend"]
   node_api["API<br/>[main.py]"]
   node_processor["Video prep<br/>media ingestion<br/>[video_processor.py]"]
   node_pipeline["Pipeline<br/>forensic workflow<br/>[__init__.py]"]
+  node_models["Core NN<br/>EfficientNet-B4<br/>[models.py]"]
   node_face["Face signals<br/>visual analysis<br/>[face_geometry.py]"]
-  node_image_artifacts["Image cues<br/>artifact analysis"]
+  node_eye["Eye dynamics<br/>blink analysis<br/>[eye_analysis.py]"]
+  node_image_artifacts["Image cues<br/>artifact analysis<br/>[lighting_analysis.py]"]
   node_motion["Motion cues<br/>temporal analysis<br/>[optical_flow.py]"]
   node_audio["Audio cues<br/>audio analysis<br/>[audio_sync.py]"]
-  node_metadata["Metadata<br/>file analysis"]
-  node_ensemble["Fusion<br/>ensemble classifier"]
+  node_metadata["Metadata<br/>file analysis<br/>[metadata_analysis.py]"]
+  node_freq["Spectral analysis<br/>frequency domain<br/>[frequency_analysis.py]"]
+  node_ela["Compression analysis<br/>error level<br/>[ela_analysis.py]"]
+  node_noise["Sensor noise<br/>rich model<br/>[noise_analysis.py]"]
+  node_color["Color space<br/>chrominance<br/>[color_analysis.py]"]
+  node_rppg["Physiological cues<br/>heartbeat<br/>[rppg_analysis.py]"]
+  node_voice_spoof["Acoustic spoofing<br/>voice analysis<br/>[voice_spoofing.py]"]
+  node_cfa["Optics analysis<br/>bayer filter<br/>[cfa_analysis.py]"]
+  node_corneal["Optics analysis<br/>corneal reflections<br/>[corneal_analysis.py]"]
+  node_ensemble["Fusion<br/>ensemble classifier<br/>[ensemble_classifier.py]"]
   node_xai["Explainability<br/>XAI output<br/>[xai_explainer.py]"]
   node_report["PDF report<br/>report generator<br/>[pdf_reporter.py]"]
   node_syncnet["SyncNet<br/>AV model<br/>[SyncNetModel.py]"]
@@ -301,22 +311,49 @@ node_dashboard -->|"fetches results"| node_api
 node_models_ui -->|"shows signals"| node_api
 node_api -->|"ingests"| node_processor
 node_processor -->|"hands off"| node_pipeline
+
+node_pipeline -->|"routes"| node_models
 node_pipeline -->|"routes"| node_face
+node_pipeline -->|"routes"| node_eye
 node_pipeline -->|"routes"| node_image_artifacts
 node_pipeline -->|"routes"| node_motion
 node_pipeline -->|"routes"| node_audio
 node_pipeline -->|"routes"| node_metadata
+node_pipeline -->|"routes"| node_freq
+node_pipeline -->|"routes"| node_ela
+node_pipeline -->|"routes"| node_noise
+node_pipeline -->|"routes"| node_color
+node_pipeline -->|"routes"| node_rppg
+node_pipeline -->|"routes"| node_voice_spoof
+node_pipeline -->|"routes"| node_cfa
+node_pipeline -->|"routes"| node_corneal
+
+node_models -->|"scores"| node_ensemble
 node_face -->|"scores"| node_ensemble
+node_eye -->|"scores"| node_ensemble
 node_image_artifacts -->|"scores"| node_ensemble
 node_motion -->|"scores"| node_ensemble
 node_audio -->|"scores"| node_ensemble
 node_metadata -->|"scores"| node_ensemble
+node_freq -->|"scores"| node_ensemble
+node_ela -->|"scores"| node_ensemble
+node_noise -->|"scores"| node_ensemble
+node_color -->|"scores"| node_ensemble
+node_rppg -->|"scores"| node_ensemble
+node_voice_spoof -->|"scores"| node_ensemble
+node_cfa -->|"scores"| node_ensemble
+node_corneal -->|"scores"| node_ensemble
+
 node_syncnet -->|"powers"| node_audio
-node_voice_model -->|"powers"| node_audio
+node_voice_model -->|"powers"| node_voice_spoof
+
 node_weights -.->|"loads"| node_syncnet
 node_weights -.->|"loads"| node_voice_model
 node_weights -.->|"loads"| node_ensemble
+node_weights -.->|"loads"| node_models
+
 node_pipeline -->|"explains"| node_xai
+node_models -->|"exposes targets"| node_xai
 node_ensemble -->|"exposes"| node_xai
 node_pipeline -->|"packages"| node_report
 node_ensemble -->|"summarizes"| node_report
@@ -329,11 +366,21 @@ click node_models_ui "https://github.com/saksham-dev07/deepfake-forensics-with-e
 click node_api "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/main.py"
 click node_processor "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/video_processor.py"
 click node_pipeline "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/__init__.py"
+click node_models "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/models.py"
 click node_face "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/face_geometry.py"
+click node_eye "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/eye_analysis.py"
 click node_image_artifacts "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/lighting_analysis.py"
 click node_motion "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/optical_flow.py"
 click node_audio "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/audio_sync.py"
 click node_metadata "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/metadata_analysis.py"
+click node_freq "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/frequency_analysis.py"
+click node_ela "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/ela_analysis.py"
+click node_noise "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/noise_analysis.py"
+click node_color "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/color_analysis.py"
+click node_rppg "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/rppg_analysis.py"
+click node_voice_spoof "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/voice_spoofing.py"
+click node_cfa "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/cfa_analysis.py"
+click node_corneal "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/corneal_analysis.py"
 click node_ensemble "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/ensemble_classifier.py"
 click node_xai "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/xai_explainer.py"
 click node_report "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/pdf_reporter.py"
@@ -350,7 +397,7 @@ classDef toneRose fill:#ffe4e6,stroke:#e11d48,stroke-width:1.5px,color:#881337
 classDef toneIndigo fill:#e0e7ff,stroke:#4f46e5,stroke-width:1.5px,color:#312e81
 classDef toneTeal fill:#ccfbf1,stroke:#0f766e,stroke-width:1.5px,color:#134e4a
 class node_ui,node_dashboard,node_models_ui toneBlue
-class node_api,node_processor,node_pipeline,node_face,node_image_artifacts,node_motion,node_audio,node_metadata,node_ensemble,node_xai,node_report,node_syncnet,node_voice_model toneAmber
+class node_api,node_processor,node_pipeline,node_face,node_eye,node_image_artifacts,node_motion,node_audio,node_metadata,node_freq,node_ela,node_noise,node_color,node_rppg,node_voice_spoof,node_cfa,node_corneal,node_models,node_ensemble,node_xai,node_report,node_syncnet,node_voice_model toneAmber
 class node_train_scripts toneMint
 class node_weights toneRose
 ```
