@@ -1,3 +1,11 @@
+---
+title: Deepfake Forensics API
+emoji: ???
+colorFrom: purple
+colorTo: blue
+sdk: docker
+pinned: false
+---
 # Deepfake Forensics & Explainable AI (XAI) Engine
 
 <div align="center">
@@ -426,3 +434,4 @@ class node_weights toneRose
 This software is strictly provided for research, digital forensics, and investigative journalism purposes. Any malicious use, or utilizing these analytical pipelines to reverse-engineer and train adversary deepfake generators, is fundamentally prohibited.
 
 **Deepfake Forensics Platform © 2026**
+
