@@ -1,12 +1,11 @@
 ---
 title: Deepfake Forensics API
-emoji: ???
+emoji: 🕵️
 colorFrom: blue
 colorTo: indigo
 sdk: docker
 pinned: false
 ---
-
 # Deepfake Forensics API (Backend)
 
 This is the FastAPI backend for the **Deepfake Forensics Platform**. It provides a high-performance REST API to process video and audio files, extracting multi-modal anomaly scores across 15 distinct forensic dimensions.
@@ -65,4 +64,5 @@ Ensure the following pre-trained weight files are placed in the `weights/` direc
 - **Upload Limit:** Maximum file size is strictly capped at **100 MB**.
 - **Supported Formats:** `mp4`, `avi`, `mov`, `mkv`, `webm`, `png`, `jpg`, `jpeg`.
 - **Processing Time limit:** Video analyses are capped at the first 60 seconds of playback to prevent memory overflow.
+
 
