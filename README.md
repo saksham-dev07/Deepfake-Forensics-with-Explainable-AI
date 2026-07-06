@@ -259,6 +259,104 @@ graph TD
 
 ---
 
+## Codebase Architecture (File Map)
+
+The following diagram maps the high-level logical architecture directly to the underlying physical files and Python/React modules powering the platform:
+
+```mermaid
+flowchart TD
+
+subgraph group_frontend["Frontend"]
+  node_ui["UI<br/>React app<br/>[App.jsx]"]
+  node_dashboard["Report view<br/>React component"]
+  node_models_ui["Models view<br/>React component<br/>[ModelsOverview.jsx]"]
+end
+
+subgraph group_backend["Backend"]
+  node_api["API<br/>[main.py]"]
+  node_processor["Video prep<br/>media ingestion<br/>[video_processor.py]"]
+  node_pipeline["Pipeline<br/>forensic workflow<br/>[__init__.py]"]
+  node_face["Face signals<br/>visual analysis<br/>[face_geometry.py]"]
+  node_image_artifacts["Image cues<br/>artifact analysis"]
+  node_motion["Motion cues<br/>temporal analysis<br/>[optical_flow.py]"]
+  node_audio["Audio cues<br/>audio analysis<br/>[audio_sync.py]"]
+  node_metadata["Metadata<br/>file analysis"]
+  node_ensemble["Fusion<br/>ensemble classifier"]
+  node_xai["Explainability<br/>XAI output<br/>[xai_explainer.py]"]
+  node_report["PDF report<br/>report generator<br/>[pdf_reporter.py]"]
+  node_syncnet["SyncNet<br/>AV model<br/>[SyncNetModel.py]"]
+  node_voice_model["Voice model<br/>spoof model<br/>[voice_model.py]"]
+end
+
+subgraph group_training["Offline training"]
+  node_train_scripts["Training scripts<br/>offline training"]
+end
+
+subgraph group_assets["Model assets"]
+  node_weights[("Weights<br/>model assets")]
+end
+
+node_ui -->|"uploads"| node_api
+node_dashboard -->|"fetches results"| node_api
+node_models_ui -->|"shows signals"| node_api
+node_api -->|"ingests"| node_processor
+node_processor -->|"hands off"| node_pipeline
+node_pipeline -->|"routes"| node_face
+node_pipeline -->|"routes"| node_image_artifacts
+node_pipeline -->|"routes"| node_motion
+node_pipeline -->|"routes"| node_audio
+node_pipeline -->|"routes"| node_metadata
+node_face -->|"scores"| node_ensemble
+node_image_artifacts -->|"scores"| node_ensemble
+node_motion -->|"scores"| node_ensemble
+node_audio -->|"scores"| node_ensemble
+node_metadata -->|"scores"| node_ensemble
+node_syncnet -->|"powers"| node_audio
+node_voice_model -->|"powers"| node_audio
+node_weights -.->|"loads"| node_syncnet
+node_weights -.->|"loads"| node_voice_model
+node_weights -.->|"loads"| node_ensemble
+node_pipeline -->|"explains"| node_xai
+node_ensemble -->|"exposes"| node_xai
+node_pipeline -->|"packages"| node_report
+node_ensemble -->|"summarizes"| node_report
+node_train_scripts -.->|"produces"| node_weights
+node_api -->|"returns"| node_report
+
+click node_ui "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/App.jsx"
+click node_dashboard "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/components/ReportDashboard.jsx"
+click node_models_ui "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/components/ModelsOverview.jsx"
+click node_api "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/main.py"
+click node_processor "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/video_processor.py"
+click node_pipeline "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/__init__.py"
+click node_face "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/face_geometry.py"
+click node_image_artifacts "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/lighting_analysis.py"
+click node_motion "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/optical_flow.py"
+click node_audio "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/audio_sync.py"
+click node_metadata "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/metadata_analysis.py"
+click node_ensemble "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/ensemble_classifier.py"
+click node_xai "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/xai_explainer.py"
+click node_report "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/pdf_reporter.py"
+click node_syncnet "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/SyncNetModel.py"
+click node_voice_model "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/voice_model.py"
+click node_weights "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/tree/main/backend/weights"
+click node_train_scripts "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/kaggle_scripts/kaggle_efficientnet_training.py"
+
+classDef toneNeutral fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172a
+classDef toneBlue fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#172554
+classDef toneAmber fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
+classDef toneMint fill:#dcfce7,stroke:#16a34a,stroke-width:1.5px,color:#14532d
+classDef toneRose fill:#ffe4e6,stroke:#e11d48,stroke-width:1.5px,color:#881337
+classDef toneIndigo fill:#e0e7ff,stroke:#4f46e5,stroke-width:1.5px,color:#312e81
+classDef toneTeal fill:#ccfbf1,stroke:#0f766e,stroke-width:1.5px,color:#134e4a
+class node_ui,node_dashboard,node_models_ui toneBlue
+class node_api,node_processor,node_pipeline,node_face,node_image_artifacts,node_motion,node_audio,node_metadata,node_ensemble,node_xai,node_report,node_syncnet,node_voice_model toneAmber
+class node_train_scripts toneMint
+class node_weights toneRose
+```
+
+---
+
 ## Academic References & Citations
 * **EfficientNet:** Tan, M., & Le, Q. (2019). *EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks*. ICML. ([Link](https://arxiv.org/abs/1905.11946))
 * **Grad-CAM:** Selvaraju, R. R., et al. (2017). *Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization*. ICCV. ([Link](https://arxiv.org/abs/1610.02391))
