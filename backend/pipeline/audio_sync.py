@@ -12,6 +12,9 @@ import math
 from .SyncNetModel import S
 import mediapipe as mp
 
+_syncnet_model = None
+_syncnet_detector = None
+
 def get_mfccs(audio_path, start_time, duration, fps=25):
     # Load audio segment
     y, sr = librosa.load(audio_path, sr=16000, offset=start_time, duration=duration)
@@ -90,25 +93,19 @@ def analyze_audio_visual_sync(video_path, audio_path, output_dir, prefix="sync")
         return results
 
     try:
-        model = S(num_layers_in_fc_layers=1024)
-        model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
-        model.eval()
-        model.to(device)
+        global _syncnet_model, _syncnet_detector
+        if _syncnet_model is None:
+            _syncnet_model = S(num_layers_in_fc_layers=1024)
+            _syncnet_model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
+            _syncnet_model.eval()
+            _syncnet_model.to(device)
+        model = _syncnet_model
     except Exception as e:
         results["warnings"].append(f"Failed to load SyncNet: {e}")
         return results
 
-    from mediapipe.tasks import python as mp_python
-    from mediapipe.tasks.python import vision
-    
-    base_options = mp_python.BaseOptions(model_asset_path=os.path.join(os.path.dirname(__file__), '..', 'weights', 'face_landmarker.task'))
-    options = vision.FaceLandmarkerOptions(
-        base_options=base_options,
-        output_face_blendshapes=False,
-        output_facial_transformation_matrixes=False,
-        num_faces=1
-    )
-    detector = vision.FaceLandmarker.create_from_options(options)
+    from pipeline.face_geometry import get_landmarker
+    detector = get_landmarker()
 
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
@@ -142,7 +139,7 @@ def analyze_audio_visual_sync(video_path, audio_path, output_dir, prefix="sync")
         frame_count += 1
     
     cap.release()
-    detector.close()
+    # Removed detector.close() to keep it cached globally
 
     if len(video_frames) < 15:
         return {"sync_score": 0.5, "error": "Video too short for SyncNet"}

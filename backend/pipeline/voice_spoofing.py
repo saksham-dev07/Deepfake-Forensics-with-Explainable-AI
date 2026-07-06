@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import noisereduce as nr
 from scipy.interpolate import interp1d
 
+_voice_model = None
+
 def declip_audio(y, threshold=0.98):
     """
     Detects clipped samples and reconstructs them using cubic spline interpolation.
@@ -111,10 +113,12 @@ def analyze_voice_spoofing(audio_path, output_dir, prefix="voice"):
 
     # 5. PyTorch Deep Learning Inference (Lightweight Anti-Spoofing)
     try:
-        from pipeline.voice_model import LightweightAudioAntiSpoof
-        model = LightweightAudioAntiSpoof()
-        model.load_weights()
-        cnn_score = model.predict(M_cnn_input)
+        global _voice_model
+        if _voice_model is None:
+            from pipeline.voice_model import LightweightAudioAntiSpoof
+            _voice_model = LightweightAudioAntiSpoof()
+            _voice_model.load_weights()
+        cnn_score = _voice_model.predict(M_cnn_input)
         
         # Domain-Shift Correction for Mobile Audio:
         # ASVspoof-trained CNNs notoriously misinterpret mobile mic background hiss as vocoder artifacts.

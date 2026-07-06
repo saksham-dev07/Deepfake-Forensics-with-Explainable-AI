@@ -22,21 +22,11 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         h, w = img.shape[:2]
         
         import mediapipe as mp
-        from mediapipe.tasks import python
-        from mediapipe.tasks.python import vision
+        from pipeline.face_geometry import get_landmarker
         
-        MP_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "face_landmarker.task")
-        base_options = python.BaseOptions(model_asset_path=MP_MODEL_PATH)
-        options = vision.FaceLandmarkerOptions(
-            base_options=base_options,
-            output_face_blendshapes=False,
-            output_facial_transformation_matrixes=False,
-            num_faces=1,
-        )
-        
-        with vision.FaceLandmarker.create_from_options(options) as landmarker:
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
-            detection_result = landmarker.detect(mp_image)
+        landmarker = get_landmarker()
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_rgb)
+        detection_result = landmarker.detect(mp_image)
             
         if not detection_result.face_landmarks:
             return {

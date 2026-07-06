@@ -61,16 +61,18 @@ def process_video(video_path: str, job_id: str):
         print(f"Error extracting audio with moviepy: {e}")
         audio_path = None # Audio extraction failed
 
-    # 2. Extract 16 Frames using OpenCV
-    frame_interval = max(1, total_frames // NUM_FRAMES)
-    
+    # 2. Extract 16 Frames using OpenCV (Optimized random seek)
+    frame_indices = [int(i * total_frames / NUM_FRAMES) for i in range(NUM_FRAMES)]
     extracted_count = 0
-    for i in range(total_frames):
-        ret, frame = cap.read()
-        if not ret:
+    
+    for idx in frame_indices:
+        if idx >= total_frames:
             break
-            
-        if i % frame_interval == 0 and extracted_count < NUM_FRAMES:
+        # Jump directly to the desired frame
+        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+        ret, frame = cap.read()
+        
+        if ret:
             frame_path = os.path.join(frames_dir, f"frame_{extracted_count:04d}.jpg")
             cv2.imwrite(frame_path, frame)
             extracted_count += 1

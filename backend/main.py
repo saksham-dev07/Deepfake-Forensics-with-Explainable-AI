@@ -98,7 +98,7 @@ async def analyze_video(background_tasks: BackgroundTasks, file: UploadFile = Fi
     MAX_SIZE_BYTES = 100 * 1024 * 1024
     file_size = 0
     with open(file_path, "wb") as buffer:
-        while chunk := file.file.read(1024 * 1024):  # Read in 1MB chunks
+        while chunk := await file.read(1024 * 1024):  # Read in 1MB chunks asynchronously
             file_size += len(chunk)
             if file_size > MAX_SIZE_BYTES:
                 buffer.close()

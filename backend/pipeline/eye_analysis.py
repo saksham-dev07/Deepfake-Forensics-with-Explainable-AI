@@ -46,21 +46,10 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
         results["error"] = "Missing video file"
         return results
 
-    from mediapipe.tasks import python as mp_python
-    from mediapipe.tasks.python import vision
-    
-    # Use the local model file
-    model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'weights', 'face_landmarker.task')
-    base_options = mp_python.BaseOptions(model_asset_path=model_path)
-    options = vision.FaceLandmarkerOptions(
-        base_options=base_options,
-        output_face_blendshapes=False,
-        output_facial_transformation_matrixes=False,
-        num_faces=1
-    )
+    from pipeline.face_geometry import get_landmarker
     
     try:
-        detector = vision.FaceLandmarker.create_from_options(options)
+        detector = get_landmarker()
     except Exception as e:
         results["error"] = f"Failed to load MediaPipe model: {e}"
         return results
@@ -155,8 +144,11 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
     # 2. Gaze Asymmetry (Left vs Right eye openness correlation)
     # Natural human eyes blink synchronously and have similar openness.
     # Deepfakes often have "lazy eye" where one eye drops but the other doesn't.
-    correlation = np.corrcoef(left_ear_seq, right_ear_seq)[0, 1]
-    if np.isnan(correlation):
+    if len(left_ear_seq) > 1 and np.std(left_ear_seq) > 1e-5 and np.std(right_ear_seq) > 1e-5:
+        correlation = np.corrcoef(left_ear_seq, right_ear_seq)[0, 1]
+        if np.isnan(correlation):
+            correlation = 1.0
+    else:
         correlation = 1.0
         
     gaze_asymmetry = 1.0 - max(0, correlation)
