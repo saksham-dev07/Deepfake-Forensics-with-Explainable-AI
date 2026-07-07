@@ -1,6 +1,6 @@
 import React from 'react';
 import { BarChart3, RotateCcw, X, Maximize2, Minimize2 } from 'lucide-react';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, Cell } from 'recharts';
 import TestDefinition from '../ui/TestDefinition';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
@@ -153,12 +153,19 @@ const FeaturesTab = ({
               </div>
               <div style={{ position: 'relative', width: '100%', height: 200, marginTop: '1rem', flex: 1 }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                  <BarChart data={result.shap_top_features.map((feature, idx) => ({ 
-                    name: feature.length > 20 ? feature.substring(0, 18) + '...' : feature, 
-                    fullName: feature,
-                    importance: Math.max(10, 100 - (idx * 20)) 
-                  }))} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-                    <XAxis type="number" hide domain={[0, 160]} />
+                  <BarChart data={result.shap_top_features.map((feature, idx) => {
+                    const match = feature.match(/\((\d+(?:\.\d+)?)%\s*(.*?)\)/);
+                    const importance = match ? parseFloat(match[1]) : Math.max(10, 100 - (idx * 20));
+                    const direction = match ? match[2] : "";
+                    const nameStr = feature.replace(/\s*\(\d+(?:\.\d+)%\s*.*?\)/, '');
+                    return { 
+                      name: nameStr.length > 20 ? nameStr.substring(0, 18) + '...' : nameStr, 
+                      fullName: nameStr,
+                      importance: importance,
+                      direction: direction
+                    };
+                  })} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                    <XAxis type="number" hide domain={[0, 110]} />
                     <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} width={120} />
                     <RechartsTooltip 
                       cursor={{ fill: 'rgba(255,255,255,0.05)' }}
@@ -166,17 +173,28 @@ const FeaturesTab = ({
                       wrapperStyle={{ zIndex: 1000 }}
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
+                          const isFake = payload[0].payload.direction.includes("FAKE");
+                          const color = isFake ? 'var(--danger)' : 'var(--success)';
                           return (
-                            <div style={{ backgroundColor: 'rgba(10,15,30,0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '0.75rem', borderRadius: '8px', maxWidth: '200px', whiteSpace: 'normal', wordWrap: 'break-word', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }}>
+                            <div style={{ backgroundColor: 'rgba(10,15,30,0.95)', border: '1px solid rgba(255,255,255,0.1)', padding: '0.75rem', borderRadius: '8px', maxWidth: '220px', whiteSpace: 'normal', wordWrap: 'break-word', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }}>
                               <p style={{ color: 'var(--text-main)', margin: '0 0 0.5rem 0', fontSize: '0.8rem', fontWeight: 600, lineHeight: '1.4' }}>{payload[0].payload.fullName}</p>
-                              <p style={{ color: 'var(--success)', margin: 0, fontSize: '0.85rem', fontWeight: 700 }}>Importance: {payload[0].value}%</p>
+                              <p style={{ color: color, margin: 0, fontSize: '0.85rem', fontWeight: 700 }}>
+                                {payload[0].value}% {payload[0].payload.direction}
+                              </p>
                             </div>
                           );
                         }
                         return null;
                       }}
                     />
-                    <Bar dataKey="importance" fill="var(--success)" radius={[0, 4, 4, 0]} barSize={16} />
+                    <Bar dataKey="importance" fill="var(--success)" radius={[0, 4, 4, 0]} barSize={16}>
+                      {
+                        result.shap_top_features.map((feature, index) => {
+                          const isFake = feature.includes("FAKE");
+                          return <Cell key={`cell-${index}`} fill={isFake ? "var(--danger)" : "var(--success)"} />
+                        })
+                      }
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>

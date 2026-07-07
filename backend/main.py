@@ -120,21 +120,8 @@ async def analyze_video(request: Request, background_tasks: BackgroundTasks, fil
     if file_extension not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
 
-    try:
-        import magic
-        # Read the first 2048 bytes to determine actual MIME type
-        header = await file.read(2048)
-        await file.seek(0)
-        mime_type = magic.from_buffer(header, mime=True)
-        
-        if not mime_type.startswith(('video/', 'image/')):
-            raise HTTPException(status_code=400, detail=f"Malicious payload detected. File is disguised as {file_extension} but is actually {mime_type}.")
-    except ImportError:
-        print("Warning: python-magic not installed, skipping strict MIME validation.")
-
+    # 2. File Size Validation & Saving (100 MB Limit)
     file_path = os.path.join(UPLOAD_DIR, f"{job_id}.{file_extension}")
-    
-    # 2. File Size Validation (100 MB Limit)
     MAX_SIZE_BYTES = 100 * 1024 * 1024
     file_size = 0
     with open(file_path, "wb") as buffer:
@@ -145,6 +132,16 @@ async def analyze_video(request: Request, background_tasks: BackgroundTasks, fil
                 os.remove(file_path)
                 raise HTTPException(status_code=413, detail="File too large. Maximum size is 100 MB.")
             buffer.write(chunk)
+            
+    # 3. True MIME-Type Validation (Executed AFTER stream consumption to prevent TCP RST on Uvicorn)
+    try:
+        import magic
+        mime_type = magic.from_file(file_path, mime=True)
+        if not mime_type.startswith(('video/', 'image/')):
+            os.remove(file_path)
+            raise HTTPException(status_code=400, detail=f"Malicious payload detected. File is disguised as {file_extension} but is actually {mime_type}.")
+    except ImportError:
+        print("Warning: python-magic not installed, skipping strict MIME validation.")
     
     analysis_jobs[job_id] = {"status": "processing", "progress": 0, "result": None, "file_path": file_path}
     
@@ -817,23 +814,23 @@ def generate_shap_features(classifier_features, has_audio):
             
         shap_contributions = []
         for idx, feature_name in enumerate(feature_order):
-            # We care about positive contributions to the "Fake" class (i.e. SHAP value > 0)
             contrib = float(shap_values[idx])
-            if contrib > 0.005:
+            if abs(contrib) > 0.001:
                 shap_contributions.append((contrib, feature_descriptions[feature_name]))
                 
-        # Sort by highest contribution
-        shap_contributions.sort(key=lambda x: x[0], reverse=True)
+        # Sort by highest absolute contribution
+        shap_contributions.sort(key=lambda x: abs(x[0]), reverse=True)
         
         features_list = []
-        total_shap = sum(c[0] for c in shap_contributions)
+        total_shap_abs = sum(abs(c[0]) for c in shap_contributions)
         
-        for contrib, desc in shap_contributions[:6]:
-            percentage = (contrib / total_shap) * 100 if total_shap > 0 else 0
-            features_list.append(f"{desc} ({percentage:.0f}%)")
+        for contrib, desc in shap_contributions[:5]:
+            percentage = (abs(contrib) / total_shap_abs) * 100 if total_shap_abs > 0 else 0
+            direction = "→ FAKE" if contrib > 0 else "→ AUTHENTIC"
+            features_list.append(f"{desc} ({percentage:.0f}% {direction})")
             
         if not features_list:
-            features_list.append("All signals indicate authentic media (100%)")
+            features_list.append("Baseline Confidence (100%)")
             
         return features_list
     except Exception as e:
