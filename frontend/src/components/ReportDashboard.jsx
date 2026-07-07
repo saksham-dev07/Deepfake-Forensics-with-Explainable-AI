@@ -162,33 +162,33 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
             </div>
           </div>
 
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '1.5rem', background: 'rgba(0,0,0,0.1)' }}>
-            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '1rem' }}>Forensic Metadata</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FileVideo size={14} color="var(--primary)" /></div>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName || 'Analyzed Media'}</span>
+          <div style={{ padding: '1.5rem' }}>
+            <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '1rem' }}>Forensic Metadata</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(15, 23, 42, 0.4)', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FileVideo size={12} color="var(--primary)" /></div>
+                <span className="mono-font" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileName || 'Analyzed_Media'}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Film size={14} color="var(--accent)" /></div>
-                <span>{result.frames_analyzed} structural frames</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(15, 23, 42, 0.4)', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: 'rgba(192, 132, 252, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Film size={12} color="var(--accent)" /></div>
+                <span className="mono-font" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{result.frames_analyzed} frames analyzed</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Cpu size={14} color="var(--success)" /></div>
-                <span>Meta-Classifier (MLP)</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(15, 23, 42, 0.4)', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Cpu size={12} color="var(--success)" /></div>
+                <span className="mono-font" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>ResNet Meta-Classifier</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Activity size={14} color="var(--warning)" /></div>
-                <span>{isVideo ? (result.file_metadata?.has_audio ? 14 : 12) : 10} sensory inputs</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(15, 23, 42, 0.4)', padding: '0.5rem 0.75rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                <div style={{ width: '20px', height: '20px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Activity size={12} color="var(--warning)" /></div>
+                <span className="mono-font" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{isVideo ? (result.file_metadata?.has_audio ? 14 : 12) : 10} sensory inputs</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Mini Score Grid */}
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '1.25rem' }}>Sub-Model Signals</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+        <div className="glass-panel" style={{ padding: '1.25rem' }}>
+          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '1rem' }}>Sub-Model Signals</div>
+          <div className="mini-score-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
             {[
               { label: 'Neural Net', score: result.nn_score, key: 'nn' },
               { label: 'Spectral', score: result.spectral_anomaly_score, key: 'sp' },
@@ -205,13 +205,13 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
               ...(isVideo && result.file_metadata?.has_audio ? [{ label: 'Desync', score: result.sync_score, key: 'syn' }] : []),
               ...(isVideo && result.file_metadata?.has_audio ? [{ label: 'Voice', score: result.voice_score || 0, key: 'voice' }] : []),
             ].map(item => (
-              <div key={item.key} style={{ background: 'rgba(0,0,0,0.2)', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{item.label}</span>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: getScoreColor(item.score) }}>{(item.score * 100).toFixed(0)}%</span>
+              <div key={item.key} style={{ background: 'rgba(15, 23, 42, 0.4)', padding: '0.4rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.02)', transition: 'background 0.2s' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                  <span className="mono-font" style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{item.label}</span>
+                  <span className="mono-font" style={{ fontSize: '0.65rem', fontWeight: 600, color: getScoreColor(item.score) }}>{(item.score * 100).toFixed(0)}%</span>
                 </div>
-                <div className="progress-bar-bg" style={{ height: '3px', margin: 0, background: 'rgba(255,255,255,0.05)' }}>
-                  <div className="progress-bar-fill" style={{ width: `${item.score * 100}%`, background: getScoreColor(item.score), animation: 'none' }}></div>
+                <div className="progress-bar-bg" style={{ height: '2px', margin: 0, background: 'rgba(255,255,255,0.05)', borderRadius: '2px' }}>
+                  <div className="progress-bar-fill" style={{ width: `${item.score * 100}%`, background: getScoreColor(item.score), animation: 'none', borderRadius: '2px' }}></div>
                 </div>
               </div>
             ))}

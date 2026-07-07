@@ -11,9 +11,13 @@ pinned: false
 This is the FastAPI backend for the **Deepfake Forensics Platform**. It provides a high-performance REST API to process video and audio files, extracting multi-modal anomaly scores across 15 distinct forensic dimensions.
 
 ## Features
+- **Batched Inference & Lazy Loading:** Models are lazy-loaded into VRAM upon request, and frames are processed in 32-frame batches to prevent Out-Of-Memory (OOM) crashes.
+- **Real-Time SSE Streaming:** Yields real-time telemetry and granular module logs back to the client via Server-Sent Events.
+- **Optimized Face Tracking:** Integrates robust OpenCV tracking (KCF/CSRT) after an initial MediaPipe detection to radically speed up face extraction.
+- **True SHAP Explanations:** Employs `shap.KernelExplainer` on the Meta-Classifier to compute mathematically rigorous feature importance.
 - **Concurrent Processing:** Utilizes `ThreadPoolExecutor` to handle heavy OpenCV frame extractions and multi-model inferences in parallel.
+- **Rate Limiting & Stability:** Secured with `slowapi` to restrict endpoints and uses robust per-module error trapping to prevent pipeline crashes.
 - **REST API:** Fully documented interactive Swagger API accessible at `/docs`.
-- **Explainable AI:** Computes Grad-CAM heatmaps for visual models.
 - **Report Generation:** Aggregates scores into comprehensive PDF forensics reports.
 
 ## Structure

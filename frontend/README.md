@@ -3,8 +3,11 @@
 This is the React + Vite frontend for the **Deepfake Forensics Platform**. It provides a sleek, modern, and highly interactive user interface for analysts to upload media, view real-time forensic processing, and review explainable AI (XAI) reports.
 
 ## Features
+- **Component Modularization:** A clean, maintainable architecture broken down into components (`HeroSection`, `FeaturesGrid`, `AnalysisTerminal`, `UploadZone`).
+- **Real-Time SSE Telemetry:** Subscribes to Server-Sent Events (`/api/status/{job_id}/stream`) for low-latency, real-time progress updates instead of interval polling.
+- **Granular Error Feedback:** Enhanced toast notifications provide specific, actionable error messages directly from the backend modules (e.g., rate limits, missing faces).
 - **Models Overview Dashboard:** Displays training metrics, architectures, and ROC-AUC curves for the core ensemble models (EfficientNet-B4 Visual Backbone, Meta-Classifier, Audio CNN, etc.).
-- **Report Dashboard:** Parses the forensic JSON responses from the backend and renders visual evidence, including Grad-CAM heatmaps, bounding boxes, and biological signal charts.
+- **Report Dashboard:** Parses the forensic JSON responses from the backend and renders visual evidence, including Grad-CAM heatmaps, bounding boxes, and true SHAP explanations.
 - **Glassmorphic UI:** Modern dark-mode aesthetic built with Tailwind CSS / custom vanilla CSS, utilizing `lucide-react` for iconography and `recharts` for data visualization.
 
 ## Technologies

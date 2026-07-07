@@ -52,6 +52,16 @@ This platform relies on a combination of foundational academic weights and custo
 
 ---
 
+## Recent Architectural & ML Upgrades
+
+- **True SHAP Explanations:** The XAI engine utilizes `shap.KernelExplainer` to compute exact marginal contributions from the Meta-Classifier.
+- **Batched Inference & Lazy Loading:** Deep learning models are lazy-loaded to conserve idle VRAM, and processing uses chunked batching (sliding window) to prevent GPU OOM errors on large video files.
+- **Optimized Face Tracking:** Replaced frame-by-frame Mediapipe face detection with an optimized OpenCV KCF/CSRT tracker, vastly improving pre-processing speed.
+- **Real-Time Telemetry:** The FastAPI backend streams progress updates via Server-Sent Events (SSE) instead of traditional HTTP polling.
+- **Frontend Modularization & UX:** The React dashboard is heavily modularized (HeroSection, FeaturesGrid, AnalysisTerminal) and includes granular error tracking and rate limiting (`slowapi`).
+
+---
+
 ## 15-Dimensional Detection Architecture
 
 The platform executes a massive parallel processing pipeline, routing visual and auditory streams through rigorous forensic methodologies that feed into the final Meta-Classifier Ensemble.

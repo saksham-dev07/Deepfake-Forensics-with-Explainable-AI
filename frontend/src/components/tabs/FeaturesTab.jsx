@@ -116,15 +116,16 @@ const FeaturesTab = ({
                     ...(isVideo && result.file_metadata?.has_audio ? [{ subject: 'Voice', A: (result.voice_score || 0) * 100 }] : []),
                     ...(isVideo ? [{ subject: 'Pulse', A: result.rppg_score * 100 }] : [])
                   ]}>
-                    <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600 }} />
+                    <PolarGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
+                    <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-mono)' }} />
                     <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                     <RechartsTooltip 
-                      contentStyle={{ backgroundColor: 'rgba(10,15,30,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
-                      itemStyle={{ color: 'var(--danger)' }}
+                      contentStyle={{ backgroundColor: 'rgba(2, 6, 23, 0.85)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '12px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.8)' }}
+                      itemStyle={{ color: 'var(--primary)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}
+                      labelStyle={{ color: 'var(--text-main)', marginBottom: '4px', fontFamily: 'var(--font-heading)' }}
                       formatter={(value) => [`${value.toFixed(1)}%`, 'Anomaly Score']}
                     />
-                    <Radar name="Anomaly" dataKey="A" stroke="#ef4444" fill="rgba(239, 68, 68, 0.4)" fillOpacity={0.6} />
+                    <Radar name="Anomaly" dataKey="A" stroke="var(--primary)" fill="var(--primary-glow)" fillOpacity={0.6} style={{ filter: 'drop-shadow(0 0 8px rgba(56,189,248,0.5))' }} />
                   </RadarChart>
                 </ResponsiveContainer>
               </div>

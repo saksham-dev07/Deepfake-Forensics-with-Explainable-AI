@@ -61,8 +61,42 @@ def process_video(video_path: str, job_id: str):
         print(f"Error extracting audio with moviepy: {e}")
         audio_path = None # Audio extraction failed
 
-    # 2. Extract 16 Frames using OpenCV (Optimized random seek)
-    frame_indices = [int(i * total_frames / NUM_FRAMES) for i in range(NUM_FRAMES)]
+    # 2. Extract 16 Frames using PySceneDetect & OpenCV
+    try:
+        from scenedetect import detect, ContentDetector
+        print(f"Running Scene Detection on {video_path}...")
+        scene_list = detect(video_path, ContentDetector(threshold=27.0))
+        
+        frame_indices = []
+        if scene_list and len(scene_list) > 0:
+            frames_per_scene = max(1, NUM_FRAMES // len(scene_list))
+            for scene in scene_list:
+                start_frame = scene[0].get_frames()
+                end_frame = scene[1].get_frames()
+                
+                if start_frame >= total_frames:
+                    break
+                end_frame = min(end_frame, total_frames)
+                
+                step = max(1, (end_frame - start_frame) // (frames_per_scene + 1))
+                for i in range(1, frames_per_scene + 1):
+                    idx = start_frame + (step * i)
+                    if idx < total_frames and len(frame_indices) < NUM_FRAMES:
+                        frame_indices.append(idx)
+                        
+            if len(frame_indices) < NUM_FRAMES:
+                needed = NUM_FRAMES - len(frame_indices)
+                uniform_indices = [int(i * total_frames / needed) for i in range(needed)]
+                frame_indices.extend(uniform_indices)
+        else:
+            frame_indices = [int(i * total_frames / NUM_FRAMES) for i in range(NUM_FRAMES)]
+            
+        frame_indices = sorted(list(set(frame_indices)))[:NUM_FRAMES]
+        
+    except ImportError:
+        print("Warning: scenedetect not installed. Falling back to uniform frame extraction.")
+        frame_indices = [int(i * total_frames / NUM_FRAMES) for i in range(NUM_FRAMES)]
+        
     extracted_count = 0
     
     for idx in frame_indices:
