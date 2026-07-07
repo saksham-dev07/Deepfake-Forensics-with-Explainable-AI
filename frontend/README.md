@@ -8,7 +8,7 @@ This is the React + Vite frontend for the **Deepfake Forensics Platform**. It pr
 - **Granular Error Feedback:** Enhanced toast notifications provide specific, actionable error messages directly from the backend modules (e.g., rate limits, missing faces).
 - **Models Overview Dashboard:** Displays training metrics, architectures, and ROC-AUC curves for the core ensemble models (EfficientNet-B4 Visual Backbone, Meta-Classifier, Audio CNN, etc.).
 - **Report Dashboard:** Parses the forensic JSON responses from the backend and renders visual evidence, including Grad-CAM heatmaps, bounding boxes, and true SHAP explanations.
-- **Glassmorphic UI:** Modern dark-mode aesthetic built with Tailwind CSS / custom vanilla CSS, utilizing `lucide-react` for iconography and `recharts` for data visualization.
+- **Glassmorphism 2.0 (Deep Slate):** Features a breathtaking aesthetic overhaul utilizing a Deep Slate base, inner glass-rim shadows, floating pill UI components, professional typography (`Outfit` and `JetBrains Mono`), and advanced CSS micro-animations.
 
 ## Technologies
 - **React 18**

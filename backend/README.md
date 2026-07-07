@@ -11,6 +11,8 @@ pinned: false
 This is the FastAPI backend for the **Deepfake Forensics Platform**. It provides a high-performance REST API to process video and audio files, extracting multi-modal anomaly scores across 15 distinct forensic dimensions.
 
 ## Features
+- **Security & Integrity:** Integrates `python-magic` for true binary MIME-type validation to prevent malicious payload uploads, overriding simple file-extension spoofing.
+- **Scene-Cut Extraction:** Utilizes `PySceneDetect` for intelligent, context-aware frame extraction across the entire video duration, defeating deepfakes hidden in scene transitions.
 - **Batched Inference & Lazy Loading:** Models are lazy-loaded into VRAM upon request, and frames are processed in 32-frame batches to prevent Out-Of-Memory (OOM) crashes.
 - **Real-Time SSE Streaming:** Yields real-time telemetry and granular module logs back to the client via Server-Sent Events.
 - **Optimized Face Tracking:** Integrates robust OpenCV tracking (KCF/CSRT) after an initial MediaPipe detection to radically speed up face extraction.

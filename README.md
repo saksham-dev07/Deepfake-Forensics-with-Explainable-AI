@@ -54,11 +54,12 @@ This platform relies on a combination of foundational academic weights and custo
 
 ## Recent Architectural & ML Upgrades
 
+- **Security & Integrity:** Integrated `python-magic` for true binary MIME-type validation to prevent malicious payloads, alongside intelligent **Scene-Cut Detection** via `PySceneDetect` to extract frames across all camera angles.
 - **True SHAP Explanations:** The XAI engine utilizes `shap.KernelExplainer` to compute exact marginal contributions from the Meta-Classifier.
 - **Batched Inference & Lazy Loading:** Deep learning models are lazy-loaded to conserve idle VRAM, and processing uses chunked batching (sliding window) to prevent GPU OOM errors on large video files.
 - **Optimized Face Tracking:** Replaced frame-by-frame Mediapipe face detection with an optimized OpenCV KCF/CSRT tracker, vastly improving pre-processing speed.
 - **Real-Time Telemetry:** The FastAPI backend streams progress updates via Server-Sent Events (SSE) instead of traditional HTTP polling.
-- **Frontend Modularization & UX:** The React dashboard is heavily modularized (HeroSection, FeaturesGrid, AnalysisTerminal) and includes granular error tracking and rate limiting (`slowapi`).
+- **Aesthetic Overhaul (Glassmorphism 2.0):** The React dashboard features a breathtaking "Deep Slate" aesthetic with floating pills, professional typography (`Outfit` and `JetBrains Mono`), and advanced CSS micro-animations.
 
 ---
 
