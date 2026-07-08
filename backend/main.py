@@ -763,7 +763,7 @@ def run_analysis_pipeline(job_id: str, file_path: str):
 
         # Generate PDF Report
         try:
-            pdf_path = os.path.join(reports_dir, f"{job_id}.pdf")
+            pdf_path = os.path.join(REPORT_DIR, f"{job_id}.pdf")
             from pipeline.pdf_reporter import generate_pdf_report
             # Add some context to the result data
             result_data_for_pdf = result_data.copy()
@@ -771,16 +771,19 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             result_data_for_pdf['filename'] = analysis_jobs[job_id].get("filename", "Unknown File")
             generate_pdf_report(result_data_for_pdf, pdf_path)
             result_data['report_pdf_url'] = f"/api/reports/{job_id}/pdf"
+            
+            analysis_jobs[job_id]["status"] = "completed"
+            analysis_jobs[job_id]["progress"] = 100
+            analysis_jobs[job_id]["result"] = result_data
         except Exception as e:
             import traceback
             traceback.print_exc()
-            analysis_jobs[job_id]["status"] = "failed"
-            analysis_jobs[job_id]["error"] = str(e)
-        
-        analysis_jobs[job_id]["status"] = "completed"
-        analysis_jobs[job_id]["progress"] = 100
-        analysis_jobs[job_id]["result"] = result_data
-        
+            # If PDF fails, still return the dashboard data, just warn in logs
+            print(f"Warning: PDF Generation failed: {e}")
+            analysis_jobs[job_id]["status"] = "completed"
+            analysis_jobs[job_id]["progress"] = 100
+            analysis_jobs[job_id]["result"] = result_data
+            
     except Exception as e:
         import traceback
         traceback.print_exc()
