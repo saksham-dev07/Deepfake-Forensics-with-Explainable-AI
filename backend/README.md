@@ -21,6 +21,12 @@ This is the FastAPI backend for the **Deepfake Forensics Platform**. It provides
 - **Rate Limiting & Stability:** Secured with `slowapi` to restrict endpoints and uses robust per-module error trapping to prevent pipeline crashes.
 - **REST API:** Fully documented interactive Swagger API accessible at `/docs`.
 - **Report Generation:** Aggregates scores into comprehensive PDF forensics reports.
+## Advanced Mathematical Methodologies
+The pipeline scripts in this backend utilize strict mathematical extraction techniques:
+- **rPPG Analysis (`rppg_analysis.py`):** Uses MediaPipe landmarks to generate precise geometric polygon masks over the left/right cheeks and forehead to extract the mean `RGB` values, bypassing background noise to isolate cardiovascular blood flow.
+- **CFA Demosaicing (`cfa_analysis.py`):** Applies a custom 3x3 high-frequency diagonal residual filter matrix to isolate the microscopic Bayer interpolation grid. It then computes an 8x8 block variance map to compare facial noise vs background noise.
+- **Corneal Specular Highlights (`corneal_analysis.py`):** Converts eye-cropped regions into `LAB` color space and thresholds the top 10% brightness of the `L` (Lightness) channel to geometrically isolate lighting reflections for left/right eye structural similarity comparison.
+- **A/V Sync (`audio_sync.py`):** Translates 16kHz audio into 100Hz 13-dimensional MFCC arrays using `librosa`, allowing the 3D-CNN SyncNet to map 0.2-second audio chunks directly to 5-frame video mouth crops.
 
 ## Structure
 - `main.py`: The FastAPI application entry point.

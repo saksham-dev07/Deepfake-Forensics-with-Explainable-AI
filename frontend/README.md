@@ -14,6 +14,7 @@ This is the React + Vite frontend for the **Deepfake Forensics Platform**. It pr
 - **React 18**
 - **Vite**
 - **Recharts** (Data Visualization)
+- **Framer Motion** (Micro-Animations & UI Transitions)
 - **Lucide React** (Icons)
 
 ## Component Architecture

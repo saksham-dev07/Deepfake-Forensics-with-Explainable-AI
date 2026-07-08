@@ -17,6 +17,7 @@ app_port: 7860
     <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-Vite_Frontend-61DAFB.svg?logo=react&logoColor=black" alt="React"></a>
     <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-Deep_Learning-EE4C2C.svg?logo=pytorch&logoColor=white" alt="PyTorch"></a>
     <a href="https://opencv.org/"><img src="https://img.shields.io/badge/OpenCV-Computer_Vision-5C3EE8.svg?logo=opencv&logoColor=white" alt="OpenCV"></a>
+    <a href="https://www.framer.com/motion/"><img src="https://img.shields.io/badge/Framer_Motion-UI_Animations-0055FF.svg?logo=framer&logoColor=white" alt="Framer Motion"></a>
   </p>
 </div>
 
