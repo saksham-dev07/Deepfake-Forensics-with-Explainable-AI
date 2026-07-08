@@ -156,9 +156,29 @@ def generate_pdf_report(result_data: dict, output_path: str):
             pdf.set_font("Arial", 'B', 10)
             pdf.set_text_color(*pdf.danger_color)
             pdf.cell(8, 8, "!", 0, 0, 'C')
-            pdf.set_text_color(0, 0, 0)
-            pdf.set_font("Arial", '', 10)
-            pdf.cell(0, 8, sanitize_text(feature), 0, 1)
+            
+            if "FAKE" in feature.upper() or "AUTHENTIC" in feature.upper():
+                try:
+                    desc, result = feature.rsplit('(', 1)
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.set_font("Arial", '', 10)
+                    pdf.cell(pdf.get_string_width(sanitize_text(desc)) + 2, 8, sanitize_text(desc), 0, 0)
+                    
+                    if "FAKE" in result.upper():
+                        pdf.set_text_color(*pdf.danger_color)
+                    else:
+                        pdf.set_text_color(*pdf.success_color)
+                        
+                    pdf.set_font("Arial", 'B', 10)
+                    pdf.cell(0, 8, f"({sanitize_text(result)}", 0, 1)
+                except ValueError:
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.set_font("Arial", '', 10)
+                    pdf.cell(0, 8, sanitize_text(feature), 0, 1)
+            else:
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font("Arial", '', 10)
+                pdf.cell(0, 8, sanitize_text(feature), 0, 1)
         pdf.ln(10)
 
     # --- SENSOR BREAKDOWN ---
@@ -194,7 +214,14 @@ def generate_pdf_report(result_data: dict, output_path: str):
     pdf.set_text_color(*verdict_color)
     pdf.cell(0, 10, f"{score * 100:.2f}%", 'B', 1, 'R', fill=True)
     pdf.set_text_color(0, 0, 0)
-    pdf.ln(5)
+    
+    # Visual gauge bar
+    pdf.set_fill_color(230, 230, 230)
+    pdf.rect(10, pdf.get_y() + 2, 190, 4, 'F')
+    pdf.set_fill_color(*verdict_color)
+    pdf.rect(10, pdf.get_y() + 2, max(190 * score, 2), 4, 'F')
+    
+    pdf.ln(10)
 
     # --- ADVANCED MODULES ---
     pdf.chapter_title("2", "FREQUENCY & COMPRESSION ANALYSIS")
@@ -358,46 +385,64 @@ def generate_pdf_report(result_data: dict, output_path: str):
     pdf.ln(2)
 
     exhibit_counter = 1
+    col_index = 0
+    max_row_h = 0
+    pdf.current_row_y = pdf.get_y()
+
     def embed_image(title, img_path):
-        nonlocal exhibit_counter
+        nonlocal exhibit_counter, col_index, max_row_h
         if img_path and os.path.exists(img_path):
             try:
                 img = cv2.imread(img_path)
                 if img is not None:
                     h, w, _ = img.shape
                     aspect_ratio = h / w
-                    target_w = 140
+                    target_w = 90
                     target_h = target_w * aspect_ratio
                     
-                    current_y = pdf.get_y()
+                    if col_index == 0:
+                        if pdf.get_y() + target_h + 20 > 270:
+                            pdf.add_page()
+                            pdf.current_row_y = pdf.get_y()
+                        x_pos = 10
+                        max_row_h = target_h
+                    else:
+                        x_pos = 110
+                        max_row_h = max(max_row_h, target_h)
                     
-                    if current_y + target_h + 20 > 270:
-                        pdf.add_page()
-                        current_y = pdf.get_y()
-                    
-                    # Center the image
-                    x_pos = (210 - target_w) / 2
+                    y_pos = pdf.current_row_y
                     
                     # Draw subtle border
                     pdf.set_draw_color(200, 200, 200)
-                    pdf.rect(x_pos - 1, current_y - 1, target_w + 2, target_h + 2)
+                    pdf.rect(x_pos - 1, y_pos - 1, target_w + 2, target_h + 2)
                     
-                    # Pass explicit Y to prevent auto-advancement
-                    pdf.image(img_path, x=x_pos, y=current_y, w=target_w)
-                    pdf.set_y(current_y + target_h + 4)
+                    pdf.image(img_path, x=x_pos, y=y_pos, w=target_w)
                     
                     # Caption
-                    pdf.set_font("Arial", 'B', 10)
+                    pdf.set_xy(x_pos, y_pos + target_h + 2)
+                    pdf.set_font("Arial", 'B', 8)
                     pdf.set_text_color(*pdf.brand_color)
-                    pdf.cell(0, 6, f"EXHIBIT {chr(64 + exhibit_counter)}: {title}", 0, 1, 'C')
+                    pdf.cell(target_w, 5, f"EXHIBIT {chr(64 + exhibit_counter)}: {title}", 0, 0, 'C')
                     pdf.set_text_color(0, 0, 0)
-                    pdf.ln(8)
+                    
                     exhibit_counter += 1
+                    col_index += 1
+                    
+                    if col_index == 2:
+                        pdf.set_y(pdf.current_row_y + max_row_h + 15)
+                        col_index = 0
+                        pdf.current_row_y = pdf.get_y()
                 else:
+                    pdf.set_y(pdf.current_row_y + max_row_h + 15)
                     pdf.set_font("Arial", 'I', 10)
                     pdf.cell(0, 6, f"(Exhibit {chr(64 + exhibit_counter)}: {title} - Image file corrupt)", 0, 1, 'C')
+                    col_index = 0
+                    pdf.current_row_y = pdf.get_y()
             except Exception as e:
+                pdf.set_y(pdf.current_row_y + max_row_h + 15)
                 pdf.cell(0, 6, f"(Error embedding image: {str(e)})", 0, 1, 'C')
+                col_index = 0
+                pdf.current_row_y = pdf.get_y()
 
     # Group 1: High Level
     heatmaps = result_data.get('heatmaps', [])
