@@ -886,4 +886,13 @@ if os.path.exists("static"):
         if not request.url.path.startswith("/api/"):
             return FileResponse("static/index.html")
         return JSONResponse(status_code=404, content={"message": "API Route Not Found"})
+else:
+    # Fallback health check if the frontend isn't built
+    @app.get("/")
+    async def root():
+        return {"status": "running", "message": "Deepfake Forensics API is online (GUI missing)."}
+    
+    @app.get("/health")
+    async def health():
+        return {"status": "healthy"}
 
