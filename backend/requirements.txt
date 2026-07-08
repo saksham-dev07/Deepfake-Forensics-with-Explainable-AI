@@ -40,5 +40,6 @@ exifread
 moviepy
 noisereduce==3.0.3
 slowapi
-python-magic-bin
+python-magic ; sys_platform != 'win32'
+python-magic-bin ; sys_platform == 'win32'
 scenedetect
