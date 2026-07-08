@@ -168,6 +168,23 @@ npm run dev
 
 ---
 
+## Production Deployment Architecture
+
+This platform is architected for a decoupled, highly-scalable production deployment:
+
+### 1. Frontend (Vercel)
+The React/Vite dashboard is designed to be hosted on **Vercel** for global Edge CDN delivery. 
+- During deployment on Vercel, simply configure the `VITE_API_URL` environment variable to point to your Hugging Face Space URL.
+- The Vercel instance serves only static assets and handles no heavy computations.
+
+### 2. AI Backend Engine (Hugging Face Spaces)
+The FastAPI engine and PyTorch models are deployed as a Docker container on **Hugging Face Spaces**.
+- The root `Dockerfile` natively installs CPU-only PyTorch and OpenCV.
+- Hugging Face manages the heavy deep-learning inference. 
+- Ensure your Space is configured to expose Port `7860`. The backend handles CORS internally to accept requests from your Vercel frontend.
+
+---
+
 ## Configuration & Constraints
 
 Before deploying the platform, be aware of the following system constraints and configurations:

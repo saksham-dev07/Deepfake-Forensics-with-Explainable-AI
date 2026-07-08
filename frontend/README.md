@@ -36,9 +36,16 @@ This is the React + Vite frontend for the **Deepfake Forensics Platform**. It pr
 The dashboard will be accessible at `http://localhost:5173`.
 
 ## Connecting to Backend
+
+### Local Development
 Ensure that the FastAPI backend is running on `http://127.0.0.1:8000`. By default, the application will attempt to connect to `http://localhost:8000` using the default dev API key. 
-If your backend is running on a different URL/port, or you've configured a custom API key for security, create a `.env` file in the root of the `frontend` directory:
+
+### Production Deployment (Vercel + Hugging Face)
+When deploying this frontend to **Vercel** for production, your backend should be hosted on **Hugging Face Spaces**. 
+Create a `.env` file (or set the Vercel Environment Variables in your project dashboard):
 ```env
-VITE_API_URL=http://your-backend-ip:8000
+# The URL of your Hugging Face Space (e.g. https://username-spacename.hf.space)
+VITE_API_URL=https://your-huggingface-space.hf.space
+# Your custom API key for security
 VITE_API_KEY=your-custom-api-key
 ```
