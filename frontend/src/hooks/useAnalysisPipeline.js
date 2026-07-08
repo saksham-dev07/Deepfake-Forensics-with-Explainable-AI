@@ -18,7 +18,7 @@ export const useAnalysisPipeline = () => {
     const formData = new FormData();
     formData.append('file', selectedFile);
 
-    const API_BASE = 'https://deepfake-hackathon.loca.lt';
+    const API_BASE = 'https://deepforensics-live-demo-99.loca.lt';
     const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
     try {
       const response = await fetch(`${API_BASE}/api/analyze`, {
@@ -53,7 +53,7 @@ export const useAnalysisPipeline = () => {
   };
 
   const pollStatus = async (currentJobId) => {
-    const API_BASE = 'https://deepfake-hackathon.loca.lt';
+    const API_BASE = 'https://deepforensics-live-demo-99.loca.lt';
     const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
     
     try {
