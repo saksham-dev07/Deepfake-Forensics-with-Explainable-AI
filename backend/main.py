@@ -2,14 +2,11 @@ import sys
 print("DEBUG: main.py is being executed!", flush=True)
 
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware # Touched to trigger reload
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
 import os
-import cv2
-import torch
-import numpy as np
 import traceback
 import concurrent.futures
 from uuid import uuid4
@@ -21,25 +18,6 @@ import asyncio
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from pipeline.video_processor import process_video
-from pipeline.pdf_reporter import generate_pdf_report
-from pipeline.models import DeepfakeDetector, SyncNetAnalyzer
-from pipeline.xai_explainer import XAIExplainer
-from pipeline.frequency_analysis import analyze_frequency_domain
-from pipeline.ela_analysis import analyze_ela
-from pipeline.face_geometry import analyze_face_geometry
-from pipeline.noise_analysis import analyze_sensor_noise
-from pipeline.color_analysis import analyze_chrominance
-from pipeline.audio_sync import analyze_audio_visual_sync
-from pipeline.metadata_analysis import analyze_metadata
-from pipeline.rppg_analysis import extract_rppg_signal
-from pipeline.lighting_analysis import analyze_lighting
-from pipeline.eye_analysis import analyze_eye_movements
-from pipeline.voice_spoofing import analyze_voice_spoofing
-from pipeline.optical_flow import analyze_optical_flow
-from pipeline.cfa_analysis import analyze_cfa_artifacts
-from pipeline.corneal_analysis import analyze_corneal_reflections
-from pipeline.ensemble_classifier import DeepfakeMetaClassifier
 
 app = FastAPI(title="Deepfake Forensics API", version="2.0.0")
 
@@ -278,6 +256,30 @@ async def download_report(job_id: str):
     return FileResponse(pdf_path, media_type="application/pdf", filename=f"Forensic_Report_{job_id}.pdf")
 
 def run_analysis_pipeline(job_id: str, file_path: str):
+    # =============================================
+    # LAZY IMPORTS: Only load heavy libraries when an analysis job actually starts.
+    # This allows FastAPI to boot in <1 second on HF Spaces free tier.
+    # =============================================
+    import cv2
+    import torch
+    import numpy as np
+    from pipeline.video_processor import process_video
+    from pipeline.pdf_reporter import generate_pdf_report
+    from pipeline.frequency_analysis import analyze_frequency_domain
+    from pipeline.ela_analysis import analyze_ela
+    from pipeline.face_geometry import analyze_face_geometry
+    from pipeline.noise_analysis import analyze_sensor_noise
+    from pipeline.color_analysis import analyze_chrominance
+    from pipeline.audio_sync import analyze_audio_visual_sync
+    from pipeline.metadata_analysis import analyze_metadata
+    from pipeline.rppg_analysis import extract_rppg_signal
+    from pipeline.lighting_analysis import analyze_lighting
+    from pipeline.eye_analysis import analyze_eye_movements
+    from pipeline.voice_spoofing import analyze_voice_spoofing
+    from pipeline.optical_flow import analyze_optical_flow
+    from pipeline.cfa_analysis import analyze_cfa_artifacts
+    from pipeline.corneal_analysis import analyze_corneal_reflections
+
     try:
         # =============================================
         # STAGE 1: Extract frames and audio (0-10%)
