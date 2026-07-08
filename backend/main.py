@@ -416,7 +416,9 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             all_frame_scores = [0.5]
         
         analysis_jobs[job_id]["progress"] = 30
-
+        import gc
+        gc.collect()
+        
         # =============================================
         # STAGE 3: GradCAM Visual Explanations (30-45%)
         # =============================================
@@ -437,6 +439,9 @@ def run_analysis_pipeline(job_id: str, file_path: str):
         except Exception as e:
             print(f"Error in GradCAM generation: {e}")
             traceback.print_exc()
+
+        import gc
+        gc.collect()
         
         analysis_jobs[job_id]["progress"] = 45
 

@@ -42,5 +42,5 @@ RUN mkdir -p uploads reports weights
 # Hugging Face Spaces exposes port 7860 by default
 EXPOSE 7860
 
-# Start the FastAPI application
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Start the FastAPI application via Gunicorn for multi-worker concurrency
+CMD ["gunicorn", "main:app", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:7860", "--timeout", "300"]
