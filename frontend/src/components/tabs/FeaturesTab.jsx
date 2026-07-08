@@ -154,10 +154,10 @@ const FeaturesTab = ({
               <div style={{ position: 'relative', width: '100%', height: 200, marginTop: '1rem', flex: 1 }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <BarChart data={result.shap_top_features.map((feature, idx) => {
-                    const match = feature.match(/\((\d+(?:\.\d+)?)%\s*(.*?)\)/);
+                    const match = feature.match(/\(?Impact:\s*(\d+(?:\.\d+)?)%\s*(.*?)\)/i) || feature.match(/\((\d+(?:\.\d+)?)%\s*(.*?)\)/);
                     const importance = match ? parseFloat(match[1]) : Math.max(10, 100 - (idx * 20));
                     const direction = match ? match[2] : "";
-                    const nameStr = feature.replace(/\s*\(\d+(?:\.\d+)%\s*.*?\)/, '');
+                    const nameStr = feature.replace(/\s*\((?:Impact:\s*)?\d+(?:\.\d+)%\s*.*?\)/i, '');
                     return { 
                       name: nameStr.length > 20 ? nameStr.substring(0, 18) + '...' : nameStr, 
                       fullName: nameStr,
