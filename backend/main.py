@@ -131,6 +131,11 @@ async def analyze_video(request: Request, background_tasks: BackgroundTasks, fil
     
     return {"job_id": job_id, "status": "processing"}
 
+@app.get("/")
+async def root():
+    """Health check endpoint required by Hugging Face Spaces."""
+    return {"status": "running", "message": "Deepfake Forensics API is online."}
+
 @app.get("/api/status/{job_id}")
 async def get_status(job_id: str, api_key: str = Depends(get_api_key)):
     if job_id not in analysis_jobs:
