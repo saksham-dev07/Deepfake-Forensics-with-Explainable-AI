@@ -872,12 +872,13 @@ def generate_shap_features(classifier_features, has_audio):
         total_shap_abs = sum(abs(c[0]) for c in shap_contributions)
         
         for contrib, desc in shap_contributions[:5]:
-            percentage = (abs(contrib) / total_shap_abs) * 100 if total_shap_abs > 0 else 0
-            direction = "→ FAKE" if contrib > 0 else "→ AUTHENTIC"
-            features_list.append(f"{desc} ({percentage:.0f}% {direction})")
+            impact_prob = abs(contrib) * 100
+            if impact_prob >= 0.1:  # Only show meaningful impacts
+                direction = "→ FAKE" if contrib > 0 else "→ AUTHENTIC"
+                features_list.append(f"{desc} (Impact: {impact_prob:.1f}% {direction})")
             
         if not features_list:
-            features_list.append("Baseline Confidence (100%)")
+            features_list.append("No isolated anomaly factors detected.")
             
         return features_list
     except Exception as e:
