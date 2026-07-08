@@ -89,9 +89,15 @@ function App() {
               {/* IDLE STATE: Hero + Upload */}
               {status === 'idle' && (
                 <>
-                  <HeroSection />
-                  <StatsGrid />
-                  <UploadZone onFileUpload={handleFileUpload} />
+                  <div className="dashboard-grid">
+                    <div className="dashboard-grid-left">
+                      <HeroSection />
+                      <StatsGrid />
+                    </div>
+                    <div className="dashboard-grid-right">
+                      <UploadZone onFileUpload={handleFileUpload} />
+                    </div>
+                  </div>
                   <FeaturesGrid />
                 </>
               )}

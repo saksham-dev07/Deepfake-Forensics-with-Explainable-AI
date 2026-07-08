@@ -1780,3 +1780,112 @@ h1, h2, h3, h4, h5, h6, .outfit-font {
 @keyframes fadeSlideUp {
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ========================================
+   HOME DASHBOARD REDESIGN (DESKTOP LAYOUT)
+   ======================================== */
+.dashboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: stretch;
+    margin-bottom: 3rem;
+  }
+  
+  .dashboard-grid-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    text-align: left;
+  }
+  
+  .dashboard-grid-right {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+  }
+
+  .hero-desktop-align {
+    text-align: left !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .hero-desktop-align .hero-badge {
+    margin-left: 0 !important;
+    align-self: flex-start !important;
+  }
+
+  .hero-desktop-align .hero-subtitle {
+    margin-left: 0 !important;
+  }
+}
+
+/* Floating Orbs for Hero Background */
+.floating-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+  z-index: -1;
+  animation: float-slow 10s ease-in-out infinite;
+  opacity: 0.5;
+}
+
+.orb-primary {
+  background: var(--primary-glow);
+  width: 300px;
+  height: 300px;
+  top: -10%;
+  left: -10%;
+}
+
+.orb-accent {
+  background: rgba(192, 132, 252, 0.3);
+  width: 250px;
+  height: 250px;
+  bottom: -20%;
+  right: -10%;
+  animation-delay: -5s;
+}
+
+@keyframes float-slow {
+  0% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-30px) translateX(20px); }
+  100% { transform: translateY(0) translateX(0); }
+}
+
+/* Upload Zone Scanner Animation */
+.upload-zone-scanner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 5px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  box-shadow: 0 0 15px var(--primary);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.upload-zone-scanner:hover::before, .upload-zone-scanner.drag-active::before {
+  opacity: 1;
+  animation: scanner-sweep 3s ease-in-out infinite;
+}
+
+@keyframes scanner-sweep {
+  0% { top: 0; }
+  50% { top: 100%; }
+  100% { top: 0; }
+}
+

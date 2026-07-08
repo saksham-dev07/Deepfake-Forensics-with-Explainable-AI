@@ -3,9 +3,10 @@ import { Lock } from 'lucide-react';
 
 const HeroSection = () => {
   return (
-    <section className="hero" style={{ position: 'relative', textAlign: 'center', padding: '5rem 1rem 3rem 1rem' }}>
-      {/* Ambient Deep Space Glow */}
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '600px', height: '400px', background: 'radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, rgba(192, 132, 252, 0.05) 50%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: -1 }}></div>
+    <section className="hero hero-desktop-align" style={{ position: 'relative', textAlign: 'center', padding: '5rem 1rem 3rem 1rem' }}>
+      {/* Ambient Deep Space Glow - Replaced with dynamic floating orbs */}
+      <div className="floating-orb orb-primary"></div>
+      <div className="floating-orb orb-accent"></div>
       
       {/* Live Status Badge */}
       <div className="hero-badge fade-in-stagger" style={{ animationDelay: '0.1s', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--text-secondary)', backdropFilter: 'blur(10px)', marginBottom: '1.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)' }}>

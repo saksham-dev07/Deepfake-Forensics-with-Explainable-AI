@@ -24,16 +24,21 @@ const UploadZone = ({ onFileUpload }) => {
 
   return (
     <div
-      className={`glass-panel upload-zone ${dragActive ? 'drag-active' : ''}`}
+      className={`glass-panel upload-zone upload-zone-scanner ${dragActive ? 'drag-active' : ''}`}
       style={{
         padding: '5rem 2rem',
+        minHeight: '400px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
         border: dragActive ? '2px dashed var(--primary)' : '2px dashed rgba(56, 189, 248, 0.3)',
         borderRadius: 'var(--radius-xl)',
         position: 'relative',
         overflow: 'hidden',
         transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
         background: dragActive ? 'rgba(56, 189, 248, 0.05)' : 'var(--panel-bg)',
-        boxShadow: dragActive ? '0 0 40px rgba(56, 189, 248, 0.2), inset 0 0 20px rgba(56, 189, 248, 0.1)' : 'var(--glass-shadow)'
+        boxShadow: dragActive ? '0 0 40px rgba(56, 189, 248, 0.2), inset 0 0 40px rgba(56, 189, 248, 0.15)' : 'var(--glass-shadow), inset 0 0 20px rgba(56, 189, 248, 0.05)'
       }}
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
