@@ -131,11 +131,6 @@ async def analyze_video(request: Request, background_tasks: BackgroundTasks, fil
     
     return {"job_id": job_id, "status": "processing"}
 
-@app.get("/")
-async def root():
-    """Health check endpoint required by Hugging Face Spaces."""
-    return {"status": "running", "message": "Deepfake Forensics API is online."}
-
 @app.get("/api/status/{job_id}")
 async def get_status(job_id: str, api_key: str = Depends(get_api_key)):
     if job_id not in analysis_jobs:
@@ -876,3 +871,19 @@ def generate_shap_features(classifier_features, has_audio):
         import traceback
         traceback.print_exc()
         return [f"SHAP Explainer Error: {str(e)}"]
+
+# =============================================
+# FRONTEND MOUNTING (MUST BE AT THE BOTTOM)
+# =============================================
+# Serve static files (React build)
+if os.path.exists("static"):
+    app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+    # SPA Fallback for React Router (if a user refreshes on a subpath)
+    @app.exception_handler(404)
+    async def fallback_to_index(request: Request, exc: HTTPException):
+        # Only fallback if the request isn't specifically targeting the API
+        if not request.url.path.startswith("/api/"):
+            return FileResponse("static/index.html")
+        return JSONResponse(status_code=404, content={"message": "API Route Not Found"})
+
