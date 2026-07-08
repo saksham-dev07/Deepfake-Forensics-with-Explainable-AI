@@ -422,7 +422,7 @@ def generate_pdf_report(result_data: dict, output_path: str):
                     pdf.set_xy(x_pos, y_pos + target_h + 2)
                     pdf.set_font("Arial", 'B', 8)
                     pdf.set_text_color(*pdf.brand_color)
-                    pdf.cell(target_w, 5, f"EXHIBIT {chr(64 + exhibit_counter)}: {title}", 0, 0, 'C')
+                    pdf.cell(target_w, 5, f"EXHIBIT {exhibit_counter}: {title}", 0, 0, 'C')
                     pdf.set_text_color(0, 0, 0)
                     
                     exhibit_counter += 1
@@ -435,7 +435,7 @@ def generate_pdf_report(result_data: dict, output_path: str):
                 else:
                     pdf.set_y(pdf.current_row_y + max_row_h + 15)
                     pdf.set_font("Arial", 'I', 10)
-                    pdf.cell(0, 6, f"(Exhibit {chr(64 + exhibit_counter)}: {title} - Image file corrupt)", 0, 1, 'C')
+                    pdf.cell(0, 6, f"(Exhibit {exhibit_counter}: {title} - Image file corrupt)", 0, 1, 'C')
                     col_index = 0
                     pdf.current_row_y = pdf.get_y()
             except Exception as e:
@@ -444,8 +444,29 @@ def generate_pdf_report(result_data: dict, output_path: str):
                 col_index = 0
                 pdf.current_row_y = pdf.get_y()
 
+    def gallery_section(title_text):
+        nonlocal col_index, max_row_h
+        if col_index != 0:
+            pdf.set_y(pdf.current_row_y + max_row_h + 15)
+            col_index = 0
+            pdf.current_row_y = pdf.get_y()
+        
+        if pdf.get_y() > 250:
+            pdf.add_page()
+            
+        pdf.ln(5)
+        pdf.set_font("Arial", 'B', 11)
+        pdf.set_text_color(100, 100, 100)
+        pdf.cell(0, 8, title_text.upper(), 'B', 1, 'L')
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(5)
+        pdf.current_row_y = pdf.get_y()
+
     # Group 1: High Level
     heatmaps = result_data.get('heatmaps', [])
+    if heatmaps or ela.get('ela_heatmap_path'):
+        gallery_section("Neural Attention & ELA")
+        
     if heatmaps:
         embed_image("GradCAM Neural Attention Heatmap", heatmaps[0])
         if len(heatmaps) > 1:
@@ -460,6 +481,10 @@ def generate_pdf_report(result_data: dict, output_path: str):
         embed_image("HSV Color ELA", ela.get('hsv_ela_path'))
 
     # Group 2: Frequency
+    freq_items = [freq.get(k) for k in ['fft_magnitude_path', 'dct_spectrum_path', 'block_dct_path', 'high_pass_path', 'swn_noise_path', 'phase_spectrum_path', 'saliency_map_path', 'pca_spectrum_path', 'cepstrum_path', 'dwt_diagonal_path']]
+    if any(freq_items):
+        gallery_section("Frequency Domain Analysis")
+
     if freq.get('fft_magnitude_path'):
         embed_image("FFT Magnitude Spectrum", freq.get('fft_magnitude_path'))
     if freq.get('dct_spectrum_path'):
@@ -482,6 +507,10 @@ def generate_pdf_report(result_data: dict, output_path: str):
         embed_image("Discrete Wavelet Transform (DWT)", freq.get('dwt_diagonal_path'))
 
     # Group 3: Face
+    face_items = [face.get(k) for k in ['radar_chart_path', 'landmark_visualization_path', 'head_pose_visualization_path', 'symmetry_map_path', 'temporal_jitter_plot_path', 'texture_map_path']]
+    if any(face_items):
+        gallery_section("Facial Geometry & Texture")
+        
     if face.get('radar_chart_path'):
         embed_image("Face Geometry Radar Chart", face.get('radar_chart_path'))
     if face.get('landmark_visualization_path'):
@@ -496,6 +525,11 @@ def generate_pdf_report(result_data: dict, output_path: str):
         embed_image("Face Texture Anomaly", face.get('texture_map_path'))
 
     # Group 4: Noise & Color
+    noise_items = [noise.get(k) for k in ['denoised_map_path', 'noise_map_path', 'srm_map_path']]
+    color_items = [color.get(k) for k in ['cb_map_path', 'cr_map_path', 's_map_path', 'a_map_path']]
+    if any(noise_items) or any(color_items):
+        gallery_section("Noise Residuals & Chrominance")
+        
     if noise.get('denoised_map_path'):
         embed_image("Denoised Image", noise.get('denoised_map_path'))
     if noise.get('noise_map_path'):
@@ -512,6 +546,10 @@ def generate_pdf_report(result_data: dict, output_path: str):
         embed_image("LAB (a*) Channel Map", color.get('a_map_path'))
 
     # Group 5: Temporal & Audio
+    temporal_items = [sync.get('sync_plot_path'), result_data.get('eye_analysis', {}).get('eye_plot_path'), result_data.get('voice_analysis', {}).get('voice_plot_path'), result_data.get('flow_analysis', {}).get('flow_plot_path')]
+    if any(temporal_items):
+        gallery_section("Temporal, Audio & Motion")
+        
     if sync.get('sync_plot_path'):
         embed_image("Audio-Visual Synchronization (MFCC vs MAR)", sync.get('sync_plot_path'))
     
@@ -530,10 +568,17 @@ def generate_pdf_report(result_data: dict, output_path: str):
         embed_image("Optical Flow HSV Field", flow.get('flow_field_path'))
         
     lighting = result_data.get('lighting_analysis', {})
+    cfa = result_data.get('cfa_analysis', {})
+    corneal = result_data.get('corneal_analysis', {})
+    rppg = result_data.get('rppg_analysis', {})
+    
+    advanced_items = [lighting.get('lighting_map_path'), cfa.get('cfa_map_path'), corneal.get('corneal_map_path'), rppg.get('rppg_plot_path')]
+    if any(advanced_items):
+        gallery_section("Advanced Modalities")
+
     if lighting.get('lighting_map_path'):
         embed_image("3D Lighting Consistency Map", lighting.get('lighting_map_path'))
         
-    cfa = result_data.get('cfa_analysis', {})
     if cfa.get('cfa_map_path'):
         embed_image("CFA Artifacts Map", cfa.get('cfa_map_path'))
         
