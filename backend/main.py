@@ -202,6 +202,9 @@ async def stream_status(job_id: str, request: Request, api_key: str = Depends(ge
         raise HTTPException(status_code=404, detail="Job not found")
 
     async def event_generator():
+        # Force flush NGINX proxy buffers by sending 2KB of dummy padding
+        yield ": " + " " * 2048 + "\n\n"
+        
         while True:
             if await request.is_disconnected():
                 break
