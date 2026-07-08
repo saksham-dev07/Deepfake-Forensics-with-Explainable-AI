@@ -18,14 +18,13 @@ export const useAnalysisPipeline = () => {
     const formData = new FormData();
     formData.append('file', selectedFile);
 
-    const API_BASE = 'https://deepforensics-live-demo-99.loca.lt';
+    const API_BASE = 'https://mail-occurred-sunshine-tears.trycloudflare.com';
     const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
     try {
       const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
         headers: {
-          'x-api-key': API_KEY,
-          'Bypass-Tunnel-Reminder': 'true'
+          'x-api-key': API_KEY
         },
         body: formData,
       });
@@ -53,14 +52,13 @@ export const useAnalysisPipeline = () => {
   };
 
   const pollStatus = async (currentJobId) => {
-    const API_BASE = 'https://deepforensics-live-demo-99.loca.lt';
+    const API_BASE = 'https://mail-occurred-sunshine-tears.trycloudflare.com';
     const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
     
     try {
       const response = await fetch(`${API_BASE}/api/status/${currentJobId}/stream`, {
         headers: {
-          'x-api-key': API_KEY,
-          'Bypass-Tunnel-Reminder': 'true'
+          'x-api-key': API_KEY
         }
       });
 
