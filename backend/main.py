@@ -4,6 +4,7 @@ print("DEBUG: main.py is being executed!", flush=True)
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import shutil
 import os
 import traceback
