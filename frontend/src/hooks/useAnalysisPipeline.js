@@ -55,16 +55,30 @@ export const useAnalysisPipeline = () => {
     const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
     
+    // Watchdog Timer to detect silent backend drops
+    let watchdogTimeout;
+    const controller = new AbortController();
+    
+    const resetWatchdog = () => {
+      clearTimeout(watchdogTimeout);
+      watchdogTimeout = setTimeout(() => {
+        controller.abort('Backend connection timed out (no data received for 15 seconds).');
+      }, 15000);
+    };
+
     try {
       const response = await fetch(`${API_BASE}/api/status/${currentJobId}/stream`, {
         headers: {
           'x-api-key': API_KEY,
-        }
+        },
+        signal: controller.signal
       });
 
       if (!response.ok) {
         throw new Error(`Stream connection failed: ${response.status}`);
       }
+
+      resetWatchdog();
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -73,6 +87,8 @@ export const useAnalysisPipeline = () => {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        
+        resetWatchdog();
         
         buffer += decoder.decode(value, { stream: true });
         
@@ -94,10 +110,12 @@ export const useAnalysisPipeline = () => {
                 setProgress(100);
                 setStatus('complete');
                 setResult(data.result);
+                clearTimeout(watchdogTimeout);
                 return;
               } else if (data.status === 'failed' || !data.status) {
                 setStatus('idle');
                 setError('Analysis failed: ' + (data.error || data.message || 'Job not found or unknown error'));
+                clearTimeout(watchdogTimeout);
                 return;
               }
             } catch (err) {
@@ -106,9 +124,12 @@ export const useAnalysisPipeline = () => {
           }
         }
       }
+      clearTimeout(watchdogTimeout);
     } catch (err) {
+      clearTimeout(watchdogTimeout);
       console.error('Stream error', err);
-      setError('Lost connection to the backend server while streaming status.');
+      setStatus('idle');
+      setError(err.message || 'Lost connection to the backend server while streaming status.');
     }
   };
 

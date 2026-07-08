@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Flame, Activity, Search, Frame, Camera, Palette, BarChart3, 
   Volume2, FileText, Download, RotateCcw, AlertTriangle, CheckCircle2, 
@@ -35,6 +36,19 @@ const VoiceTab = React.lazy(() => import('./tabs/VoiceTab'));
 const FlowTab = React.lazy(() => import('./tabs/FlowTab'));
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
   const isFake = result.overall_score > 0.55;
@@ -103,8 +117,11 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
   ], [isVideo]);
 
   return (
-    <div 
-      className="dashboard-split fade-in-up"
+    <motion.div 
+      className="dashboard-split"
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
       onClick={(e) => {
         if (e.target.tagName === 'IMG' && (e.target.classList.contains('result-img') || e.target.classList.contains('heatmap-image'))) {
           setZoomedImage(e.target.src);
@@ -131,7 +148,7 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
         </div>
 
         {/* Main Verdict Card */}
-        <div className="glass-panel" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
+        <motion.div variants={itemVariants} className="glass-panel" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
           {/* Top Banner / Glow effect based on verdict */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: verdictStyle.color, boxShadow: `0 0 20px ${verdictStyle.color}` }}></div>
           <div style={{ position: 'absolute', top: '-50px', left: '50%', transform: 'translateX(-50%)', width: '150px', height: '100px', background: verdictStyle.color, filter: 'blur(60px)', opacity: 0.15, borderRadius: '50%', pointerEvents: 'none' }}></div>
@@ -183,10 +200,10 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Mini Score Grid */}
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <motion.div variants={itemVariants} className="glass-panel" style={{ padding: '1.25rem' }}>
           <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '1rem' }}>Sub-Model Signals</div>
           <div className="mini-score-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
             {[
@@ -216,7 +233,7 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
 
       </div>
 
@@ -263,6 +280,15 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
       </div>
 
             <React.Suspense fallback={<div className="glass-panel" style={{padding: '4rem', textAlign: 'center', color: 'var(--text-muted)'}}>Loading analysis module...</div>}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                style={{ flex: 1 }}
+              >
       {/* ========== ENSEMBLE TAB ========== */}
       {activeTab === 'features' && <FeaturesTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
       {/* ========== NEURAL NET TAB ========== */}
@@ -312,6 +338,8 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
       {/* ========== OPTICAL FLOW TAB ========== */}
       {activeTab === 'flow' && <FlowTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
 
+              </motion.div>
+            </AnimatePresence>
             </React.Suspense>
       </div> {/* End Main Content */}
 
@@ -330,7 +358,7 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
         </div>,
         document.body
       )}
-    </div>
+    </motion.div>
   );
 };
 

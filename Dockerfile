@@ -15,9 +15,10 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 user
 USER user
 
-# Set home and path for the user
+# Set home, path, and Hugging Face cache directory for the user
 ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
+    PATH=/home/user/.local/bin:$PATH \
+    HF_HOME=/tmp/.cache/huggingface
 
 # Set the working directory directly to backend
 WORKDIR $HOME/app/backend

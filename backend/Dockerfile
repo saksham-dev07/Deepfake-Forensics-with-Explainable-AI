@@ -18,7 +18,8 @@ USER user
 # Set home and path for the user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/tmp/.cache/huggingface
 
 # Set the working directory
 WORKDIR $HOME/app

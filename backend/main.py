@@ -263,6 +263,10 @@ def run_analysis_pipeline(job_id: str, file_path: str):
     import cv2
     import torch
     import numpy as np
+    import shutil
+    
+    frames_dir = None
+    audio_path = None
     from pipeline.video_processor import process_video
     from pipeline.pdf_reporter import generate_pdf_report
     from pipeline.frequency_analysis import analyze_frequency_domain
@@ -407,6 +411,10 @@ def run_analysis_pipeline(job_id: str, file_path: str):
                 # Run inference on the current batch
                 probs = get_detector().predict(batch_tensor)
                 all_frame_scores.extend([float(p) for p in probs])
+                
+                del batch_chunk
+                del batch_tensor
+                del probs
                 
             nn_score = sum(all_frame_scores) / len(all_frame_scores) if all_frame_scores else 0.5
         except Exception as e:
@@ -765,6 +773,11 @@ def run_analysis_pipeline(job_id: str, file_path: str):
         traceback.print_exc()
         analysis_jobs[job_id]["status"] = "failed"
         analysis_jobs[job_id]["error"] = str(e)
+    
+    # NOTE: We cannot immediately delete frames_dir or file_path here 
+    # because the frontend React dashboard needs to fetch these images 
+    # (heatmaps, waveforms) via HTTP to render the report. 
+    # A background cron job should be used to delete files older than 1 hour instead.
 
 
 def generate_shap_features(classifier_features, has_audio):
