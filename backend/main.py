@@ -4,7 +4,6 @@ print("DEBUG: main.py is being executed!", flush=True)
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
 import shutil
 import os
 import traceback
@@ -871,28 +870,4 @@ def generate_shap_features(classifier_features, has_audio):
         import traceback
         traceback.print_exc()
         return [f"SHAP Explainer Error: {str(e)}"]
-
-# =============================================
-# FRONTEND MOUNTING (MUST BE AT THE BOTTOM)
-# =============================================
-# Serve static files (React build)
-if os.path.exists("static"):
-    app.mount("/", StaticFiles(directory="static", html=True), name="static")
-
-    # SPA Fallback for React Router (if a user refreshes on a subpath)
-    @app.exception_handler(404)
-    async def fallback_to_index(request: Request, exc: HTTPException):
-        # Only fallback if the request isn't specifically targeting the API
-        if not request.url.path.startswith("/api/"):
-            return FileResponse("static/index.html")
-        return JSONResponse(status_code=404, content={"message": "API Route Not Found"})
-else:
-    # Fallback health check if the frontend isn't built
-    @app.get("/")
-    async def root():
-        return {"status": "running", "message": "Deepfake Forensics API is online (GUI missing)."}
-    
-    @app.get("/health")
-    async def health():
-        return {"status": "healthy"}
 
