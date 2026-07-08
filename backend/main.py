@@ -1,3 +1,6 @@
+import sys
+print("DEBUG: main.py is being executed!", flush=True)
+
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware # Touched to trigger reload
 from fastapi.responses import JSONResponse, FileResponse

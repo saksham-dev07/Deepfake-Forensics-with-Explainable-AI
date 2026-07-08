@@ -25,7 +25,9 @@ WORKDIR $HOME/app
 
 # Copy the requirements file and install dependencies
 COPY --chown=user:user requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip uninstall -y opencv-python opencv-python-headless && \
+    pip install --no-cache-dir opencv-contrib-python-headless
 
 # Copy the rest of the backend files
 COPY --chown=user:user . .
