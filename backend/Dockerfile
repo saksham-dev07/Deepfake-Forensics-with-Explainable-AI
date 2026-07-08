@@ -23,7 +23,11 @@ ENV HOME=/home/user \
 # Set the working directory
 WORKDIR $HOME/app
 
-# Copy the requirements file and install dependencies
+# Install CPU-only PyTorch FIRST (avoids downloading 2.5GB of useless NVIDIA CUDA libs)
+RUN pip install --no-cache-dir \
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Install remaining dependencies
 COPY --chown=user:user requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python 2>/dev/null; \
@@ -39,4 +43,4 @@ RUN mkdir -p uploads reports weights
 EXPOSE 7860
 
 # Start the FastAPI application
-CMD ["sh", "-c", "echo 'BOOT: Starting Python...' && python -u -m uvicorn main:app --host 0.0.0.0 --port 7860 2>&1"]
+CMD ["python", "-u", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]

@@ -1,12 +1,9 @@
 fastapi
 uvicorn
 python-multipart
-torch
-torchvision
 opencv-python-headless
 grad-cam
 shap
-transformers
 librosa
 fpdf2
 numpy
