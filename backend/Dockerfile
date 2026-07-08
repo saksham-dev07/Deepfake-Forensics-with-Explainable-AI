@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     libgles2 \
     libegl1 \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up a new user named "user" with user ID 1000 (Required by Hugging Face Spaces)
