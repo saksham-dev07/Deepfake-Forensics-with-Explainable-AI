@@ -69,9 +69,10 @@ This platform relies on a combination of foundational academic weights and custo
 
 The platform executes a massive parallel processing pipeline, routing visual and auditory streams through rigorous forensic methodologies that feed into the final Meta-Classifier Ensemble.
 
-### 1. Neural Network Attention (EfficientNet-B4 + XAI)
+### 1. Neural Network Attention (EfficientNet-B4 + CBAM + XAI)
+* **Convolutional Block Attention Module (CBAM):** Integrates custom spatial and channel attention layers into the EfficientNet backbone to aggressively isolate deepfake features.
 * **Grad-CAM Heatmaps:** Reverse-engineers the network's spatial attention to generate heatmaps, isolating the exact pixels (e.g., blending boundaries, unnatural eye-reflections) that triggered the synthetic classification.
-* **SHAP Feature Importance:** Applies a game-theoretic approach to rank which specific forensic dimensions mathematically contributed most to the anomaly variance.
+* **SHAP Feature Importance:** Applies a heuristic-simulated game-theoretic approach to rank which specific forensic dimensions mathematically contributed most to the anomaly variance.
 
 ### 2. Spectral & Frequency Analysis
 Generative AI inherently struggles to perfectly reconstruct the high-frequency macroscopic details inherent to physical camera sensors.
@@ -112,7 +113,7 @@ Deepfakes frequently fail to synthesize the microscopic, heartbeat-induced color
 Detects heterogeneous compression signatures. When a fake face is spliced onto a real body, the manipulated region possesses a different JPEG compression quality than the original background. Re-saves the image at 95% quality and calculates the absolute pixel-wise difference.
 
 ### 10. Temporal Optical Flow & Jitter Analysis
-Analyzes temporal consistency using Farneback Dense Optical Flow to detect mask jittering, blocky motion vectors, and frame-by-frame flickering common in temporal deepfakes.
+* **Farneback Dense Optical Flow:** Analyzes temporal consistency on 320x240 resized spatial frames. Computes the variance of motion vectors over a 60-frame buffer to detect micro-jittering, mask boundaries, and blocky temporal flickering common in deepfakes.
 
 ### 11. Sensor Noise (PRNU/SRM)
 * **Spatial Rich Model (SRM):** Applies high-pass linear filtering to strip away primary image content, isolating the raw noise map. AI-generated face swaps violently disrupt this continuous noise matrix.
