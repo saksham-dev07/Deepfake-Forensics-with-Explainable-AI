@@ -5,14 +5,13 @@ import uuid
 
 def sanitize_text(text):
     text = str(text)
-    text = text.replace('\u2014', '-')   
-    text = text.replace('\u2013', '-')   
-    text = text.replace('\u2018', "'")   
-    text = text.replace('\u2019', "'")   
-    text = text.replace('\u201c', '"')   
-    text = text.replace('\u201d', '"')   
-    text = text.replace('\u2026', '...')  
-    text = text.replace('\u00d7', 'x')   
+    replacements = {
+        '\u2014': '-', '\u2013': '-', '\u2018': "'", '\u2019': "'",
+        '\u201c': '"', '\u201d': '"', '\u2026': '...', '\u00d7': 'x',
+        '\u2713': 'Yes', '\u2717': 'No', '\u2192': '->', '\u2190': '<-'
+    }
+    for k, v in replacements.items():
+        text = text.replace(k, v)
     return text.encode('latin-1', errors='replace').decode('latin-1')
 
 class ForensicPDF(FPDF):
@@ -74,8 +73,16 @@ class ForensicPDF(FPDF):
             self.set_fill_color(255, 255, 255)
             
         self.set_draw_color(220, 220, 220)
-        self.cell(120, 8, f"  {sanitize_text(col1)}", 'B', 0, 'L', fill=True)
-        self.cell(0, 8, sanitize_text(col2), 'B', 1, 'R', fill=True)
+        col1_str = f"  {sanitize_text(col1)}"
+        col2_str = sanitize_text(col2)
+        
+        if self.get_string_width(col2_str) < 70:
+            self.cell(120, 8, col1_str, 'B', 0, 'L', fill=True)
+            self.cell(0, 8, col2_str, 'B', 1, 'R', fill=True)
+        else:
+            self.cell(0, 8, col1_str, 'T,L,R', 1, 'L', fill=True)
+            self.set_font('Arial', '', 9)
+            self.multi_cell(0, 6, f"  {col2_str}", 'B,L,R', 'L', fill=True)
 
 def generate_pdf_report(result_data: dict, output_path: str):
     import cv2
@@ -106,9 +113,12 @@ def generate_pdf_report(result_data: dict, output_path: str):
     pdf.set_line_width(0.2)
     pdf.ln(3)
     
-    pdf.draw_table_row("Case ID / Job", str(uuid.uuid4())[:8].upper(), pdf.gray_bg)
+    job_id_str = str(result_data.get('job_id', uuid.uuid4())).split('-')[0].upper()
+    filename_str = result_data.get('filename', 'Video/Image Archive')
+    
+    pdf.draw_table_row("Case ID / Job", job_id_str, pdf.gray_bg)
     pdf.draw_table_row("Analysis Date", datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'))
-    pdf.draw_table_row("Target File Type", "Video/Image Archive", pdf.gray_bg)
+    pdf.draw_table_row("Target File Type", filename_str, pdf.gray_bg)
     pdf.draw_table_row("Frames Analyzed", str(result_data.get('frames_analyzed', 'N/A')))
     pdf.ln(15)
 
