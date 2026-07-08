@@ -65,5 +65,5 @@ COPY --from=frontend-builder --chown=user:user /app/frontend/dist $HOME/app/back
 # Expose Hugging Face Space default port
 EXPOSE 7860
 
-# Start FastAPI via Gunicorn with Uvicorn workers
-CMD ["gunicorn", "main:app", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:7860", "--timeout", "300"]
+# Start FastAPI directly via Uvicorn (prevents silent Gunicorn worker failures on HF Spaces)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
