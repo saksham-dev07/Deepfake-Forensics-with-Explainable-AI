@@ -26,7 +26,7 @@ WORKDIR $HOME/app
 # Copy the requirements file and install dependencies
 COPY --chown=user:user requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip uninstall -y opencv-python opencv-python-headless && \
+    pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python 2>/dev/null; \
     pip install --no-cache-dir opencv-contrib-python-headless
 
 # Copy the rest of the backend files
@@ -39,4 +39,4 @@ RUN mkdir -p uploads reports weights
 EXPOSE 7860
 
 # Start the FastAPI application
-CMD ["python", "-u", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["sh", "-c", "echo 'BOOT: Starting Python...' && python -u -m uvicorn main:app --host 0.0.0.0 --port 7860 2>&1"]
