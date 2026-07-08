@@ -18,14 +18,13 @@ export const useAnalysisPipeline = () => {
     const formData = new FormData();
     formData.append('file', selectedFile);
 
-    const API_BASE = 'https://cold-insect-52.loca.lt';
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
     try {
       const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
         headers: {
           'x-api-key': API_KEY,
-          'Bypass-Tunnel-Reminder': 'true'
         },
         body: formData,
       });
@@ -53,14 +52,13 @@ export const useAnalysisPipeline = () => {
   };
 
   const pollStatus = async (currentJobId) => {
-    const API_BASE = 'https://cold-insect-52.loca.lt';
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
     
     try {
       const response = await fetch(`${API_BASE}/api/status/${currentJobId}/stream`, {
         headers: {
           'x-api-key': API_KEY,
-          'Bypass-Tunnel-Reminder': 'true'
         }
       });
 
