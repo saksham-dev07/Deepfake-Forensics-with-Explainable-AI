@@ -254,7 +254,15 @@ async def stream_status(job_id: str, request: Request, api_key: str = Depends(ge
                 
             await asyncio.sleep(0.5)
             
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(), 
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 @app.get("/api/reports/{job_id}/pdf")
 async def download_report(job_id: str):
