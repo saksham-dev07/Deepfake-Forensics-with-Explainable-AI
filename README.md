@@ -214,8 +214,9 @@ flowchart TD
     classDef output fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff,rx:8px,ry:8px;
 
     %% Client & API Layer
-    UI[React/Vite Glassmorphic Dashboard]:::frontend -->|Multipart Media Upload| API[FastAPI High-Performance Gateway]:::backend
-    API --> VP[Video Processor: Frame Extraction & Audio Split]:::processor
+    UI[React/Vite Dashboard & Live Terminal]:::frontend -->|Multipart Media Upload| API[FastAPI Gateway w/ MIME Security]:::backend
+    API -.->|Server-Sent Events: Real-Time Telemetry| UI
+    API --> VP[Video Processor: OpenCV Tracker & Scene-Cut Split]:::processor
     VP --> TP[Concurrent Thread Pool Executor]:::processor
     
     %% The 15-Dimensional Forensic Engines
