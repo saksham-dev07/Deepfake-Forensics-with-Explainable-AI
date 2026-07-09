@@ -31,7 +31,6 @@ The pipeline scripts in this backend utilize strict mathematical extraction tech
 ## Structure
 - `main.py`: The FastAPI application entry point.
 - `pipeline/`: Contains the forensic extraction logic (audio, video, geometry, XAI, etc.).
-- `kaggle_scripts/`: Python scripts designed for training models in Kaggle GPU environments (`kaggle_efficientnet_training.py`, `kaggle_meta_training.py`, `kaggle_voice_training.py`).
 - `weights/`: Pre-trained `.pth` and `.onnx` model weights (EfficientNet-B4, SyncNet, Voice Liveness 2D-CNN, Meta-Classifier MLP).
 
 ## Installation & Setup

@@ -42,14 +42,14 @@ This platform relies on a combination of foundational academic weights and custo
 
 ### 2. Acoustic Anti-Spoofing (Voice Liveness 2D-CNN)
 * **Dataset Utilized:** ASVspoof 2019 (Automatic Speaker Verification Spoofing and Countermeasures Challenge) Logical Access (LA) database.
-* **Training Methodology:** The `voice_spoofing.pth` model was trained from scratch using the `kaggle_scripts/kaggle_voice_training.py` pipeline. The ASVspoof audio tracks were converted into 128-channel Mel-Frequency Spectrograms, effectively treating audio spoofing as an image classification problem. A lightweight PyTorch 2D-CNN was trained to detect the invisible high-frequency spectral rolloffs and vocoder artifacts left behind by TTS engines like ElevenLabs and VITS.
+* **Training Methodology:** The `voice_spoofing.pth` model was trained from scratch. The ASVspoof audio tracks were converted into 128-channel Mel-Frequency Spectrograms, effectively treating audio spoofing as an image classification problem. A lightweight PyTorch 2D-CNN was trained to detect the invisible high-frequency spectral rolloffs and vocoder artifacts left behind by TTS engines like ElevenLabs and VITS.
 
 ### 3. Native Audio-Visual SyncNet
 * **Datasets Utilized:** LRS2 (Lip Reading Sentences 2) and VoxCeleb2.
 * **Training Methodology:** This module imports the heavy `syncnet_v2.model` weights originally trained for the Wav2Lip architecture. The model employs a dual-stream 3D-CNN. During training, millions of 5-frame video mouth crops and corresponding 0.2-second audio MFCCs were fed into the network. The network was optimized using contrastive loss to minimize the L2 distance (LSE-D) for synchronized audio-visual pairs, and maximize the distance for artificially shifted, out-of-sync pairs.
 
 ### 4. Meta-Classifier Ensemble MLP
-* **Dataset Utilized:** A procedurally generated synthetic dataset of 500,000 multi-dimensional anomaly scores (via `kaggle_scripts/kaggle_meta_training.py`).
+* **Dataset Utilized:** A procedurally generated synthetic dataset of 500,000 multi-dimensional anomaly scores.
 * **Training Methodology:** Because real-world deepfakes vary wildly (e.g., an authentic video with cloned audio, or a synthesized face with authentic audio), a 3-layer Multi-Layer Perceptron (MLP) was trained to aggregate the 15 forensic dimensions. It was trained using **Soft Labels** (0.15 for Real, 0.85 for Fake) using Binary Cross-Entropy Loss to prevent overconfidence. The synthetic dataset injects advanced probabilistic rules, teaching the Meta-Classifier to flag a video if biological sensors (like rPPG or Geometry) spike, even if the primary Neural Network is successfully fooled by a highly realistic GAN.
 
 ---
@@ -204,12 +204,12 @@ Before deploying the platform, be aware of the following system constraints and 
 ## System Architecture
 
 ```mermaid
-graph TD
+flowchart TD
     %% Styling Definitions
     classDef frontend fill:#3b82f6,stroke:#2563eb,stroke-width:2px,color:#fff,rx:8px,ry:8px;
     classDef backend fill:#8b5cf6,stroke:#7c3aed,stroke-width:2px,color:#fff,rx:8px,ry:8px;
-    classDef processor fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff;
-    classDef module fill:#1e293b,stroke:#475569,stroke-width:1px,color:#f8fafc;
+    classDef processor fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef module fill:#1e293b,stroke:#475569,stroke-width:1px,color:#f8fafc,rx:4px,ry:4px;
     classDef meta fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff,rx:8px,ry:8px;
     classDef output fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff,rx:8px,ry:8px;
 
@@ -219,17 +219,17 @@ graph TD
     VP --> TP[Concurrent Thread Pool Executor]:::processor
     
     %% The 15-Dimensional Forensic Engines
-    subgraph Core_Neural_Analysis["🧠 Core Neural Analysis"]
+    subgraph Core_Neural_Analysis["Core Neural Analysis"]
         NN[EfficientNet-B4 + GradCAM XAI]:::module
     end
     
-    subgraph Biological_Physiological["🫀 Biological & Physiological"]
+    subgraph Biological_Physiological["Biological & Physiological"]
         GEO[Face Geometry & Asymmetry]:::module
         EYE[Dynamic Blink & Gaze Analysis]:::module
         PHYS[rPPG Volumetric Heartbeat]:::module
     end
     
-    subgraph Digital_Physical_Optics["📸 Physical Optics & Sensors"]
+    subgraph Digital_Physical_Optics["Physical Optics & Sensors"]
         NOISE[Sensor Noise: PRNU & SRM]:::module
         CFA[Bayer CFA Interpolation]:::module
         CORNEAL[Corneal Specular Highlights]:::module
@@ -237,54 +237,26 @@ graph TD
         COLOR[Chrominance YCbCr/LAB Mapping]:::module
     end
     
-    subgraph Temporal_Artifacts["⏱️ Temporal & Compression"]
+    subgraph Temporal_Artifacts["Temporal & Compression"]
         ELA[Error Level Analysis]:::module
         FLOW[Dense Optical Flow & Jitter]:::module
     end
     
-    subgraph Audio_Forensics["🎙️ Acoustic Forensics"]
+    subgraph Audio_Forensics["Acoustic Forensics"]
         SYNC[Native 3D-CNN A/V SyncNet]:::module
         VOICE[Voice Liveness Anti-Spoofing]:::module
     end
 
-    subgraph Spectral_Integrity["📡 Spectral & Integrity"]
+    subgraph Spectral_Integrity["Spectral & Integrity"]
         FA[Frequency: 2D-DCT & FFT]:::module
         META[Cryptographic Metadata & EXIF]:::module
     end
 
     %% Routing to modules
-    TP --> NN
-    TP --> GEO
-    TP --> EYE
-    TP --> PHYS
-    TP --> NOISE
-    TP --> CFA
-    TP --> CORNEAL
-    TP --> LIGHT
-    TP --> COLOR
-    TP --> ELA
-    TP --> FLOW
-    TP --> SYNC
-    TP --> VOICE
-    TP --> FA
-    TP --> META
+    TP --> NN & GEO & EYE & PHYS & NOISE & CFA & CORNEAL & LIGHT & COLOR & ELA & FLOW & SYNC & VOICE & FA & META
 
     %% Meta-Classifier Aggregation
-    NN --> AGG
-    GEO --> AGG
-    EYE --> AGG
-    PHYS --> AGG
-    NOISE --> AGG
-    CFA --> AGG
-    CORNEAL --> AGG
-    LIGHT --> AGG
-    COLOR --> AGG
-    ELA --> AGG
-    FLOW --> AGG
-    SYNC --> AGG
-    VOICE --> AGG
-    FA --> AGG
-    META --> AGG
+    NN & GEO & EYE & PHYS & NOISE & CFA & CORNEAL & LIGHT & COLOR & ELA & FLOW & SYNC & VOICE & FA & META --> AGG
 
     AGG{Meta-Classifier Ensemble MLP}:::meta
     
@@ -305,100 +277,79 @@ The following diagram maps the high-level logical architecture directly to the u
 ```mermaid
 flowchart TD
 
-subgraph group_frontend["Frontend"]
+subgraph group_frontend["Frontend (React)"]
   node_ui["UI<br/>React app<br/>[App.jsx]"]
-  node_dashboard["Report view<br/>React component"]
+  node_dashboard["Report view<br/>React component<br/>[ReportDashboard.jsx]"]
   node_models_ui["Models view<br/>React component<br/>[ModelsOverview.jsx]"]
 end
 
-subgraph group_backend["Backend"]
+subgraph group_backend["Backend (FastAPI)"]
   node_api["API<br/>[main.py]"]
   node_processor["Video prep<br/>media ingestion<br/>[video_processor.py]"]
   node_pipeline["Pipeline<br/>forensic workflow<br/>[__init__.py]"]
-  node_models["Core NN<br/>EfficientNet-B4<br/>[models.py]"]
-  node_face["Face signals<br/>visual analysis<br/>[face_geometry.py]"]
-  node_eye["Eye dynamics<br/>blink analysis<br/>[eye_analysis.py]"]
-  node_image_artifacts["Image cues<br/>artifact analysis<br/>[lighting_analysis.py]"]
-  node_motion["Motion cues<br/>temporal analysis<br/>[optical_flow.py]"]
-  node_audio["Audio cues<br/>audio analysis<br/>[audio_sync.py]"]
-  node_metadata["Metadata<br/>file analysis<br/>[metadata_analysis.py]"]
-  node_freq["Spectral analysis<br/>frequency domain<br/>[frequency_analysis.py]"]
-  node_ela["Compression analysis<br/>error level<br/>[ela_analysis.py]"]
-  node_noise["Sensor noise<br/>rich model<br/>[noise_analysis.py]"]
-  node_color["Color space<br/>chrominance<br/>[color_analysis.py]"]
-  node_rppg["Physiological cues<br/>heartbeat<br/>[rppg_analysis.py]"]
-  node_voice_spoof["Acoustic spoofing<br/>voice analysis<br/>[voice_spoofing.py]"]
-  node_cfa["Optics analysis<br/>bayer filter<br/>[cfa_analysis.py]"]
-  node_corneal["Optics analysis<br/>corneal reflections<br/>[corneal_analysis.py]"]
-  node_ensemble["Fusion<br/>ensemble classifier<br/>[ensemble_classifier.py]"]
-  node_xai["Explainability<br/>XAI output<br/>[xai_explainer.py]"]
-  node_report["PDF report<br/>report generator<br/>[pdf_reporter.py]"]
+  
+  subgraph group_visual["Visual & Artifact Engines"]
+      node_models["Core NN<br/>EfficientNet-B4<br/>[models.py]"]
+      node_face["Face signals<br/>visual analysis<br/>[face_geometry.py]"]
+      node_eye["Eye dynamics<br/>blink analysis<br/>[eye_analysis.py]"]
+      node_image_artifacts["Image cues<br/>artifact analysis<br/>[lighting_analysis.py]"]
+      node_motion["Motion cues<br/>temporal analysis<br/>[optical_flow.py]"]
+      node_ela["Compression analysis<br/>error level<br/>[ela_analysis.py]"]
+      node_noise["Sensor noise<br/>rich model<br/>[noise_analysis.py]"]
+      node_color["Color space<br/>chrominance<br/>[color_analysis.py]"]
+      node_rppg["Physiological cues<br/>heartbeat<br/>[rppg_analysis.py]"]
+      node_cfa["Optics analysis<br/>bayer filter<br/>[cfa_analysis.py]"]
+      node_corneal["Optics analysis<br/>corneal reflections<br/>[corneal_analysis.py]"]
+  end
+  
+  subgraph group_audio["Audio & Spectral Engines"]
+      node_audio["Audio cues<br/>audio analysis<br/>[audio_sync.py]"]
+      node_voice_spoof["Acoustic spoofing<br/>voice analysis<br/>[voice_spoofing.py]"]
+      node_freq["Spectral analysis<br/>frequency domain<br/>[frequency_analysis.py]"]
+      node_metadata["Metadata<br/>file analysis<br/>[metadata_analysis.py]"]
+  end
+  
+  subgraph group_fusion["Fusion & Reporting"]
+      node_ensemble["Fusion<br/>ensemble classifier<br/>[ensemble_classifier.py]"]
+      node_xai["Explainability<br/>XAI output<br/>[xai_explainer.py]"]
+      node_report["PDF report<br/>report generator<br/>[pdf_reporter.py]"]
+  end
+  
   node_syncnet["SyncNet<br/>AV model<br/>[SyncNetModel.py]"]
   node_voice_model["Voice model<br/>spoof model<br/>[voice_model.py]"]
 end
 
-subgraph group_training["Offline training"]
-  node_train_scripts["Training scripts<br/>offline training"]
-end
-
-subgraph group_assets["Model assets"]
+subgraph group_assets["Model Assets"]
   node_weights[("Weights<br/>model assets")]
 end
 
+%% Client to API
 node_ui -->|"uploads"| node_api
 node_dashboard -->|"fetches results"| node_api
-node_models_ui -->|"shows signals"| node_api
+node_models_ui -->|"views signals"| node_api
 node_api -->|"ingests"| node_processor
 node_processor -->|"hands off"| node_pipeline
 
-node_pipeline -->|"routes"| node_models
-node_pipeline -->|"routes"| node_face
-node_pipeline -->|"routes"| node_eye
-node_pipeline -->|"routes"| node_image_artifacts
-node_pipeline -->|"routes"| node_motion
-node_pipeline -->|"routes"| node_audio
-node_pipeline -->|"routes"| node_metadata
-node_pipeline -->|"routes"| node_freq
-node_pipeline -->|"routes"| node_ela
-node_pipeline -->|"routes"| node_noise
-node_pipeline -->|"routes"| node_color
-node_pipeline -->|"routes"| node_rppg
-node_pipeline -->|"routes"| node_voice_spoof
-node_pipeline -->|"routes"| node_cfa
-node_pipeline -->|"routes"| node_corneal
+%% Pipeline Routing
+node_pipeline -->|"routes"| node_models & node_face & node_eye & node_image_artifacts & node_motion & node_audio & node_metadata & node_freq & node_ela & node_noise & node_color & node_rppg & node_voice_spoof & node_cfa & node_corneal
 
-node_models -->|"scores"| node_ensemble
-node_face -->|"scores"| node_ensemble
-node_eye -->|"scores"| node_ensemble
-node_image_artifacts -->|"scores"| node_ensemble
-node_motion -->|"scores"| node_ensemble
-node_audio -->|"scores"| node_ensemble
-node_metadata -->|"scores"| node_ensemble
-node_freq -->|"scores"| node_ensemble
-node_ela -->|"scores"| node_ensemble
-node_noise -->|"scores"| node_ensemble
-node_color -->|"scores"| node_ensemble
-node_rppg -->|"scores"| node_ensemble
-node_voice_spoof -->|"scores"| node_ensemble
-node_cfa -->|"scores"| node_ensemble
-node_corneal -->|"scores"| node_ensemble
+%% Scoring to Ensemble
+node_models & node_face & node_eye & node_image_artifacts & node_motion & node_audio & node_metadata & node_freq & node_ela & node_noise & node_color & node_rppg & node_voice_spoof & node_cfa & node_corneal -->|"scores"| node_ensemble
 
-node_syncnet -->|"powers"| node_audio
-node_voice_model -->|"powers"| node_voice_spoof
+%% Model Dependencies
+node_syncnet -.->|"powers"| node_audio
+node_voice_model -.->|"powers"| node_voice_spoof
 
-node_weights -.->|"loads"| node_syncnet
-node_weights -.->|"loads"| node_voice_model
-node_weights -.->|"loads"| node_ensemble
-node_weights -.->|"loads"| node_models
+node_weights -.->|"loads"| node_syncnet & node_voice_model & node_ensemble & node_models
 
+%% Explainability & Output
 node_pipeline -->|"explains"| node_xai
-node_models -->|"exposes targets"| node_xai
+node_models -.->|"exposes targets"| node_xai
 node_ensemble -->|"exposes"| node_xai
 node_pipeline -->|"packages"| node_report
-node_ensemble -->|"summarizes"| node_report
-node_train_scripts -.->|"produces"| node_weights
 node_api -->|"returns"| node_report
 
+%% Clickable Links
 click node_ui "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/App.jsx"
 click node_dashboard "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/components/ReportDashboard.jsx"
 click node_models_ui "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/components/ModelsOverview.jsx"
@@ -426,18 +377,14 @@ click node_report "https://github.com/saksham-dev07/deepfake-forensics-with-expl
 click node_syncnet "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/SyncNetModel.py"
 click node_voice_model "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/pipeline/voice_model.py"
 click node_weights "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/tree/main/backend/weights"
-click node_train_scripts "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/kaggle_scripts/kaggle_efficientnet_training.py"
 
+%% Styling
 classDef toneNeutral fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172a
 classDef toneBlue fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#172554
 classDef toneAmber fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
-classDef toneMint fill:#dcfce7,stroke:#16a34a,stroke-width:1.5px,color:#14532d
 classDef toneRose fill:#ffe4e6,stroke:#e11d48,stroke-width:1.5px,color:#881337
-classDef toneIndigo fill:#e0e7ff,stroke:#4f46e5,stroke-width:1.5px,color:#312e81
-classDef toneTeal fill:#ccfbf1,stroke:#0f766e,stroke-width:1.5px,color:#134e4a
 class node_ui,node_dashboard,node_models_ui toneBlue
 class node_api,node_processor,node_pipeline,node_face,node_eye,node_image_artifacts,node_motion,node_audio,node_metadata,node_freq,node_ela,node_noise,node_color,node_rppg,node_voice_spoof,node_cfa,node_corneal,node_models,node_ensemble,node_xai,node_report,node_syncnet,node_voice_model toneAmber
-class node_train_scripts toneMint
 class node_weights toneRose
 ```
 
