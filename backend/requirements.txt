@@ -24,3 +24,5 @@ python-magic ; sys_platform != 'win32'
 python-magic-bin ; sys_platform == 'win32'
 scenedetect
 gunicorn
+xgboost
+imageio-ffmpeg

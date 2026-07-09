@@ -39,12 +39,32 @@ def get_landmarker():
 
 def detect_face(image_rgb):
     """
-    Detect faces using MediaPipe Face Mesh (Tasks API) for highly accurate 3D landmarks.
-    Returns the strongest detection with constellation landmarks:
-      [face_bbox, confidence, right_eye, left_eye, nose_tip, right_mouth, left_mouth, face_center]
+    Detect faces using YuNet for robust bounding boxes (handling tilts/angles),
+    then use MediaPipe Face Mesh for highly accurate 3D landmarks.
     """
     h, w = image_rgb.shape[:2]
+    
+    # 1. Try YuNet first for robust bounding box
+    yunet_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "face_detection_yunet_2023mar.onnx")
+    bbox = None
+    
+    if os.path.exists(yunet_path):
+        try:
+            if not hasattr(_local_storage, "yunet"):
+                _local_storage.yunet = cv2.FaceDetectorYN.create(
+                    model=yunet_path, config="", input_size=(w, h), score_threshold=0.8, nms_threshold=0.3
+                )
+            _local_storage.yunet.setInputSize((w, h))
+            image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+            _, faces = _local_storage.yunet.detect(image_bgr)
+            if faces is not None and len(faces) > 0:
+                faces = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)
+                face = faces[0]
+                bbox = (int(face[0]), int(face[1]), int(face[2]), int(face[3]))
+        except Exception:
+            pass
 
+    # 2. Use MediaPipe for dense landmarks
     landmarker = get_landmarker()
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
     detection_result = landmarker.detect(mp_image)
@@ -54,21 +74,22 @@ def detect_face(image_rgb):
 
     face_landmarks = detection_result.face_landmarks[0]
 
-    # Calculate bounding box
-    x_min, y_min = w, h
-    x_max, y_max = 0, 0
-    for landmark in face_landmarks:
-        x, y = int(landmark.x * w), int(landmark.y * h)
-        x_min = min(x_min, x)
-        y_min = min(y_min, y)
-        x_max = max(x_max, x)
-        y_max = max(y_max, y)
+    # Calculate bounding box if YuNet failed
+    if bbox is None:
+        x_min, y_min = w, h
+        x_max, y_max = 0, 0
+        for landmark in face_landmarks:
+            x, y = int(landmark.x * w), int(landmark.y * h)
+            x_min = min(x_min, x)
+            y_min = min(y_min, y)
+            x_max = max(x_max, x)
+            y_max = max(y_max, y)
 
-    # Ensure within bounds
-    x_min, y_min = max(0, x_min), max(0, y_min)
-    x_max, y_max = min(w, x_max), min(h, y_max)
-    fw = x_max - x_min
-    fh = y_max - y_min
+        x_min, y_min = max(0, x_min), max(0, y_min)
+        x_max, y_max = min(w, x_max), min(h, y_max)
+        fw = x_max - x_min
+        fh = y_max - y_min
+        bbox = (x_min, y_min, fw, fh)
 
     # Extract Constellation Landmarks
     def get_pt(idx):
@@ -76,18 +97,17 @@ def detect_face(image_rgb):
         return (int(lm.x * w), int(lm.y * h))
 
     return {
-        "face_bbox": (x_min, y_min, fw, fh),
+        "face_bbox": bbox,
         "confidence": 0.95,
         "right_eye": get_pt(468), # Person's right iris
         "left_eye": get_pt(473),  # Person's left iris
         "nose_tip": get_pt(1),    # Nose tip
         "right_mouth": get_pt(61), # Person's right mouth corner
         "left_mouth": get_pt(291), # Person's left mouth corner
-        "face_center": (x_min + fw // 2, y_min + fh // 2),
+        "face_center": (bbox[0] + bbox[2] // 2, bbox[1] + bbox[3] // 2),
         "all_landmarks": [get_pt(i) for i in range(len(face_landmarks))],
         "all_landmarks_3d": [(lm.x * w, lm.y * h, lm.z * w) for lm in face_landmarks],
     }
-
 
 
 def compute_face_symmetry(image_rgb, landmarks_first, output_dir=None, prefix="face"):
@@ -376,24 +396,28 @@ def compute_3d_head_pose(landmarks, w, h, return_vectors=False):
     rm = landmarks.get("right_mouth")
     lm = landmarks.get("left_mouth")
     
-    # Extract chin from all_landmarks (MediaPipe index 152)
+    # Extract chin and temples from all_landmarks
     all_pts = landmarks.get("all_landmarks", [])
-    if len(all_pts) > 152:
+    if len(all_pts) > 454:
         chin = all_pts[152]
+        left_temple = all_pts[454]
+        right_temple = all_pts[234]
     else:
         return None
     
-    if not all([re, le, nt, rm, lm, chin]):
+    if not all([re, le, nt, rm, lm, chin, left_temple, right_temple]):
         return None
         
-    # 2D image points from MediaPipe (6 points required for solvePnP)
+    # 2D image points from MediaPipe (8 points required for robust solvePnP)
     image_points = np.array([
         nt,       # Nose tip
         lm,       # Left mouth corner
         rm,       # Right mouth corner
         le,       # Left eye
         re,       # Right eye
-        chin      # Chin
+        chin,     # Chin
+        left_temple,  # Left side of face
+        right_temple  # Right side of face
     ], dtype="double")
     
     # Canonical 3D skull points (X, Y, Z) in standard right-handed coordinates
@@ -404,7 +428,9 @@ def compute_3d_head_pose(landmarks, w, h, return_vectors=False):
         (-225.0, 170.0, 135.0),      # Right mouth corner
         (225.0, -150.0, 125.0),      # Left eye
         (-225.0, -150.0, 125.0),     # Right eye
-        (0.0, 330.0, 65.0)           # Chin
+        (0.0, 330.0, 65.0),          # Chin
+        (350.0, -50.0, 200.0),       # Left temple
+        (-350.0, -50.0, 200.0)       # Right temple
     ])
     
     # Camera internals
@@ -452,6 +478,16 @@ def visualize_landmarks(image_rgb, landmarks, metrics=None, save_path=None, pose
     overlay = np.zeros_like(vis, dtype=np.uint8)
     all_pts = landmarks["all_landmarks"]
     
+    # Dynamic scaling based on image size (baseline 1000px)
+    ih, iw = vis.shape[:2]
+    scale = max(1.0, max(iw, ih) / 1000.0)
+    line_thick = max(1, int(1 * scale))
+    dot_rad = max(1, int(1 * scale))
+    key_bg_rad = max(2, int(4 * scale))
+    key_fg_rad = max(1, int(2 * scale))
+    glow_k = int(7 * scale)
+    if glow_k % 2 == 0: glow_k += 1
+
     # Define color for mesh
     mesh_color = (200, 248, 129) # Glowing mint
     
@@ -475,25 +511,28 @@ def visualize_landmarks(image_rgb, landmarks, metrics=None, save_path=None, pose
             if start_idx < len(all_pts) and end_idx < len(all_pts):
                 pt1 = all_pts[start_idx]
                 pt2 = all_pts[end_idx]
-                cv2.line(overlay, pt1, pt2, mesh_color, 1, cv2.LINE_AA)
+                cv2.line(overlay, pt1, pt2, mesh_color, line_thick, cv2.LINE_AA)
+        # Add tiny dots at vertices for a subtle "constellation" effect
+        for pt in all_pts:
+            cv2.circle(overlay, pt, dot_rad, mesh_color, -1, cv2.LINE_AA)
     else:
         # Fallback to dense point cloud
         for pt in all_pts:
-            cv2.circle(overlay, pt, 1, mesh_color, -1, cv2.LINE_AA)
+            cv2.circle(overlay, pt, dot_rad, mesh_color, -1, cv2.LINE_AA)
             
     # Add dots for key points (eyes, nose, mouth)
     key_pts = [landmarks.get("right_eye"), landmarks.get("left_eye"), landmarks.get("nose_tip"), landmarks.get("right_mouth"), landmarks.get("left_mouth")]
     for pt in key_pts:
         if pt:
-            cv2.circle(overlay, pt, 4, (0, 0, 0), -1, cv2.LINE_AA)
-            cv2.circle(overlay, pt, 2, (255, 255, 255), -1, cv2.LINE_AA)
+            cv2.circle(overlay, pt, key_bg_rad, (0, 0, 0), -1, cv2.LINE_AA)
+            cv2.circle(overlay, pt, key_fg_rad, (255, 255, 255), -1, cv2.LINE_AA)
             
     # Apply glow effect
-    glow = cv2.GaussianBlur(overlay, (7, 7), 0)
-    overlay_with_glow = cv2.addWeighted(overlay, 0.8, glow, 0.6, 0)
+    glow = cv2.GaussianBlur(overlay, (glow_k, glow_k), 0)
+    overlay_with_glow = cv2.addWeighted(overlay, 0.9, glow, 0.6, 0)
     
-    # Blend with original
-    vis = cv2.addWeighted(vis, 1.0, overlay_with_glow, 0.7, 0)
+    # Blend with original - Dim background to 60% so the mesh is clearly visible but not blinding
+    vis = cv2.addWeighted(vis, 0.6, overlay_with_glow, 1.2, 0)
     
     # Draw 3D axes (Pitch, Yaw, Roll) on a SEPARATE clean image
     ih, iw = vis.shape[:2]

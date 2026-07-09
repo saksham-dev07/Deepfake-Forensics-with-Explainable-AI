@@ -1,6 +1,7 @@
 import cv2
 import os
 import subprocess
+import imageio_ffmpeg
 
 MAX_DURATION_SEC = 60
 NUM_FRAMES = 16
@@ -13,6 +14,9 @@ def process_video(video_path: str, job_id: str):
     """
     frames_dir = f"uploads/{job_id}_frames"
     os.makedirs(frames_dir, exist_ok=True)
+    
+    # Get reliable ffmpeg path
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
     
     audio_path = f"uploads/{job_id}.wav"
     
@@ -40,28 +44,24 @@ def process_video(video_path: str, job_id: str):
     if duration > MAX_DURATION_SEC:
         duration = MAX_DURATION_SEC
         total_frames = int(duration * fps)
+        
+    cap.release()
 
-    # 1. Extract Audio using moviepy (which bundles a working ffmpeg binary)
+    # 1. Extract Audio using FFmpeg directly (much faster than moviepy)
     try:
-        from moviepy import VideoFileClip
-        clip = VideoFileClip(video_path)
-        
-        # Check if it has an audio track
-        if clip.audio is not None:
-            # Write it out silently
-            clip.audio.write_audiofile(audio_path, logger=None)
-        else:
-            audio_path = None
-            
-        clip.close()
-        
-        if audio_path and (not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0):
+        subprocess.run(
+            [ffmpeg_exe, '-y', '-i', video_path, '-t', str(MAX_DURATION_SEC), '-vn', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', audio_path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True
+        )
+        if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
             audio_path = None
     except Exception as e:
-        print(f"Error extracting audio with moviepy: {e}")
-        audio_path = None # Audio extraction failed
+        # Ffmpeg returns an error if the video has no audio track. We can safely ignore this.
+        audio_path = None # Audio extraction failed or video is silent
 
-    # 2. Extract 16 Frames using PySceneDetect & OpenCV
+    # 2. Extract 16 Frames using PySceneDetect & FFmpeg
     try:
         from scenedetect import detect, ContentDetector
         print(f"Running Scene Detection on {video_path}...")
@@ -99,18 +99,30 @@ def process_video(video_path: str, job_id: str):
         
     extracted_count = 0
     
-    for idx in frame_indices:
-        if idx >= total_frames:
-            break
-        # Jump directly to the desired frame
-        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-        ret, frame = cap.read()
-        
-        if ret:
-            frame_path = os.path.join(frames_dir, f"frame_{extracted_count:04d}.jpg")
-            cv2.imwrite(frame_path, frame)
-            extracted_count += 1
+    # Fast extraction using ffmpeg with select filter
+    if frame_indices:
+        try:
+            # Create a complex filter string to select specific frames, escaping the comma for ffmpeg
+            select_expr = '+'.join([rf"eq(n\,{idx})" for idx in frame_indices])
+            output_pattern = os.path.join(frames_dir, "frame_%04d.jpg")
             
-    cap.release()
+            subprocess.run(
+                [ffmpeg_exe, '-y', '-i', video_path, '-vf', f"select={select_expr}", '-vsync', '0', '-q:v', '2', output_pattern],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=True
+            )
+        except Exception as e:
+            print(f"Error extracting frames with ffmpeg: {e}")
+            # Fallback to OpenCV if ffmpeg fails
+            cap = cv2.VideoCapture(video_path)
+            for idx in frame_indices:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+                ret, frame = cap.read()
+                if ret:
+                    frame_path = os.path.join(frames_dir, f"frame_{extracted_count:04d}.jpg")
+                    cv2.imwrite(frame_path, frame)
+                    extracted_count += 1
+            cap.release()
     
     return frames_dir, audio_path

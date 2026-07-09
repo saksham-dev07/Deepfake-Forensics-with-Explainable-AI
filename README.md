@@ -48,9 +48,10 @@ This platform relies on a combination of foundational academic weights and custo
 * **Datasets Utilized:** LRS2 (Lip Reading Sentences 2) and VoxCeleb2.
 * **Training Methodology:** This module imports the heavy `syncnet_v2.model` weights originally trained for the Wav2Lip architecture. The model employs a dual-stream 3D-CNN. During training, millions of 5-frame video mouth crops and corresponding 0.2-second audio MFCCs were fed into the network. The network was optimized using contrastive loss to minimize the L2 distance (LSE-D) for synchronized audio-visual pairs, and maximize the distance for artificially shifted, out-of-sync pairs.
 
-### 4. Meta-Classifier Ensemble MLP
-* **Dataset Utilized:** A procedurally generated synthetic dataset of 500,000 multi-dimensional anomaly scores.
-* **Training Methodology:** Because real-world deepfakes vary wildly (e.g., an authentic video with cloned audio, or a synthesized face with authentic audio), a 3-layer Multi-Layer Perceptron (MLP) was trained to aggregate the 15 forensic dimensions. It was trained using **Soft Labels** (0.15 for Real, 0.85 for Fake) using Binary Cross-Entropy Loss to prevent overconfidence. The synthetic dataset injects advanced probabilistic rules, teaching the Meta-Classifier to flag a video if biological sensors (like rPPG or Geometry) spike, even if the primary Neural Network is successfully fooled by a highly realistic GAN.
+### 4. Meta-Classifier Ensemble (XGBoost & Tabular ResNet)
+Rather than relying on a single vulnerability, the platform fuses all 15 dimensional anomaly scores into an advanced Tabular ResNet and XGBoost ensemble.
+* **Self-Attention Tabular ResNet:** Processes non-sequential forensic metrics (e.g. Spectral Noise vs Geometric Jitter) to learn non-linear correlations between disparate visual and audio anomalies.
+* **XAI Meta-Intervention:** If a critical sensor failure is detected (e.g., severe audio spectral rolloff), Explainable AI rules actively intervene to override and boost the final synthetic probability, preventing individual models from drowning out clear deepfake signatures. It was trained using **Soft Labels** (0.15 for Real, 0.85 for Fake) using Binary Cross-Entropy Loss to prevent overconfidence. The synthetic dataset injects advanced probabilistic rules, teaching the Meta-Classifier to flag a video if biological sensors (like rPPG or Geometry) spike, even if the primary Neural Network is successfully fooled by a highly realistic GAN.
 
 ---
 
@@ -81,8 +82,9 @@ Generative AI inherently struggles to perfectly reconstruct the high-frequency m
 * **Switching Noise (SWN):** Isolates high-frequency noise by finding zero-crossings in mathematical gradients, illuminating deepfake splicing seams.
 
 ### 3. Biological Face Geometry & Temporal Consistency
-Maps 468 3D facial landmarks utilizing **MediaPipe Face Mesh** to evaluate biological impossibility.
+Maps 468 3D facial landmarks utilizing **YuNet Face Detection** and **MediaPipe Face Mesh** to evaluate biological impossibility.
 * **Temporal Geometric Jitter:** Detects micro-stutters and physically impossible inter-frame vertex shifts, which are common in temporal GAN generation.
+* **8-Point Canonical 3D Projection:** Maps the detected face against a rigorous 8-point 3D canonical skull model to robustly compute Head Pose (Pitch, Yaw, Roll) via `cv2.solvePnP` even at extreme angles.
 * **Proportional Asymmetry:** Analyzes structural interocular proportions against the facial Golden Ratio using normalized Euclidian distance equations.
 
 ### 4. Eye Movement & Dynamic Blink Analysis
@@ -102,7 +104,7 @@ Armed with the official architecture from **Wav2Lip/SyncNet**, the system catche
 
 ### 7. Acoustic Anti-Spoofing (Voice Liveness)
 Analyzes an audio track for synthetic artifacts common in AI voice clones (e.g. ElevenLabs, VITS) by evaluating Mel-Frequency Spectrograms.
-* **Pre-Processing Pipelines:** Handles real-world audio corruption via *Cubic Spline De-Clipping* and *Spectral Gating Denoising* prior to inference.
+* **Pre-Processing Pipelines:** Utilizes **FFmpeg native scene extraction** for blazingly fast parallel audio/visual splitting. Handles real-world audio corruption via *Cubic Spline De-Clipping* and *Spectral Gating Denoising* prior to inference.
 * **Spectral Rolloff & High-Frequency Ratios:** Measures the unnatural high-frequency energy decay often left by generative vocoders.
 
 ### 8. Physiological Forensics (rPPG)
@@ -113,7 +115,7 @@ Deepfakes frequently fail to synthesize the microscopic, heartbeat-induced color
 Detects heterogeneous compression signatures. When a fake face is spliced onto a real body, the manipulated region possesses a different JPEG compression quality than the original background. Re-saves the image at 95% quality and calculates the absolute pixel-wise difference.
 
 ### 10. Temporal Optical Flow & Jitter Analysis
-* **Farneback Dense Optical Flow:** Analyzes temporal consistency on 320x240 resized spatial frames. Computes the variance of motion vectors over a 60-frame buffer to detect micro-jittering, mask boundaries, and blocky temporal flickering common in deepfakes.
+* **DIS (Dense Inverse Search) Optical Flow:** Analyzes temporal consistency on 320x240 resized spatial frames using the blazingly fast DIS algorithm. Computes the variance of motion vectors over a 60-frame buffer to detect micro-jittering, mask boundaries, and blocky temporal flickering common in deepfakes.
 
 ### 11. Sensor Noise (PRNU/SRM)
 * **Spatial Rich Model (SRM):** Applies high-pass linear filtering to strip away primary image content, isolating the raw noise map. AI-generated face swaps violently disrupt this continuous noise matrix.
@@ -174,16 +176,21 @@ npm run dev
 
 This platform is architected for a decoupled, highly-scalable production deployment:
 
-### 1. Frontend (Vercel)
-The React/Vite dashboard is designed to be hosted on **Vercel** for global Edge CDN delivery. 
-- During deployment on Vercel, simply configure the `VITE_API_URL` environment variable to point to your Hugging Face Space URL.
-- The Vercel instance serves only static assets and handles no heavy computations.
+### 1. AI Backend Engine (Hugging Face Spaces)
+The FastAPI engine and PyTorch models are designed to be deployed as a Docker container on **Hugging Face Spaces**.
+1. Create a new **Docker** Space on Hugging Face.
+2. Upload the contents of the `backend/` directory (including `Dockerfile`, `main.py`, `requirements.txt`, etc.) to the root of the Hugging Face Space repository.
+3. Ensure the pre-trained weights are uploaded into the `weights/` directory inside the Space.
+4. Hugging Face will automatically build the container. The `Dockerfile` is optimized to install CPU-only PyTorch (saving 2.5GB of CUDA libs) and exposes Port `7860`.
+5. Once running, your Space will have a URL (e.g., `https://username-spacename.hf.space`).
 
-### 2. AI Backend Engine (Hugging Face Spaces)
-The FastAPI engine and PyTorch models are deployed as a Docker container on **Hugging Face Spaces**.
-- The root `Dockerfile` natively installs CPU-only PyTorch and OpenCV.
-- Hugging Face manages the heavy deep-learning inference. 
-- Ensure your Space is configured to expose Port `7860`. The backend handles CORS internally to accept requests from your Vercel frontend.
+### 2. Frontend (Vercel)
+The React/Vite dashboard is designed to be hosted on **Vercel** for global Edge CDN delivery. 
+1. Import the `frontend/` directory of this repository into Vercel.
+2. In your Vercel Project Settings, add a new Environment Variable:
+   * Key: `VITE_API_URL`
+   * Value: The Hugging Face Space URL from the step above (e.g., `https://username-spacename.hf.space`).
+3. Deploy! The Vercel instance serves only static assets and handles no heavy computations, deferring all analysis to the HF Space.
 
 ---
 

@@ -4,6 +4,7 @@ import os
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from pipeline.face_geometry import detect_face
 
 def analyze_optical_flow(video_path, output_dir, prefix="flow"):
     """
@@ -31,10 +32,19 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
     frame1 = cv2.resize(frame1, (320, 240))
     prvs = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
     
-    # Optional: We just want the face region, but doing it fast by analyzing the whole frame's center
+    # Dynamically extract face bounding box for precise ROI targeting
+    rgb_frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
+    landmarks = detect_face(rgb_frame1)
+    
     h, w = prvs.shape
-    roi_y1, roi_y2 = int(h*0.1), int(h*0.9)
-    roi_x1, roi_x2 = int(w*0.2), int(w*0.8)
+    if landmarks is not None and "face_bbox" in landmarks:
+        fx, fy, fw, fh = landmarks["face_bbox"]
+        roi_x1, roi_x2 = max(0, fx), min(w, fx + fw)
+        roi_y1, roi_y2 = max(0, fy), min(h, fy + fh)
+    else:
+        # Fallback to center
+        roi_y1, roi_y2 = int(h*0.1), int(h*0.9)
+        roi_x1, roi_x2 = int(w*0.2), int(w*0.8)
 
     motion_variances = []
     max_frames = 60 # Analyze max 60 frames (2 seconds)
@@ -44,6 +54,9 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
     hsv = np.zeros_like(frame1)
     hsv[..., 1] = 255
 
+    # Initialize DIS Optical Flow (Extremely fast & accurate for dense tracking)
+    dis = cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM)
+
     while cap.isOpened() and frame_count < max_frames:
         ret, frame2 = cap.read()
         if not ret:
@@ -52,8 +65,8 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
         frame2 = cv2.resize(frame2, (320, 240))
         next_gray = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
         
-        # Calculate dense optical flow
-        flow = cv2.calcOpticalFlowFarneback(prvs, next_gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+        # Calculate dense optical flow using DIS
+        flow = dis.calc(prvs, next_gray, None)
         
         # Extract magnitude and angle
         mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])

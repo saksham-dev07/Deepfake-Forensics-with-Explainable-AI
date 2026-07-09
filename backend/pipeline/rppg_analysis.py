@@ -40,62 +40,88 @@ def extract_rppg_signal(video_path, output_dir, prefix="rppg"):
     raw_signal = []
     frame_count = 0
     max_frames = 450 # 15 seconds max
+    
+    tracker = None
+    
     while cap.isOpened() and frame_count < max_frames:
         ret, frame = cap.read()
         if not ret:
             break
 
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        landmarks = detect_face(rgb_frame)
-
-        if landmarks is not None and "all_landmarks" in landmarks:
-            # Create a precise mask for the cheeks and forehead
-            mask = np.zeros(rgb_frame.shape[:2], dtype=np.uint8)
-            all_pts = landmarks["all_landmarks"]
-            
-            # Forehead polygon
-            forehead_pts = np.array([all_pts[i] for i in [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109] if i < len(all_pts)])
-            # Wait, the above is the full face oval! 
-            # Let's use simple geometric regions based on landmarks dictionary
-            re = landmarks.get("right_eye")
-            le = landmarks.get("left_eye")
-            nose = landmarks.get("nose_tip")
-            rm = landmarks.get("right_mouth")
-            lm = landmarks.get("left_mouth")
-            
-            if re and le and nose and rm and lm:
-                # Right Cheek Polygon
-                rc_poly = np.array([
-                    (re[0] - int((nose[0] - re[0])*0.5), re[1] + int((nose[1]-re[1])*0.5)),
-                    (nose[0] - int((nose[0] - re[0])*0.2), nose[1]),
-                    (rm[0] - int((nose[0] - re[0])*0.2), rm[1]),
-                    (rm[0] - int((nose[0] - re[0])*0.5), rm[1] - int((rm[1]-nose[1])*0.5))
-                ], np.int32)
-                
-                # Left Cheek Polygon
-                lc_poly = np.array([
-                    (le[0] + int((le[0] - nose[0])*0.5), le[1] + int((nose[1]-le[1])*0.5)),
-                    (nose[0] + int((le[0] - nose[0])*0.2), nose[1]),
-                    (lm[0] + int((le[0] - nose[0])*0.2), lm[1]),
-                    (lm[0] + int((le[0] - nose[0])*0.5), lm[1] - int((lm[1]-nose[1])*0.5))
-                ], np.int32)
-                
-                # Forehead Polygon
-                fh_poly = np.array([
-                    (re[0], re[1] - int((nose[1]-re[1])*0.8)),
-                    (le[0], le[1] - int((nose[1]-le[1])*0.8)),
-                    (le[0], le[1] - int((nose[1]-le[1])*1.5)),
-                    (re[0], re[1] - int((nose[1]-re[1])*1.5))
-                ], np.int32)
-                
-                cv2.fillPoly(mask, [rc_poly, lc_poly, fh_poly], 255)
-                
-                # Extract mean of R, G, B channels in mask
-                mean_rgb = cv2.mean(rgb_frame, mask=mask)[:3] # (R, G, B)
-                if sum(mean_rgb) > 0:
-                    raw_signal.append(mean_rgb)
+        
+        re, le, nose, rm, lm = None, None, None, None, None
+        
+        # Fast Face Tracking instead of re-detecting every frame
+        if tracker is None:
+            landmarks = detect_face(rgb_frame)
+            if landmarks and "face_bbox" in landmarks:
+                fx, fy, fw, fh = landmarks["face_bbox"]
+                bbox = (max(0, fx), max(0, fy), max(1, fw), max(1, fh))
+                try:
+                    tracker = cv2.TrackerCSRT_create()
+                    tracker.init(frame, bbox)
+                except AttributeError:
+                    tracker = "MediaPipe_Fallback"
+                    
+                re = landmarks.get("right_eye")
+                le = landmarks.get("left_eye")
+                nose = landmarks.get("nose_tip")
+                rm = landmarks.get("right_mouth")
+                lm = landmarks.get("left_mouth")
+        else:
+            if tracker == "MediaPipe_Fallback":
+                landmarks = detect_face(rgb_frame)
+                if landmarks:
+                    re = landmarks.get("right_eye")
+                    le = landmarks.get("left_eye")
+                    nose = landmarks.get("nose_tip")
+                    rm = landmarks.get("right_mouth")
+                    lm = landmarks.get("left_mouth")
+            else:
+                success, bbox = tracker.update(frame)
+                if success:
+                    fx, fy, fw, fh = [int(v) for v in bbox]
+                    re = (fx + int(fw*0.3), fy + int(fh*0.4))
+                    le = (fx + int(fw*0.7), fy + int(fh*0.4))
+                    nose = (fx + int(fw*0.5), fy + int(fh*0.6))
+                    rm = (fx + int(fw*0.35), fy + int(fh*0.8))
+                    lm = (fx + int(fw*0.65), fy + int(fh*0.8))
                 else:
-                    raw_signal.append(raw_signal[-1] if len(raw_signal) > 0 else (0,0,0))
+                    tracker = None
+
+        if re and le and nose and rm and lm:
+            mask = np.zeros(rgb_frame.shape[:2], dtype=np.uint8)
+            # Right Cheek Polygon
+            rc_poly = np.array([
+                (re[0] - int((nose[0] - re[0])*0.5), re[1] + int((nose[1]-re[1])*0.5)),
+                (nose[0] - int((nose[0] - re[0])*0.2), nose[1]),
+                (rm[0] - int((nose[0] - re[0])*0.2), rm[1]),
+                (rm[0] - int((nose[0] - re[0])*0.5), rm[1] - int((rm[1]-nose[1])*0.5))
+            ], np.int32)
+            
+            # Left Cheek Polygon
+            lc_poly = np.array([
+                (le[0] + int((le[0] - nose[0])*0.5), le[1] + int((nose[1]-le[1])*0.5)),
+                (nose[0] + int((le[0] - nose[0])*0.2), nose[1]),
+                (lm[0] + int((le[0] - nose[0])*0.2), lm[1]),
+                (lm[0] + int((le[0] - nose[0])*0.5), lm[1] - int((lm[1]-nose[1])*0.5))
+            ], np.int32)
+            
+            # Forehead Polygon
+            fh_poly = np.array([
+                (re[0], re[1] - int((nose[1]-re[1])*0.8)),
+                (le[0], le[1] - int((nose[1]-le[1])*0.8)),
+                (le[0], le[1] - int((nose[1]-le[1])*1.5)),
+                (re[0], re[1] - int((nose[1]-re[1])*1.5))
+            ], np.int32)
+            
+            cv2.fillPoly(mask, [rc_poly, lc_poly, fh_poly], 255)
+            
+            # Extract mean of R, G, B channels in mask
+            mean_rgb = cv2.mean(rgb_frame, mask=mask)[:3] # (R, G, B)
+            if sum(mean_rgb) > 0:
+                raw_signal.append(mean_rgb)
             else:
                 raw_signal.append(raw_signal[-1] if len(raw_signal) > 0 else (0,0,0))
         else:

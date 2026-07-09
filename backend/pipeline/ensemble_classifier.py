@@ -58,6 +58,23 @@ class DeepfakeMetaClassifier(nn.Module):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.to(self.device)
         self.is_trained = False
+        
+        self.use_xgboost = True
+        self.xgb_model = None
+        self.is_xgb_trained = False
+        try:
+            import xgboost as xgb
+            self.xgb_model = xgb.XGBClassifier(
+                n_estimators=200, 
+                learning_rate=0.05, 
+                max_depth=5, 
+                subsample=0.8, 
+                colsample_bytree=0.8,
+                eval_metric='logloss'
+            )
+        except ImportError:
+            print("Warning: xgboost not installed. Falling back to PyTorch Tabular ResNet.")
+            self.use_xgboost = False
 
     def forward(self, x):
         return self.network(x)
@@ -159,20 +176,38 @@ class DeepfakeMetaClassifier(nn.Module):
             X.append(features)
             y.append(0.85) # Fake (Soft Label)
 
-        X = torch.FloatTensor(np.array(X))
-        y = torch.FloatTensor(np.array(y)).unsqueeze(1)
-        return TensorDataset(X, y)
+        return np.array(X), np.array(y)
 
-    def train_model(self, epochs=50, batch_size=32, save_path="weights/ensemble_mlp.pth"):
-        print("Initializing synthetic dataset for Ensemble Meta-Classifier training...")
-        dataset = self.generate_synthetic_dataset()
+    def train_model(self, epochs=50, batch_size=64, save_path="weights/ensemble_mlp.pth"):
+        """
+        Train the Meta-Classifier on the procedurally generated dataset.
+        Trains both the PyTorch Tabular ResNet and XGBoost models.
+        """
+        print("Generating synthetic meta-dataset for training...")
+        X, y = self.generate_synthetic_dataset(num_samples=10000)
+        
+        # 1. Train XGBoost Model
+        if self.use_xgboost:
+            print("Training XGBoost Meta-Classifier...")
+            y_binary = np.array([1 if val > 0.5 else 0 for val in y])
+            self.xgb_model.fit(X, y_binary)
+            self.is_xgb_trained = True
+            xgb_save_path = save_path.replace(".pth", "_xgb.json")
+            os.makedirs(os.path.dirname(xgb_save_path), exist_ok=True)
+            self.xgb_model.save_model(xgb_save_path)
+            print(f"XGBoost training complete. Weights saved to {xgb_save_path}")
+
+        # 2. Train PyTorch Model
+        X_tensor = torch.FloatTensor(X)
+        y_tensor = torch.FloatTensor(y).unsqueeze(1)
+        dataset = TensorDataset(X_tensor, y_tensor)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         
         criterion = nn.BCELoss()
         optimizer = optim.Adam(self.parameters(), lr=0.01)
         
         self.train()
-        print(f"Training Meta-Classifier for {epochs} epochs on {self.device}...")
+        print(f"Training Tabular ResNet for {epochs} epochs on {self.device}...")
         for epoch in range(epochs):
             total_loss = 0
             for batch_X, batch_y in dataloader:
@@ -195,6 +230,15 @@ class DeepfakeMetaClassifier(nn.Module):
         print(f"Meta-Classifier training complete. Weights saved to {save_path}")
 
     def load_model(self, model_path="weights/ensemble_mlp.pth"):
+        # Attempt to load XGBoost first if available
+        if self.use_xgboost:
+            xgb_save_path = model_path.replace(".pth", "_xgb.json")
+            if os.path.exists(xgb_save_path):
+                self.xgb_model.load_model(xgb_save_path)
+                self.is_xgb_trained = True
+                print(f"Loaded XGBoost Meta-Classifier from {xgb_save_path}")
+                return True
+                
         if os.path.exists(model_path):
             state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
             
@@ -246,6 +290,12 @@ class DeepfakeMetaClassifier(nn.Module):
         ]
         
         x_vector = [feature_dict.get(key, 0.5) for key in feature_order]
+        
+        if self.use_xgboost and self.is_xgb_trained:
+            x_array = np.array([x_vector])
+            confidence = float(self.xgb_model.predict_proba(x_array)[0][1])
+            return confidence
+            
         x_tensor = torch.FloatTensor([x_vector]).to(self.device)
         
         with torch.no_grad():
