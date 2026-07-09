@@ -278,9 +278,14 @@ The following diagram maps the high-level logical architecture directly to the u
 flowchart TD
 
 subgraph group_frontend["Frontend (React)"]
+  node_main["Entry point<br/>React root<br/>[main.jsx]"]
   node_ui["UI<br/>React app<br/>[App.jsx]"]
+  node_upload["Upload interface<br/>React component<br/>[UploadZone.jsx]"]
+  node_hook["API hook<br/>state management<br/>[useAnalysisPipeline.js]"]
   node_dashboard["Report view<br/>React component<br/>[ReportDashboard.jsx]"]
+  node_terminal["Live telemetry<br/>React component<br/>[AnalysisTerminal.jsx]"]
   node_models_ui["Models view<br/>React component<br/>[ModelsOverview.jsx]"]
+  node_tabs["Dimension tabs<br/>React components<br/>[tabs/*.jsx]"]
 end
 
 subgraph group_backend["Backend (FastAPI)"]
@@ -324,8 +329,13 @@ subgraph group_assets["Model Assets"]
 end
 
 %% Client to API
-node_ui -->|"uploads"| node_api
+node_main --> node_ui
+node_ui --> node_upload & node_dashboard & node_models_ui
+node_upload -->|"triggers"| node_hook
+node_terminal -.->|"receives SSE"| node_hook
+node_hook -->|"fetches/streams"| node_api
 node_dashboard -->|"fetches results"| node_api
+node_models_ui -->|"renders"| node_tabs
 node_models_ui -->|"views signals"| node_api
 node_api -->|"ingests"| node_processor
 node_processor -->|"hands off"| node_pipeline
@@ -350,7 +360,11 @@ node_pipeline -->|"packages"| node_report
 node_api -->|"returns"| node_report
 
 %% Clickable Links
+click node_main "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/main.jsx"
 click node_ui "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/App.jsx"
+click node_upload "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/components/UploadZone.jsx"
+click node_hook "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/hooks/useAnalysisPipeline.js"
+click node_terminal "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/components/AnalysisTerminal.jsx"
 click node_dashboard "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/components/ReportDashboard.jsx"
 click node_models_ui "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/frontend/src/components/ModelsOverview.jsx"
 click node_api "https://github.com/saksham-dev07/deepfake-forensics-with-explainable-ai/blob/main/backend/main.py"
@@ -383,7 +397,7 @@ classDef toneNeutral fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172
 classDef toneBlue fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#172554
 classDef toneAmber fill:#fef3c7,stroke:#d97706,stroke-width:1.5px,color:#78350f
 classDef toneRose fill:#ffe4e6,stroke:#e11d48,stroke-width:1.5px,color:#881337
-class node_ui,node_dashboard,node_models_ui toneBlue
+class node_main,node_ui,node_upload,node_hook,node_dashboard,node_terminal,node_models_ui,node_tabs toneBlue
 class node_api,node_processor,node_pipeline,node_face,node_eye,node_image_artifacts,node_motion,node_audio,node_metadata,node_freq,node_ela,node_noise,node_color,node_rppg,node_voice_spoof,node_cfa,node_corneal,node_models,node_ensemble,node_xai,node_report,node_syncnet,node_voice_model toneAmber
 class node_weights toneRose
 ```
