@@ -659,9 +659,9 @@ def run_analysis_pipeline(job_id: str, file_path: str):
         # =============================================
         # Deepfakes only need to fail ONE critical biological/physical test to be proven fake.
         # If the Meta-Classifier averages the score down, we override it to catch the fake.
+        # Note: geometry_anomaly is excluded here as it can sometimes cause false positives.
         critical_scores = []
         if is_video:
-            critical_scores.append(geometry_anomaly)  # Head pose snapping / 3D solvePnP violations
             critical_scores.append(eye_score)         # Lack of blinking / unnatural gaze
             if has_audio:
                 critical_scores.append(sync_score) # Audio-visual desync
