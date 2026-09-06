@@ -62,7 +62,7 @@ $$\ln P(f) = -\alpha \ln f + C$$
 ### 2.2 Transpose Convolution Checkerboard Grid
 A 1D deconvolution of stride $s$ and kernel size $k$ produces an output sequence with periodic overlap when $k$ is not cleanly divisible by $s$. In 2D, this creates a 2D spatial grid $g(x, y)$ of period $T$. In the frequency domain, the Fourier Transform of a periodic spatial impulse train is an orthogonal frequency grid:
 
-$$\mathcal{F}\left\{ \sum_{m, n} \delta(x - mT, y - nT) \right\} = \frac{1}{T^2} \sum_{u, v} \delta\left(u - \frac{u}{T}, v - \frac{v}{T}\right)$$
+$$\mathcal{F}\left[ \sum_{m, n} \delta(x - mT, y - nT) \right] = \frac{1}{T^2} \sum_{u, v} \delta\left(u - \frac{u}{T}, v - \frac{v}{T}\right)$$
 
 This mathematical resonance produces bright, symmetrical starburst and grid patterns in the FFT and DCT spectrum.
 
@@ -87,7 +87,7 @@ $$\mathbf{I}_{\text{windowed}}(x, y) = I_{\text{gray}}(x, y) \cdot w(x, y)$$
   $$\text{Magnitude}(u, v) = 20 \log_{10}(|\mathbf{F}(u, v)| + 10^{-10})$$
 * **High-Frequency Energy Ratio**:
   Calculated over the outer $30\%$ of the radial frequency disc:
-  $$\text{HF Mask} = \left\{ (u, v) : \sqrt{(u - c_x)^2 + (v - c_y)^2} > 0.70 \cdot R_{\max} \right\}$$
+  $$\text{HF Mask} = \left[ (u, v) : \sqrt{(u - c_x)^2 + (v - c_y)^2} > 0.70 \cdot R_{\max} \right]$$
   $$\text{hf\_ratio} = \frac{\sum_{(u, v) \in \text{HF Mask}} |\mathbf{F}(u, v)|^2}{\sum_{\text{all }} |\mathbf{F}(u, v)|^2}$$
 * **Embedded Radial Profile Mini-Chart**:
   Computes azimuthal radial average $A(r) = \frac{1}{|\mathcal{C}_r|} \sum_{(u, v) \in \mathcal{C}_r} \text{Magnitude}(u, v)$ and plots an embedded HUD curve in the bottom-right corner of `{prefix}_fft_magnitude.jpg`.
@@ -152,7 +152,7 @@ JPEG-compressed source images possess rigid $8 \times 8$ block boundary alignmen
 3. Extracts spectral residual:
    $$\mathcal{R}(u, v) = \mathcal{A}(u, v) - \bar{\mathcal{A}}(u, v)$$
 4. Reconstructs spatial saliency map via Inverse FFT:
-   $$\mathbf{S}(x, y) = \left| \mathcal{F}^{-1}\left\{ \exp\left(\mathcal{R}(u, v) + i \cdot \text{Phase}(u, v)\right) \right\} \right|^2$$
+   $$\mathbf{S}(x, y) = \left| \mathcal{F}^{-1}\left[ \exp\left(\mathcal{R}(u, v) + i \cdot \text{Phase}(u, v)\right) \right] \right|^2$$
 5. Evaluates spatial saliency variance $\text{Var}(\mathbf{S})$. High variance indicates sharp periodic grid spikes. Saved to `{prefix}_saliency_map.jpg`.
 
 ---
@@ -160,7 +160,7 @@ JPEG-compressed source images possess rigid $8 \times 8$ block boundary alignmen
 ### 3.6 2D Cepstrum Analysis
 Computes the power cepstrum (the inverse Fourier transform of the log magnitude spectrum) to detect resampling, downsampling, and generative lattice echoes:
 
-$$\mathbf{C}(p, q) = \left| \mathcal{F}^{-1}\left\{ \ln\left( |\mathcal{F}\{\mathbf{I} \odot \mathbf{W}_{\text{hann}}\}| + 1.0 \right) \right\} \right|$$
+$$\mathbf{C}(p, q) = \left| \mathcal{F}^{-1}\left[ \ln\left( |\mathcal{F}\{\mathbf{I} \odot \mathbf{W}_{\text{hann}}\}| + 1.0 \right) \right] \right|$$
 
 * Centers the cepstrum and zeroes out the massive central $7 \times 7$ DC spike.
 * Evaluates variance $\text{cepstrum\_var} = \text{Var}(\mathbf{C}_{\text{log}})$. High variance indicates structural echoes from generative latent lattices. Saved to `{prefix}_cepstrum.jpg`.

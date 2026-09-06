@@ -485,7 +485,7 @@ $$\mathbf{v} = \begin{bmatrix} s_{\text{nn}}, & s_{\text{spectral}}, & s_{\text{
      $$C(u, v) = \alpha(u)\alpha(v) \sum_{x=0}^7 \sum_{y=0}^7 f(x, y) \cos\left[\frac{(2x+1)u\pi}{16}\right] \cos\left[\frac{(2y+1)v\pi}{16}\right]$$
   3. **Hou & Zhang Spectral Residual Saliency**:
      $$\mathcal{A}(f) = |\mathcal{F}(I)|, \quad \mathcal{P}(f) = \angle\mathcal{F}(I), \quad \mathcal{R}(f) = \ln(\mathcal{A}(f)) - h_n * \ln(\mathcal{A}(f))$$
-     $$\text{Saliency Map: } S(x) = g\left(\mathcal{F}^{-1}\left\{\exp(\mathcal{R}(f) + i\mathcal{P}(f))\right\}^2\right)$$
+     $$\text{Saliency Map: } S(x) = g\left(\mathcal{F}^{-1}\left[\exp(\mathcal{R}(f) + i\mathcal{P}(f))\right]^2\right)$$
   4. **Steep Arctan Switching Noise Filter ($h_x$)**:
      $$h_x = \frac{1}{\pi} \arctan(\alpha (\nabla^2 I - \theta)) + \frac{1}{2}$$
 
