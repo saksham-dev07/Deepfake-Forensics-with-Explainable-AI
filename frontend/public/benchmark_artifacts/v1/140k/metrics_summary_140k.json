@@ -1,0 +1,24 @@
+{
+    "Dataset": "140k Real and Fake Faces (xhlulu)",
+    "Total_Images": 20000,
+    "Real_Count": 10000,
+    "Fake_Count": 10000,
+    "Accuracy": 0.99955,
+    "Precision": 0.9993003498250874,
+    "Recall_TPR": 0.9998,
+    "Specificity_TNR": 0.9993,
+    "F1_Score": 0.9995501124718821,
+    "ROC_AUC": 0.9999925299999999,
+    "Average_Precision": 0.9999922615986161,
+    "Equal_Error_Rate": 0.00019999999999998898,
+    "EER_Threshold": 0.6132038831710815,
+    "Brier_Score": 0.013906409545093208,
+    "FPR_at_95_TPR": 0.0001,
+    "FPR_at_99_TPR": 0.0001,
+    "Confusion_Matrix": {
+        "TN": 9993,
+        "FP": 7,
+        "FN": 2,
+        "TP": 9998
+    }
+}

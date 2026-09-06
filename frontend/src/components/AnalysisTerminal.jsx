@@ -2,17 +2,17 @@ import React from 'react';
 import { UploadCloud, ScanSearch, CheckCircle2, Loader2, Circle, Activity, Shield } from 'lucide-react';
 
 const PIPELINE_STEPS = [
-  { label: 'Extracting video frames & audio track', threshold: 5 },
-  { label: 'Acoustic Pre-Processing (De-Clipping & Denoising)', threshold: 10 },
-  { label: 'Running EfficientNet-B4 visual classifier', threshold: 20 },
-  { label: 'Generating GradCAM visual explanations', threshold: 30 },
-  { label: 'Frequency domain analysis (DCT + FFT)', threshold: 40 },
-  { label: 'Error Level Analysis (JPEG compression)', threshold: 50 },
-  { label: 'Biological sensors (Eye Gaze & Heartbeat)', threshold: 60 },
-  { label: 'Temporal consistency (Optical Flow & Jitter)', threshold: 68 },
-  { label: 'Audio forensics (PyTorch CNN & SyncNet)', threshold: 75 },
-  { label: 'Running PyTorch AI Meta-Classifier', threshold: 85 },
-  { label: 'Compiling court-grade forensic PDF', threshold: 90 },
+  { label: 'Stream Ingestion & 100MB Magic-Byte MIME Validation', threshold: 5 },
+  { label: 'PySceneDetect Keyframes & MediaPipe KCF/CSRT Face Tracking', threshold: 10 },
+  { label: 'EfficientNet-B4 + CBAM Batched Face Inference', threshold: 15 },
+  { label: 'Dual-Resolution Grad-CAM & Guided Grad-CAM XAI', threshold: 30 },
+  { label: 'Parallel Forensic Pool: 2D FFT/DCT, ELA & PRNU Noise', threshold: 45 },
+  { label: 'Hardware CFA Demosaicing & Corneal Specular Highlights', threshold: 55 },
+  { label: 'Photometric 3D Spherical Harmonics & DIS Optical Flow', threshold: 65 },
+  { label: 'Cardiovascular rPPG (CHROM) & Neuromotor Blink Kinematics', threshold: 75 },
+  { label: 'Audio-Visual SyncNet (1024-D) & Voice Anti-Spoofing CNN', threshold: 80 },
+  { label: 'PyTorch Tabular ResNet Meta-Classifier & SHAP Attribution', threshold: 85 },
+  { label: 'Synthesizing Court-Admissible Forensic PDF Dossier', threshold: 90 },
 ];
 
 const AnalysisTerminal = ({ status, progress, file, telemetry, logs }) => {
@@ -24,17 +24,21 @@ const AnalysisTerminal = ({ status, progress, file, telemetry, logs }) => {
 
   return (
     <div style={{ maxWidth: '1100px', margin: '2rem auto', animation: 'fade-in-up 0.5s ease-out' }}>
-      {/* Hero Header */}
-      <div style={{ textAlign: 'center', marginBottom: '3rem', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '300px', height: '100px', background: 'var(--primary)', filter: 'blur(100px)', opacity: 0.15, pointerEvents: 'none' }}></div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(34, 211, 238, 0.05)', border: '1px solid rgba(34, 211, 238, 0.3)', color: 'var(--primary)', marginBottom: '1.5rem', boxShadow: '0 0 30px rgba(34, 211, 238, 0.1)' }}>
-          {status === 'uploading' ? <UploadCloud size={36} /> : <ScanSearch size={36} className="lucide-spin" style={{ animationDuration: '3s' }} />} 
+      {/* Header */}
+      <div style={{ textAlign: 'center', marginBottom: '2.5rem', position: 'relative' }}>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: '56px', height: '56px', borderRadius: 'var(--radius-md)',
+          background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)',
+          color: 'var(--primary)', marginBottom: '1rem'
+        }}>
+          {status === 'uploading' ? <UploadCloud size={28} /> : <ScanSearch size={28} className="lucide-spin" style={{ animationDuration: '3s' }} />} 
         </div>
-        <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.5rem', letterSpacing: '-1px' }}>
-          {status === 'uploading' ? 'Secure Data Transfer...' : 'Running AI Meta-Classifier...'}
+        <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.4rem', letterSpacing: '-0.02em', color: 'var(--text-main)' }}>
+          {status === 'uploading' ? 'Streaming Media...' : 'Executing Forensic Pipeline...'}
         </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
-          {file ? `Target: ${file.name}` : 'Establishing secure connection...'}
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+          {file ? `Target: ${file.name}` : 'Establishing connection...'}
         </p>
       </div>
 
@@ -42,17 +46,17 @@ const AnalysisTerminal = ({ status, progress, file, telemetry, logs }) => {
       <div className="terminal-grid">
         
         {/* Left: Pipeline Steps */}
-        <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '1rem' }}>
-            <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-muted)', fontWeight: 700 }}>Forensic Pipeline</div>
-            <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'monospace' }}>{progress}%</div>
+        <div className="glass-panel" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>
+            <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 600 }}>Forensic Pipeline</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'monospace' }}>{progress}%</div>
           </div>
 
-          <div className="progress-bar-bg" style={{ height: '6px', margin: 0, background: 'rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
-            <div className="progress-bar-fill" style={{ width: `${progress}%`, background: 'linear-gradient(90deg, var(--secondary), var(--primary))', boxShadow: '0 0 10px var(--primary)', transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}></div>
+          <div className="progress-bar-bg" style={{ height: '5px', margin: 0, background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+            <div className="progress-bar-fill" style={{ width: `${progress}%`, background: 'var(--primary)', transition: 'width 0.3s ease' }}></div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.5rem' }}>
             {PIPELINE_STEPS.map((step, idx) => {
               const stepStatus = getStepStatus(step, idx);
               const isActive = stepStatus === 'active';
@@ -60,14 +64,13 @@ const AnalysisTerminal = ({ status, progress, file, telemetry, logs }) => {
               
               return (
                 <div key={idx} style={{ 
-                  display: 'flex', alignItems: 'center', gap: '1rem', 
-                  opacity: isDone ? 0.6 : isActive ? 1 : 0.3,
-                  transform: isActive ? 'scale(1.02) translateX(5px)' : 'scale(1) translateX(0)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  background: isActive ? 'rgba(34, 211, 238, 0.08)' : 'transparent',
-                  padding: isActive ? '0.75rem 1rem' : '0.4rem 1rem',
-                  borderRadius: '8px',
-                  border: isActive ? '1px solid rgba(34, 211, 238, 0.2)' : '1px solid transparent'
+                  display: 'flex', alignItems: 'center', gap: '0.75rem', 
+                  opacity: isDone ? 0.6 : isActive ? 1 : 0.35,
+                  transition: 'all var(--transition-fast)',
+                  background: isActive ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                  padding: isActive ? '0.6rem 0.85rem' : '0.35rem 0.85rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: isActive ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid transparent'
                 }}>
                   <div style={{ color: isDone ? 'var(--success)' : isActive ? 'var(--primary)' : 'var(--text-muted)' }}>
                     {isDone ? <CheckCircle2 size={18} /> : isActive ? <Loader2 size={18} className="lucide-spin" /> : <Circle size={18} />}

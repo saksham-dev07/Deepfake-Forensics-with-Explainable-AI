@@ -1,22 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 
 export const useHistory = () => {
-  const [history, setHistory] = useState([]);
-
-  // Load history from localStorage on mount
-  useEffect(() => {
+  const [history, setHistory] = useState(() => {
     const saved = localStorage.getItem('df_history');
     if (saved) {
       try {
-        setHistory(JSON.parse(saved));
+        return JSON.parse(saved);
       } catch (e) {
         console.error("Failed to parse history", e);
       }
     }
-  }, []);
+    return [];
+  });
 
   // Save a new job to history
-  const saveToHistory = (jobId, result, fileName) => {
+  const saveToHistory = useCallback((jobId, result, fileName) => {
     setHistory(prev => {
       // Check if it already exists
       if (prev.some(item => item.jobId === jobId)) return prev;
@@ -33,7 +31,7 @@ export const useHistory = () => {
       localStorage.setItem('df_history', JSON.stringify(newHistory));
       return newHistory;
     });
-  };
+  }, []);
 
   // Clear history
   const clearHistory = () => {

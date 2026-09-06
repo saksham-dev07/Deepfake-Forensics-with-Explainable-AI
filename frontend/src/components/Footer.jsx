@@ -14,7 +14,7 @@ const Footer = () => {
               <span className="footer-brand-text">Deep<span>Forensics</span></span>
             </div>
             <p className="footer-desc">
-              Court-grade multimedia forensic analysis powered by EfficientNet-B4, GradCAM spatial grounding, SHAP feature attribution, and SyncNet temporal validation.
+              Court-grade multimodal forensic analysis powered by 15 sensory dimensions, EfficientNet-B4 + CBAM, dual-resolution Grad-CAM, SHAP attribution, and an 8-layer Tabular ResNet meta-classifier.
             </p>
           </div>
 
@@ -22,10 +22,11 @@ const Footer = () => {
           <div className="footer-col">
             <h4 className="footer-col-title">Technology</h4>
             <ul className="footer-links" style={{ color: 'var(--text-muted)' }}>
-              <li>EfficientNet-B4</li>
-              <li>GradCAM Analysis</li>
-              <li>SHAP Integration</li>
-              <li>SyncNet Models</li>
+              <li>EfficientNet-B4 + CBAM</li>
+              <li>Dual Grad-CAM &amp; Guided HDR</li>
+              <li>Tabular ResNet &amp; SHAP</li>
+              <li>15-Sensor Multimodal Pool</li>
+              <li>SyncNet &amp; Voice 2D-CNN</li>
             </ul>
           </div>
 
@@ -53,7 +54,7 @@ const Footer = () => {
 
         <div className="footer-bottom">
           <p className="copyright">
-            &copy; {new Date().getFullYear()} DeepForensics Platform. Version 1.2.0. All rights reserved.
+            &copy; {new Date().getFullYear()} DeepForensics Platform. Version 2.4.0. All rights reserved.
           </p>
         </div>
       </div>

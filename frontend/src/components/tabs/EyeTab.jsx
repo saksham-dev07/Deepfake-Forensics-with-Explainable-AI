@@ -5,7 +5,7 @@ import ScoreRing from '../ui/ScoreRing';
 import MetricCard from '../ui/MetricCard';
 import TestExplanation from '../ui/TestExplanation';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+import { API_BASE } from '../../constants/api';
 
 const EyeTab = ({
   result,
@@ -59,13 +59,13 @@ const EyeTab = ({
                 <div className="metric-grid">
                   <MetricCard 
                     label="Blink Rate" 
-                    value={`${result.eye_analysis.blink_rate_per_min} BPM`} 
+                    value={`${result.eye_analysis.blink_rate_per_min ?? 0} BPM`} 
                     subValue="Blinks per minute" 
-                    type={result.eye_analysis.blink_rate_per_min < 5 || result.eye_analysis.blink_rate_per_min > 50 ? 'warning' : 'neutral'} 
+                    type={(result.eye_analysis.blink_rate_per_min < 5 || result.eye_analysis.blink_rate_per_min > 50) ? 'warning' : 'neutral'} 
                   />
                   <MetricCard 
                     label="Gaze Asymmetry" 
-                    value={result.eye_analysis.gaze_asymmetry.toFixed(3)} 
+                    value={result.eye_analysis.gaze_asymmetry !== undefined ? result.eye_analysis.gaze_asymmetry.toFixed(3) : '0.000'} 
                     subValue="Left vs Right Eye Gaze" 
                     type={getSyncColor(result.eye_analysis.eye_anomaly_score)} 
                   />

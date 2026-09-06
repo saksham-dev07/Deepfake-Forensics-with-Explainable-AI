@@ -9,7 +9,7 @@ import AnalysisTerminal from './components/AnalysisTerminal';
 import Toast from './components/Toast';
 import { useAnalysisPipeline } from './hooks/useAnalysisPipeline';
 import { 
-  Shield, Zap, ScanSearch, Info, Database, GitBranch, History, ChevronRight
+  Shield, ScanSearch, Info, Database, GitBranch, History
 } from 'lucide-react';
 import { useHistory } from './hooks/useHistory';
 import Footer from './components/Footer';
@@ -27,10 +27,7 @@ function App() {
     error,
     setError,
     handleFileUpload,
-    resetApp,
-    setJobId,
-    setResult,
-    setStatus
+    resetApp
   } = useAnalysisPipeline();
 
   const { history, saveToHistory, clearHistory } = useHistory();
@@ -41,15 +38,7 @@ function App() {
     if (status === 'complete' && result && jobId) {
       saveToHistory(jobId, result, file?.name);
     }
-  }, [status, result, jobId]);
-
-  const loadHistoryItem = (item) => {
-    // Fake reloading the state to view a past report
-    setJobId(item.jobId);
-    // Note: To fully reload, we either need the full result object saved in history (which is huge),
-    // or we fetch it from the backend using the jobId.
-    // For now, let's just use it to show past jobs. If they want to reload, they can click it.
-  };
+  }, [status, result, jobId, file?.name, saveToHistory]);
 
   return (
     <>
@@ -65,8 +54,22 @@ function App() {
       <nav className="navbar">
         <div className="navbar-inner">
           <a className="navbar-brand" href="#" onClick={(e) => { e.preventDefault(); resetApp(); }}>
-            <div className="navbar-logo"><Shield size={24} color="var(--primary)" /></div>
-            <div className="navbar-title">Deep<span>Forensics</span></div>
+            <div className="navbar-logo"><Shield size={20} color="var(--primary)" /></div>
+            <div className="navbar-title">
+              Deep<span>Forensics</span>
+              <span style={{
+                fontSize: '0.65rem',
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+                border: '1px solid var(--glass-border)',
+                padding: '0.1rem 0.4rem',
+                borderRadius: '3px',
+                marginLeft: '0.5rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                verticalAlign: 'middle'
+              }}>Suite</span>
+            </div>
           </a>
 
           <div className="navbar-links">
@@ -75,31 +78,44 @@ function App() {
               onClick={() => { setActiveNav('analyze'); if (status === 'complete') resetApp(); }}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              <ScanSearch size={18} /> Analyze
+              <ScanSearch size={16} /> Analyze
             </button>
             <button
               className={`nav-link ${activeNav === 'about' ? 'active' : ''}`}
               onClick={() => setActiveNav('about')}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              <Info size={18} /> How It Works
+              <Info size={16} /> Methodology
             </button>
             <button
               className={`nav-link ${activeNav === 'models' ? 'active' : ''}`}
               onClick={() => setActiveNav('models')}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              <Database size={18} /> Models & Research
+              <Database size={16} /> Model Weights
             </button>
             <button
               className={`nav-link ${activeNav === 'history' ? 'active' : ''}`}
               onClick={() => setActiveNav('history')}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              <History size={18} /> History
+              <History size={16} /> History
             </button>
-            <div className="nav-badge" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginRight: '1.5rem' }}>
-              <Zap size={14} /> AI Powered
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              fontSize: '0.75rem',
+              fontWeight: 500,
+              color: 'var(--text-secondary)',
+              background: 'rgba(16, 185, 129, 0.08)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              padding: '0.25rem 0.6rem',
+              borderRadius: 'var(--radius-sm)',
+              marginRight: '0.75rem'
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }}></span>
+              Core Online
             </div>
             <div style={{ height: '24px', width: '1px', background: 'var(--glass-border)', margin: '0 0.5rem' }}></div>
             <a href="https://github.com/saksham-dev07/Deepfake-Forensics-with-Explainable-AI" target="_blank" rel="noopener noreferrer" className="nav-link" title="Source Code Repository" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.5rem' }}>

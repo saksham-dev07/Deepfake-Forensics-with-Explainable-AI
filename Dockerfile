@@ -1,6 +1,23 @@
+# ========================================================
+# Stage 1: Build Interactive Web Console (React 18 + Vite)
+# ========================================================
+FROM node:18-alpine AS frontend-builder
+WORKDIR /app/frontend
+
+COPY frontend/package*.json ./
+RUN npm install
+
+COPY frontend/ ./
+# Empty VITE_API_URL ensures requests are relative to current origin on Hugging Face
+ENV VITE_API_URL=""
+RUN npm run build
+
+# ========================================================
+# Stage 2: Deep Learning Inference Runtime (Python 3.10)
+# ========================================================
 FROM python:3.10-slim
 
-# Install system dependencies needed for OpenCV, Librosa, and PyTorch
+# Install system libraries for OpenCV, Librosa audio processing, and container forensics
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsm6 \
@@ -11,19 +28,21 @@ RUN apt-get update && apt-get install -y \
     libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up Hugging Face required non-root user
+# Hugging Face Spaces requires a non-root user with UID 1000
 RUN useradd -m -u 1000 user
 USER user
 
-# Set environment variables
+# Configure environment variables for optimal container performance
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
     PYTHONUNBUFFERED=1 \
-    HF_HOME=/tmp/.cache/huggingface
+    HF_HOME=/tmp/.cache/huggingface \
+    OMP_NUM_THREADS=4 \
+    MKL_NUM_THREADS=4
 
 WORKDIR $HOME/app/backend
 
-# Install CPU-only PyTorch FIRST to save space
+# Pre-install CPU-optimized PyTorch wheels to maximize container speed and save disk space
 RUN pip install --no-cache-dir \
     torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
@@ -33,14 +52,17 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python 2>/dev/null || true; \
     pip install --no-cache-dir opencv-contrib-python-headless
 
-# Copy the backend source code
+# Copy backend application source code
 COPY --chown=user:user backend/ .
 
-# Create dynamic directories
-RUN mkdir -p uploads reports weights
+# Copy compiled frontend distribution from Stage 1 into backend static directory
+COPY --chown=user:user --from=frontend-builder /app/frontend/dist ./static
 
-# Expose port 7860 for Hugging Face
+# Create required mutable directories
+RUN mkdir -p uploads reports weights temp
+
+# Expose standard Hugging Face Spaces port
 EXPOSE 7860
 
-# Start FastAPI via Uvicorn
+# Launch Uvicorn ASGI server
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]

@@ -4,7 +4,7 @@ import { Activity, AlertTriangle, ZoomIn } from 'lucide-react';
 import MetricCard from '../ui/MetricCard';
 import TestExplanation from '../ui/TestExplanation';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+import { API_BASE } from '../../constants/api';
 
 const RppgTab = ({
   result,
@@ -49,8 +49,8 @@ const RppgTab = ({
               />
               <MetricCard 
                 label="Signal-to-Noise Ratio (SNR)" 
-                value={result.rppg_analysis.snr} 
-                subValue="Peak Prominence" 
+                value={typeof result.rppg_analysis.snr === 'number' ? result.rppg_analysis.snr.toFixed(2) : (result.rppg_analysis.snr || 'N/A')} 
+                subValue="Fourier Peak Prominence" 
                 type={result.rppg_analysis.snr > 1.5 ? 'success' : 'warning'} 
               />
             </div>

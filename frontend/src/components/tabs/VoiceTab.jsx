@@ -5,7 +5,7 @@ import ScoreRing from '../ui/ScoreRing';
 import MetricCard from '../ui/MetricCard';
 import TestExplanation from '../ui/TestExplanation';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+import { API_BASE } from '../../constants/api';
 
 const VoiceTab = ({
   result,
@@ -37,7 +37,7 @@ const VoiceTab = ({
                 />
                   <div className="zoom-overlay"><ZoomIn size={32} /></div>
                 </div>
-                <div className="image-caption" style={{ marginTop: '0.5rem' }}>Dual-Panel Audio Waveform & Spectral Power Density</div>
+                <div className="image-caption" style={{ marginTop: '0.5rem' }}>Dual-Panel Raw Audio Waveform & Mel-Frequency Spectrogram (Magma dB)</div>
               </div>
             )}
 
@@ -59,15 +59,21 @@ const VoiceTab = ({
                 <div className="metric-grid">
                   <MetricCard 
                     label="ZCR Variance" 
-                    value={result.voice_analysis.zcr_variance.toFixed(5)} 
+                    value={result.voice_analysis.zcr_variance !== undefined ? result.voice_analysis.zcr_variance.toFixed(5) : '0.00000'} 
                     subValue="Zero-Crossing Rate" 
                     type={getSyncColor(result.voice_analysis.voice_anomaly_score)} 
                   />
                   <MetricCard 
                     label="High-Freq Ratio" 
-                    value={result.voice_analysis.high_freq_ratio.toFixed(4)} 
+                    value={result.voice_analysis.high_freq_ratio !== undefined ? result.voice_analysis.high_freq_ratio.toFixed(4) : '0.0000'} 
                     subValue="Synthesized Pitch Shift" 
                     type={getSyncColor(result.voice_analysis.voice_anomaly_score)} 
+                  />
+                  <MetricCard 
+                    label="85% Spectral Rolloff" 
+                    value={result.voice_analysis.spectral_rolloff_mean ? `${result.voice_analysis.spectral_rolloff_mean.toFixed(0)} Hz` : 'N/A'} 
+                    subValue="High-Frequency Energy Ceiling" 
+                    type={result.voice_analysis.spectral_rolloff_mean && result.voice_analysis.spectral_rolloff_mean < 3000 ? 'warning' : 'neutral'} 
                   />
                   {result.voice_analysis.warnings && result.voice_analysis.warnings.length > 0 && (
                     <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>

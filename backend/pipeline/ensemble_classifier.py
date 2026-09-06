@@ -178,11 +178,13 @@ class DeepfakeMetaClassifier(nn.Module):
 
         return np.array(X), np.array(y)
 
-    def train_model(self, epochs=50, batch_size=64, save_path="weights/ensemble_mlp.pth"):
+    def train_model(self, epochs=50, batch_size=64, save_path=None):
         """
         Train the Meta-Classifier on the procedurally generated dataset.
         Trains both the PyTorch Tabular ResNet and XGBoost models.
         """
+        if save_path is None:
+            save_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "ensemble_mlp.pth")
         print("Generating synthetic meta-dataset for training...")
         X, y = self.generate_synthetic_dataset(num_samples=10000)
         
@@ -229,7 +231,10 @@ class DeepfakeMetaClassifier(nn.Module):
         self.is_trained = True
         print(f"Meta-Classifier training complete. Weights saved to {save_path}")
 
-    def load_model(self, model_path="weights/ensemble_mlp.pth"):
+    def load_model(self, model_path=None):
+        if model_path is None:
+            model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "ensemble_mlp.pth")
+            
         # Attempt to load XGBoost first if available
         if self.use_xgboost:
             xgb_save_path = model_path.replace(".pth", "_xgb.json")

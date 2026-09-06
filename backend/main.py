@@ -1,5 +1,4 @@
 import sys
-print("DEBUG: main.py is being executed!", flush=True)
 
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,7 +33,6 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
 async def get_api_key(api_key_header: str = Security(api_key_header)):
     if api_key_header == API_KEY:
         return api_key_header
-    print(f"DEBUG: Received API Key '{api_key_header}', expected '{API_KEY}'")
     raise HTTPException(status_code=401, detail="Invalid API Key")
 
 # Allow CORS for specific origins
@@ -47,11 +45,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/api/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "service": "deepfake-forensics",
+        "version": "2.0.0"
+    }
+
 @app.get("/")
 async def root():
+    index_file = os.path.join("static", "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
     return {
         "status": "online",
-        "message": "DeepForensics API is running. Please use the Vercel frontend to interact with this service."
+        "message": "DeepForensics API is running. Please use the web console to interact with this service."
     }
 
 UPLOAD_DIR = "uploads"
@@ -61,6 +70,10 @@ os.makedirs(REPORT_DIR, exist_ok=True)
 
 # Mount the uploads directory to serve images to the frontend
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Mount built static assets if available (e.g. Hugging Face Spaces multi-stage container)
+if os.path.isdir("static/assets"):
+    app.mount("/assets", StaticFiles(directory="static/assets"), name="static_assets")
 
 # In-memory storage for analysis status
 analysis_jobs = {}
@@ -671,11 +684,54 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             print(f"XAI Intervention: Boosting Fake Probability due to critical sensor failure (max {max(critical_scores):.2f})")
             fake_prob = max(fake_prob, max(critical_scores))
         
-        # Determine verdict based on meta-classifier output
+        # Determine AI-Altered / Retouched status
+        # Condition: Overall deepfake probability is low (not a full face-swap or synthetic face),
+        # but localized physical/geometric sensors detect AI inpainting, generative retouching, or contour warping.
+        is_ai_altered = False
+        alteration_type = None
+        alteration_details = None
+
+        if fake_prob <= 0.45:
+            alteration_indicators = []
+            if geometry_anomaly >= 0.45:
+                alteration_indicators.append("Facial Geometry Reshaping")
+            if ela_score >= 0.35:
+                alteration_indicators.append("Error Level Inconsistency (Local Inpainting)")
+            if spectral_score >= 0.28:
+                alteration_indicators.append("High-Frequency Texture Smoothing")
+            if cfa_score >= 0.28:
+                alteration_indicators.append("Color Filter Array Disruption")
+            if metadata_score >= 0.35:
+                alteration_indicators.append("Software Re-encoding Traces")
+            if lighting_score >= 0.35:
+                alteration_indicators.append("Non-Physical Illumination Adjustment")
+
+            # High-confidence indicators for AI beauty/retouching (Gemini, Photoshop Generative Fill, Facetune)
+            has_strong_cue = (
+                geometry_anomaly >= 0.50 or
+                ela_score >= 0.38 or
+                (geometry_anomaly >= 0.40 and (spectral_score >= 0.25 or metadata_score >= 0.30 or cfa_score >= 0.28))
+            )
+
+            if has_strong_cue or len(alteration_indicators) >= 2:
+                is_ai_altered = True
+                if geometry_anomaly >= 0.50:
+                    alteration_type = "AI Facial Enhancement & Retouching (e.g., Gemini / Inpainting)"
+                    alteration_details = f"Underlying identity is authentic, but localized AI retouching detected ({', '.join(alteration_indicators)}). Facial geometry and textures show generative post-processing."
+                elif lighting_score >= 0.35:
+                    alteration_type = "AI Lighting & Illumination Adjustment"
+                    alteration_details = f"Underlying identity is authentic, but AI relighting or color grading was applied ({', '.join(alteration_indicators)})."
+                else:
+                    alteration_type = "Localized AI Inpainting / Generative Filtering"
+                    alteration_details = f"Authentic subject confirmed, but digital image processing traces detected ({', '.join(alteration_indicators)})."
+
+        # Determine verdict based on meta-classifier output & AI alteration
         if fake_prob > 0.70:
             verdict = "High Confidence Deepfake"
         elif fake_prob > 0.55:
             verdict = "Suspected Manipulation"
+        elif is_ai_altered:
+            verdict = "AI-Altered / Retouched"
         elif fake_prob > 0.40:
             verdict = "Inconclusive - Manual Review Recommended"
         else:
@@ -683,7 +739,7 @@ def run_analysis_pipeline(job_id: str, file_path: str):
 
         ensemble_score = float(np.clip(fake_prob, 0.0, 1.0))
         
-        print(f"Meta-Classifier Final Fake Probability: {ensemble_score:.4f}")
+        print(f"Meta-Classifier Final Fake Probability: {ensemble_score:.4f} | AI Altered: {is_ai_altered}")
 
         # Frame-level statistics
         frame_scores_std = float(np.std(all_frame_scores)) if len(all_frame_scores) > 1 else 0.0
@@ -701,6 +757,9 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             # Core verdict
             "overall_score": ensemble_score,
             "verdict": verdict,
+            "is_ai_altered": is_ai_altered,
+            "alteration_type": alteration_type,
+            "alteration_details": alteration_details,
             "frames_analyzed": len(frame_files),
             
             # Individual detector scores
@@ -888,4 +947,19 @@ def generate_shap_features(classifier_features, has_audio):
         import traceback
         traceback.print_exc()
         return [f"SHAP Explainer Error: {str(e)}"]
+
+# Single Page Application (SPA) client-side fallback for static web console
+if os.path.isdir("static"):
+    @app.get("/{full_path:path}")
+    async def serve_spa_route(full_path: str):
+        if any(full_path.startswith(prefix) for prefix in ["api", "uploads", "reports", "docs", "openapi.json", "redoc"]):
+            raise HTTPException(status_code=404, detail="Endpoint not found")
+        file_path = os.path.join("static", full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        index_file = os.path.join("static", "index.html")
+        if os.path.exists(index_file):
+            return FileResponse(index_file)
+        raise HTTPException(status_code=404, detail="Resource not found")
+
 

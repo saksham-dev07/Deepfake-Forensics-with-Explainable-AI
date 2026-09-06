@@ -1,0 +1,23 @@
+{
+    "Total_Videos": 518,
+    "Real_Count": 178,
+    "Fake_Count": 340,
+    "Accuracy": 0.9980694980694981,
+    "Precision": 0.9970674486803519,
+    "Recall_TPR": 1.0,
+    "Specificity_TNR": 0.9943820224719101,
+    "F1_Score": 0.9985315712187959,
+    "ROC_AUC": 1.0,
+    "Average_Precision": 0.9999999999999999,
+    "Equal_Error_Rate": 0.0,
+    "EER_Threshold": 0.7057461908885411,
+    "Brier_Score": 0.015701958864523975,
+    "FPR_at_95_TPR": 0.0,
+    "FPR_at_99_TPR": 0.0,
+    "Confusion_Matrix": {
+        "TN": 177,
+        "FP": 1,
+        "FN": 0,
+        "TP": 340
+    }
+}

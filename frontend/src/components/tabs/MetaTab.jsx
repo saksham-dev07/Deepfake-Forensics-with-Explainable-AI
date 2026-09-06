@@ -4,7 +4,7 @@ import { FileText, ShieldAlert } from 'lucide-react';
 import MetricCard from '../ui/MetricCard';
 import TestDefinition from '../ui/TestDefinition';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+import { API_BASE } from '../../constants/api';
 
 const MetaTab = ({
   result,
@@ -43,6 +43,7 @@ const MetaTab = ({
               <MetricCard label="File Name" value={fileName || 'N/A'} type="primary" />
               <MetricCard label="Job ID" value={jobId} subValue="Unique Analysis ID" />
               <MetricCard label="Analysis Date" value={new Date().toLocaleString()} />
+              <MetricCard label="Metadata Anomaly" value={result.metadata_score !== undefined ? `${(result.metadata_score * 100).toFixed(1)}%` : '0.0%'} subValue="EXIF & Stream Integrity" type={result.metadata_score > 0.5 ? 'danger' : 'neutral'} />
               {result.file_metadata && (
                 <>
                   <MetricCard label="File Size" value={`${(result.file_metadata.file_size_bytes / (1024*1024)).toFixed(2)} MB`} />
@@ -76,11 +77,12 @@ const MetaTab = ({
               Model Configuration
             </h4>
             <div className="metric-grid">
-              <MetricCard label="Model Engine" value="EfficientNet-B4" subValue="Contrastive SBI" />
-              <MetricCard label="Feature Dimension" value="1792-d" subValue="Vector Space" />
-              <MetricCard label="Input Resolution" value="380 × 380" subValue="Cropped Face" />
-              <MetricCard label="XAI Interventions" value="GradCAM, SHAP" />
-              <MetricCard label="Frames Analyzed" value={result.frames_analyzed || 'N/A'} />
+              <MetricCard label="Visual Backbone" value="EfficientNet-B4 + CBAM" subValue="Dual Spatial/Channel Attention" />
+              <MetricCard label="Meta Classifier" value="8-Layer Tabular ResNet" subValue="4-Head Self-Attention" />
+              <MetricCard label="Feature Dimension" value="15-D Multimodal" subValue="Parallel Sensor Vector" />
+              <MetricCard label="Input Resolution" value="380 × 380 px" subValue="Normalized Face Crops" />
+              <MetricCard label="XAI Attribution" value="Dual Grad-CAM + SHAP" subValue="Coarse & Guided HDR Inferno" />
+              <MetricCard label="Frames Analyzed" value={result.frames_analyzed || 'N/A'} subValue="Keyframe Sampling" />
             </div>
           </div>
         </div>

@@ -1,29 +1,80 @@
-# Environment and Virtual Environments
+# ==========================================
+# Environments and Python Virtual Envs
+# ==========================================
 venv/
+.venv/
 env/
 .env
-__pycache__/
-*.pyc
+.env.local
+.env.*.local
 
-# IDEs and Editors
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ==========================================
+# Node / Frontend Caches & Artifacts
+# ==========================================
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+.npm
+.eslintcache
+
+# ==========================================
+# Media Ingestion, Output & Forensic Reports
+# ==========================================
+uploads/
+reports/
+backend/uploads/
+backend/reports/
+backend/test_out/
+backend/temp/
+*.pdf
+*.mp4
+*.avi
+*.mov
+*.wav
+*.mp3
+*.log
+
+# ==========================================
+# IDEs, Operating Systems & Local Metadata
+# ==========================================
 .vscode/
 .idea/
 *.swp
-
-# OS Files
+*.swo
+*~
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
-# Frontend
-frontend/node_modules/
-frontend/dist/
-
-# Backend Output Caches
-backend/uploads/
-backend/test_out/
-backend/reports/
-
-*.log
-
-# Vite Cache
-frontend/.vite/
+# Ignore IDE specific agent configurations
+.gemini/

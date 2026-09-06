@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { API_BASE, API_KEY } from '../constants/api';
 
 export const useAnalysisPipeline = () => {
   const [file, setFile] = useState(null);
@@ -18,8 +19,6 @@ export const useAnalysisPipeline = () => {
     const formData = new FormData();
     formData.append('file', selectedFile);
 
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-    const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
     try {
       const response = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
@@ -52,9 +51,6 @@ export const useAnalysisPipeline = () => {
   };
 
   const pollStatus = async (currentJobId) => {
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-    const API_KEY = import.meta.env.VITE_API_KEY || 'deepforensics-dev-key';
-    
     // Watchdog Timer to detect silent backend drops
     let watchdogTimeout;
     const controller = new AbortController();
@@ -62,8 +58,8 @@ export const useAnalysisPipeline = () => {
     const resetWatchdog = () => {
       clearTimeout(watchdogTimeout);
       watchdogTimeout = setTimeout(() => {
-        controller.abort('Backend connection timed out (no data received for 15 seconds).');
-      }, 15000);
+        controller.abort('Backend connection timed out (no data received for 45 seconds).');
+      }, 45000);
     };
 
     try {

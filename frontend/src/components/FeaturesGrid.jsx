@@ -1,143 +1,172 @@
 import React from 'react';
 import { 
   BrainCircuit, ScanSearch, Activity, Camera, Focus, Volume2, 
-  Lightbulb, FileText 
+  Lightbulb, FileText, HeartPulse, Eye
 } from 'lucide-react';
 
 const FeaturesGrid = () => {
   return (
     <>
-
-      <section className="how-it-works">
-        <div className="section-title outfit-font" style={{ fontWeight: 800 }}>How It Works</div>
+      <section className="how-it-works" style={{ marginTop: '2rem' }}>
+        <div className="section-title" style={{ fontWeight: 700, fontSize: '1.5rem', marginBottom: '1.5rem', color: 'var(--text-main)' }}>
+          Forensic Verification Workflow
+        </div>
         <div className="steps-grid">
           <div className="glass-panel step-card step-1">
             <div className="step-number mono-font">01</div>
-            <div className="step-title outfit-font">Upload Media</div>
-            <div className="step-desc">Upload any video or image file for analysis. Supports all major media formats.</div>
+            <div className="step-title" style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '0.5rem' }}>Stream Ingestion &amp; IQA</div>
+            <div className="step-desc">Extract raw video keyframes via PySceneDetect, uncompressed 16 kHz PCM audio, and crop faces using MediaPipe 3D Mesh with KCF tracking.</div>
           </div>
           <div className="glass-panel step-card step-2">
             <div className="step-number mono-font">02</div>
-            <div className="step-title outfit-font">Multi-Modal AI Engine</div>
-            <div className="step-desc">15 distinct AI sensors extract visual, temporal, and biological anomalies. The PyTorch Meta-Classifier computes the final verdict.</div>
+            <div className="step-title" style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '0.5rem' }}>15-Sensor Parallel Audit</div>
+            <div className="step-desc">A 4-worker concurrent pool evaluates 2D FFT/DCT spectra, PRNU sensor noise, CFA demosaicing, corneal highlights, and rPPG blood flow.</div>
           </div>
           <div className="glass-panel step-card step-3">
             <div className="step-number mono-font">03</div>
-            <div className="step-title outfit-font">XAI Explanations</div>
-            <div className="step-desc">GradCAM heatmaps and SHAP features explain exactly why the AI flagged manipulation.</div>
+            <div className="step-title" style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '0.5rem' }}>Dual-Layer XAI Grounding</div>
+            <div className="step-desc">Coarse Grad-CAM overlays and HDR-stretched Guided Grad-CAM expose microscopic warping seams and blending boundaries.</div>
           </div>
           <div className="glass-panel step-card step-4">
             <div className="step-number mono-font">04</div>
-            <div className="step-title outfit-font">Forensic Report</div>
-            <div className="step-desc">Download a comprehensive PDF report with visual evidence suitable for court proceedings.</div>
+            <div className="step-title" style={{ fontWeight: 600, color: 'var(--text-main)', marginTop: '0.5rem' }}>Tabular ResNet Verdict</div>
+            <div className="step-desc">A self-attention Meta-Classifier with rule-based biological overrides fuses all dimensions into a certified, court-ready PDF dossier.</div>
           </div>
         </div>
       </section>
 
-      <section className="detailed-features" style={{ marginTop: '5rem', marginBottom: '4rem' }}>
-        <div className="section-title outfit-font" style={{ marginBottom: '3rem', textAlign: 'center', fontWeight: 800 }}>How We Detect Deepfakes</div>
+      <section className="detailed-features" style={{ marginTop: '4rem', marginBottom: '3rem' }}>
+        <div className="section-title" style={{ marginBottom: '2rem', textAlign: 'center', fontWeight: 700, fontSize: '1.5rem', color: 'var(--text-main)' }}>
+          Forensic Detection Modules (15 Sensory Dimensions)
+        </div>
         
         <div className="features-grid">
           {/* Feature 1 */}
-          <div className="glass-panel feature-card-modern" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(56, 189, 248, 0.1)', color: 'var(--primary)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-              <Activity size={24} />
+          <div className="glass-panel feature-card-modern" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
+            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.08)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <Activity size={22} />
             </div>
-            <h3 className="outfit-font" style={{ color: 'var(--primary)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Spectral & Frequency Analysis</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              Real cameras capture high frequencies naturally. AI generators produce mathematically "smooth" pixels. We use <strong>FFT</strong> and <strong>DCT</strong> to detect this unnatural lack of high-frequency energy.
+            <h3 style={{ color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Spectral &amp; Frequency Analysis</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              Real camera sensors capture high-frequency energy naturally. Evaluates <strong>2D FFT &amp; 2D Block DCT</strong> ($8\times 8$) with Hou &amp; Zhang spectral residual saliency and steep arctan switching noise filters ($h_x$) to detect high-frequency GAN spectral voids.
             </p>
-            <ul style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingLeft: '1.2rem', paddingTop: '1.5rem' }}>
-              <li>Switching Noise (SWN) Filters</li>
-              <li>8x8 Block DCT Disruption</li>
-              <li>Phase Spectrum Anomalies</li>
+            <ul style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingLeft: '1.1rem', paddingTop: '1.25rem' }}>
+              <li>Hou &amp; Zhang Spectral Residuals</li>
+              <li>Vectorized 8x8 Block DCT Masks</li>
+              <li>Radial Frequency Rolloff Metric</li>
             </ul>
           </div>
 
           {/* Feature 2 */}
-          <div className="glass-panel feature-card-modern" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(192, 132, 252, 0.1)', color: 'var(--accent)', border: '1px solid rgba(192, 132, 252, 0.2)' }}>
-              <ScanSearch size={24} />
+          <div className="glass-panel feature-card-modern" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
+            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.08)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <Camera size={22} />
             </div>
-            <h3 className="outfit-font" style={{ color: 'var(--accent)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Hardware Noise & ELA</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              Images have a baked-in Bayer filter pattern (CFA) and uniform JPEG compression. We analyze <strong>Error Level Analysis (ELA)</strong> and missing <strong>CFA Artifacts</strong> to expose splicing.
+            <h3 style={{ color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Sensor Noise (PRNU) &amp; ELA</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              Physical CMOS sensors leave Photo-Response Non-Uniformity (PRNU). Extracts sensor noise via <strong>Non-Local Means (NLM)</strong> patch denoising and 2nd-order <strong>Spatial Rich Models (SRM)</strong>, alongside <strong>Error Level Analysis (ELA)</strong> at Q=95.
             </p>
-            <ul style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingLeft: '1.2rem', paddingTop: '1.5rem' }}>
-              <li>Error Level Analysis (ELA)</li>
-              <li>Color Filter Array (CFA) Democaising</li>
+            <ul style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingLeft: '1.1rem', paddingTop: '1.25rem' }}>
+              <li>Lukas PRNU Noise Formulation</li>
+              <li>Non-Local Means Denoising Residuals</li>
+              <li>JPEG Q=95 Error Level Analysis</li>
             </ul>
           </div>
 
           {/* Feature 3 */}
-          <div className="glass-panel feature-card-modern" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-              <Focus size={24} />
+          <div className="glass-panel feature-card-modern" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
+            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.08)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <ScanSearch size={22} />
             </div>
-            <h3 className="outfit-font" style={{ color: 'var(--warning)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Face Geometry & Temporal Jitter</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              We track 468 facial landmarks across every frame to measure micro-jitters, unnatural head pose variations, and blinking anomalies that human eyes cannot detect.
+            <h3 style={{ color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>CFA Demosaicing &amp; Corneal Optics</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              Real digital images display a physical Bayer color filter array (CFA) grid. Applies a $3\times 3$ high-pass residual filter to isolate demosaicing grids, while evaluating corneal specular reflections in LAB color space via Normalized Cross-Correlation (NCC).
             </p>
-            <ul style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingLeft: '1.2rem', paddingTop: '1.5rem' }}>
-              <li>Landmark Jitter Detection</li>
-              <li>Farneback Dense Optical Flow</li>
-              <li>Eye Aspect Ratio (EAR) Blink Tracking</li>
+            <ul style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingLeft: '1.1rem', paddingTop: '1.25rem' }}>
+              <li>3x3 Bayer Residual Filter Matrix</li>
+              <li>Ocular Highlight Convex Hull Containment</li>
+              <li>Bilateral Corneal Reflection NCC</li>
             </ul>
           </div>
 
           {/* Feature 4 */}
-          <div className="glass-panel feature-card-modern" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(129, 140, 248, 0.1)', color: 'var(--secondary)', border: '1px solid rgba(129, 140, 248, 0.2)' }}>
-              <Volume2 size={24} />
+          <div className="glass-panel feature-card-modern" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
+            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.08)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <Focus size={22} />
             </div>
-            <h3 className="outfit-font" style={{ color: 'var(--secondary)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Audio CNN & SyncNet</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              We process audio through a lightweight <strong>PyTorch 2D-CNN</strong> to calculate voice spoofing probability, while measuring lip-sync desynchronization using a dual-stream <strong>SyncNet</strong>.
+            <h3 style={{ color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Face Geometry &amp; Optical Flow</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              Extracts 468 3D facial landmarks with MediaPipe, solving for 3D head pose Euler angles via PnP, while measuring boundary gradient Sobel energy mismatch and temporal jitter via <strong>DIS Optical Flow</strong> (Variance of Variances Var(&sigma;<sub>t</sub><sup>2</sup>)).
             </p>
+            <ul style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingLeft: '1.1rem', paddingTop: '1.25rem' }}>
+              <li>PnP Head Pose Estimation (Yaw/Pitch/Roll)</li>
+              <li>Dense Inverse Search (DIS) Optical Flow</li>
+              <li>Boundary Gradient Sobel Mismatch</li>
+            </ul>
           </div>
 
           {/* Feature 5 */}
-          <div className="glass-panel feature-card-modern" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-              <BrainCircuit size={24} />
+          <div className="glass-panel feature-card-modern" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
+            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.08)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <HeartPulse size={22} />
             </div>
-            <h3 className="outfit-font" style={{ color: 'var(--success)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Biological Signals (rPPG)</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              Real humans have a micro-pulse that changes facial skin tone slightly with every heartbeat. AI struggles to synthesize this coherent <strong>remote Photoplethysmography (rPPG)</strong> signal.
+            <h3 style={{ color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Cardiovascular rPPG Hemodynamics</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              Measures subcutaneous arterial blood volume pulse (BVP) micro-blushes in facial capillary beds. Uses 3-polygon anatomical masking (cheeks &amp; forehead), a 3rd-order zero-phase Butterworth filter (0.7-2.5 Hz), and CHROM orthogonal projection to compute spectral SNR.
             </p>
+            <ul style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingLeft: '1.1rem', paddingTop: '1.25rem' }}>
+              <li>De Haan &amp; Jeanne (2013) CHROM Projection</li>
+              <li>Zero-Phase Butterworth Passband (42-150 BPM)</li>
+              <li>Fast Fourier Peak-to-Noise Ratio (SNR)</li>
+            </ul>
           </div>
 
           {/* Feature 6 */}
-          <div className="glass-panel feature-card-modern" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', border: '1px solid rgba(236, 72, 153, 0.2)' }}>
-              <Lightbulb size={24} />
+          <div className="glass-panel feature-card-modern" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
+            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.08)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <Eye size={22} />
             </div>
-            <h3 className="outfit-font" style={{ color: '#ec4899', fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>Corneal Specular Reflection</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              The lighting environments reflected in the left and right corneas must match perfectly. We analyze these 2D specular reflections to identify inconsistencies generated by GANs/Diffusion models.
+            <h3 style={{ color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Eye Gaze &amp; 3D Lighting Physics</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              Monitors biological blink kinematics using <strong>Eye Aspect Ratio (EAR)</strong> temporal state machines (100-400 ms duration). Reconstructs 3D facial lighting via 9-coefficient real <strong>Spherical Harmonics (l &le; 2)</strong> and compares against background circular statistics.
             </p>
+            <ul style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingLeft: '1.1rem', paddingTop: '1.25rem' }}>
+              <li>EAR Finite State Machine Blink Timing</li>
+              <li>9-Coefficient Real Spherical Harmonics</li>
+              <li>Sobel Background Circular Variance (1 - R)</li>
+            </ul>
           </div>
 
           {/* Feature 7 */}
-          <div className="glass-panel feature-card-modern" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-              <FileText size={24} />
+          <div className="glass-panel feature-card-modern" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
+            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.08)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <Volume2 size={22} />
             </div>
-            <h3 className="outfit-font" style={{ color: 'var(--success)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>EXIF & Metadata Forensics</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              We automatically extract and analyze the EXIF payload, detecting manipulation software signatures (Photoshop, Stable Diffusion), stripped metadata, and suspicious timestamps.
+            <h3 style={{ color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Audio-Visual SyncNet &amp; Voice CNN</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              Evaluates lip-sync phoneme-viseme alignment in a 1024-D metric space via a dual-stream 3D-CNN (<strong>SyncNet</strong>). In parallel, an acoustic 2D-CNN with <strong>Depthwise Separable Convolutions</strong> inspects 128-mel spectrograms with a mobile microphone veto.
             </p>
+            <ul style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingLeft: '1.1rem', paddingTop: '1.25rem' }}>
+              <li>Dual-Stream 1024-D Metric Space SyncNet</li>
+              <li>Cubic Spline Audio De-Clipping Filter</li>
+              <li>Mobile Domain-Shift Heuristic Safeguard</li>
+            </ul>
           </div>
 
           {/* Feature 8 */}
-          <div className="glass-panel feature-card-modern" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(56, 189, 248, 0.1)', color: 'var(--primary)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-              <BrainCircuit size={24} />
+          <div className="glass-panel feature-card-modern" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
+            <div className="feature-card-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.08)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+              <BrainCircuit size={22} />
             </div>
-            <h3 className="outfit-font" style={{ color: 'var(--primary)', fontSize: '1.2rem', fontWeight: 700, marginBottom: '1rem' }}>PyTorch AI Meta-Classifier</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              Instead of rigid thresholds, a fully trained Multi-Layer Perceptron (MLP) evaluates all 15 visual, biological, and acoustic sensors to determine an ironclad, explainable final verdict.
+            <h3 style={{ color: 'var(--text-main)', fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Tabular ResNet &amp; SHAP Explanations</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              An 8-layer <strong>Tabular ResNet with 4-head Multi-Head Self-Attention</strong> trained on Class-Balanced Weighted Focal Loss fuses all 15 dimensional anomaly inputs into an empirical verdict, with rule-based XAI overrides for critical biological failures and SHAP explanations.
             </p>
+            <ul style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingLeft: '1.1rem', paddingTop: '1.25rem' }}>
+              <li>Multi-Head Self-Attention Gating (4 Heads)</li>
+              <li>Class-Balanced Weighted Focal Loss ($\gamma=2, \alpha=0.65$)</li>
+              <li>KernelExplainer SHAP Directional Attribution</li>
+            </ul>
           </div>
         </div>
       </section>

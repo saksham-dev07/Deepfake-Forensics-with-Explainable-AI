@@ -24,21 +24,20 @@ const UploadZone = ({ onFileUpload }) => {
 
   return (
     <div
-      className={`glass-panel upload-zone upload-zone-scanner ${dragActive ? 'drag-active' : ''}`}
+      className={`upload-zone ${dragActive ? 'drag-active' : ''}`}
       style={{
-        padding: '5rem 2rem',
-        minHeight: '400px',
+        padding: '3rem 2rem',
+        minHeight: '380px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        border: dragActive ? '2px dashed var(--primary)' : '2px dashed rgba(56, 189, 248, 0.3)',
-        borderRadius: 'var(--radius-xl)',
-        position: 'relative',
-        overflow: 'hidden',
-        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-        background: dragActive ? 'rgba(56, 189, 248, 0.05)' : 'var(--panel-bg)',
-        boxShadow: dragActive ? '0 0 40px rgba(56, 189, 248, 0.2), inset 0 0 40px rgba(56, 189, 248, 0.15)' : 'var(--glass-shadow), inset 0 0 20px rgba(56, 189, 248, 0.05)'
+        border: dragActive ? '2px dashed var(--primary)' : '1px dashed #334155',
+        borderRadius: 'var(--radius-lg)',
+        background: dragActive ? 'rgba(59, 130, 246, 0.05)' : 'var(--panel-bg)',
+        cursor: 'pointer',
+        transition: 'all var(--transition-fast)',
+        position: 'relative'
       }}
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
@@ -53,37 +52,42 @@ const UploadZone = ({ onFileUpload }) => {
         style={{ display: 'none' }}
         accept="video/*,image/*"
       />
-      <div className="upload-icon-container" style={{
-        width: '100px', height: '100px',
-        background: 'rgba(15, 23, 42, 0.8)',
-        border: '1px solid rgba(56, 189, 248, 0.3)',
-        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        marginBottom: '2rem',
-        boxShadow: '0 0 30px rgba(56, 189, 248, 0.2), inset 0 2px 10px rgba(255,255,255,0.1)',
-        transform: dragActive ? 'scale(1.1) translateY(-5px)' : 'scale(1) translateY(0)',
-        transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-        animation: 'float 6s ease-in-out infinite'
+      <div style={{
+        width: '56px',
+        height: '56px',
+        background: 'rgba(59, 130, 246, 0.08)',
+        border: '1px solid rgba(59, 130, 246, 0.25)',
+        borderRadius: 'var(--radius-md)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: '1.25rem'
       }}>
-        <div className="upload-icon" style={{ filter: 'drop-shadow(0 0 8px rgba(56,189,248,0.8))' }}>
-          <UploadCloud size={48} color="var(--primary)" />
-        </div>
+        <UploadCloud size={28} color="var(--primary)" />
       </div>
-      <div className="upload-text outfit-font" style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
-        Initialize Forensic Scan
+      <div style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+        Select or drop media for analysis
       </div>
-      <div className="upload-hint" style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>
-        Drag & drop media file here or click to browse
+      <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.5rem', textAlign: 'center' }}>
+        Upload any video or image to run the full forensic inspection pipeline
       </div>
-      <div className="upload-formats" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1.25rem' }}>
         {['MP4', 'AVI', 'MOV', 'MKV', 'JPG', 'PNG', 'WEBP'].map(ext => (
           <span key={ext} className="mono-font" style={{
-            fontSize: '0.7rem', fontWeight: 600, color: 'var(--primary)',
-            background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.2)',
-            padding: '0.3rem 0.8rem', borderRadius: '12px', letterSpacing: '1px'
+            fontSize: '0.7rem',
+            fontWeight: 500,
+            color: 'var(--text-secondary)',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid var(--glass-border)',
+            padding: '0.2rem 0.6rem',
+            borderRadius: 'var(--radius-sm)'
           }}>
             {ext}
           </span>
         ))}
+      </div>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        <span>Max size: 100 MB • Clamped to 60s • 15 Multimodal Forensic Sensors</span>
       </div>
     </div>
   );

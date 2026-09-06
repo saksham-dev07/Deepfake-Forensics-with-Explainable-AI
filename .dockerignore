@@ -1,0 +1,33 @@
+# Ignore Virtual Environments
+backend/venv/
+venv/
+.venv/
+env/
+
+# Ignore local dependencies and build outputs
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Ignore temporary uploads and generated PDF reports
+uploads/
+reports/
+backend/uploads/
+backend/reports/
+backend/test_out/
+backend/temp/
+*.pdf
+
+# Ignore caches and IDE settings
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+.git/
+.github/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

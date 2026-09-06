@@ -3,7 +3,7 @@ import { Activity, Camera, BarChart3, Info, Lightbulb, ChevronUp, ChevronDown, Z
 import { ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import VerdictBadge from '../ui/VerdictBadge';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+import { API_BASE } from '../../constants/api';
 
 const FrequencyTab = ({
   result,

@@ -5,7 +5,7 @@ import ScoreRing from '../ui/ScoreRing';
 import MetricCard from '../ui/MetricCard';
 import TestExplanation from '../ui/TestExplanation';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+import { API_BASE } from '../../constants/api';
 
 const FlowTab = ({
   result,
@@ -66,8 +66,14 @@ const FlowTab = ({
                 <div className="metric-grid">
                   <MetricCard 
                     label="Mean Motion Variance" 
-                    value={result.flow_analysis.mean_motion_variance.toFixed(4)} 
+                    value={result.flow_analysis.mean_motion_variance !== undefined ? result.flow_analysis.mean_motion_variance.toFixed(4) : '0.0000'} 
                     type={getSyncColor(result.flow_analysis.flow_anomaly_score)} 
+                  />
+                  <MetricCard 
+                    label="Variance of Variances" 
+                    value={result.flow_analysis.explanation?.variables?.["Variance of Variances (Jitter)"] || 'N/A'} 
+                    subValue="Temporal Jitter Spikes" 
+                    type={result.flow_analysis.flow_anomaly_score > 0.6 ? 'danger' : 'neutral'} 
                   />
                   {result.flow_analysis.warnings && result.flow_analysis.warnings.length > 0 && (
                     <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>

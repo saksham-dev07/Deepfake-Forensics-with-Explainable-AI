@@ -3,7 +3,7 @@ import { Lightbulb } from 'lucide-react';
 
 import TestExplanation from '../ui/TestExplanation';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+import { API_BASE } from '../../constants/api';
 
 const LightingTab = ({
   result,
@@ -16,7 +16,7 @@ const LightingTab = ({
             <div className="panel-icon"><Lightbulb size={20} color="var(--warning)" /></div>
             <div>
               <div className="panel-title">Illumination Estimation</div>
-              <div className="panel-subtitle">Detecting spliced lighting inconsistencies</div>
+              <div className="panel-subtitle">3D Spherical Harmonics (l &le; 2) &amp; 2D Background Circular Stats</div>
             </div>
           </div>
           
@@ -53,7 +53,7 @@ const LightingTab = ({
                 style={{ width: '100%', maxWidth: '500px', borderRadius: '8px' }} 
               />
               <p style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                Arrows indicate the dominant 2D illumination direction extracted from image gradients.
+                Vector arrows and virtual 3D chrome sphere probe illustrate the estimated illumination environment.
               </p>
             </div>
           )}

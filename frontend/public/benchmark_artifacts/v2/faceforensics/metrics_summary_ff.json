@@ -1,0 +1,59 @@
+{
+    "Dataset": "FaceForensics++ (C23)",
+    "Total_Videos": 977,
+    "Real_Count": 140,
+    "Fake_Count": 837,
+    "Overall_Accuracy": 0.6601842374616171,
+    "Precision": 0.9422066549912435,
+    "Recall_TPR": 0.6427718040621266,
+    "Specificity_TNR": 0.7642857142857142,
+    "F1_Score": 0.7642045454545454,
+    "ROC_AUC": 0.7670762928827445,
+    "Average_Precision": 0.9535485334220846,
+    "Equal_Error_Rate": 0.3047192353643966,
+    "EER_Threshold": 0.4853808254003525,
+    "Brier_Score": 0.21221615290167883,
+    "Confusion_Matrix": {
+        "TN": 107,
+        "FP": 33,
+        "FN": 299,
+        "TP": 538
+    },
+    "Per_Method_Breakdown": {
+        "DeepFakeDetection": {
+            "Count": 137,
+            "Accuracy": 0.7518248175182481,
+            "Mean_Fake_Probability": 0.5781024899963445
+        },
+        "Deepfakes": {
+            "Count": 140,
+            "Accuracy": 0.8071428571428572,
+            "Mean_Fake_Probability": 0.6336788220135939
+        },
+        "Face2Face": {
+            "Count": 140,
+            "Accuracy": 0.5785714285714286,
+            "Mean_Fake_Probability": 0.5290803960663458
+        },
+        "FaceShifter": {
+            "Count": 140,
+            "Accuracy": 0.4642857142857143,
+            "Mean_Fake_Probability": 0.5037956926498621
+        },
+        "FaceSwap": {
+            "Count": 140,
+            "Accuracy": 0.7642857142857142,
+            "Mean_Fake_Probability": 0.5597166233805436
+        },
+        "NeuralTextures": {
+            "Count": 140,
+            "Accuracy": 0.4928571428571429,
+            "Mean_Fake_Probability": 0.5114038598870272
+        },
+        "Original (Real)": {
+            "Count": 140,
+            "Accuracy": 0.7642857142857142,
+            "Mean_Fake_Probability": 0.4484479974463684
+        }
+    }
+}

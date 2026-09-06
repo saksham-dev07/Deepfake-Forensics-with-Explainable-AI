@@ -3,7 +3,7 @@ import { Flame, Search, Info, ZoomIn } from 'lucide-react';
 
 import TestDefinition from '../ui/TestDefinition';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+import { API_BASE } from '../../constants/api';
 
 const VisualTab = ({
   result,
@@ -23,7 +23,7 @@ const VisualTab = ({
                 <div className="panel-icon gradcam"><Flame size={20} color="var(--danger)" /></div>
                 <div>
                   <div className="panel-title">Neural Network Analysis</div>
-                  <div className="panel-subtitle">EfficientNet-B4 Spatial Processing</div>
+                  <div className="panel-subtitle">EfficientNet-B4 + CBAM Dual-Domain Attention</div>
                 </div>
               </div>
               
@@ -55,8 +55,8 @@ const VisualTab = ({
               </div>
 
               <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                <p>The core neural network scans the raw pixels of the image looking for deepfake artifacts like blending errors, unnatural textures, and warping.</p>
-                <p style={{ marginTop: '0.5rem' }}><strong>What this score means:</strong> A score of {(result.nn_score * 100).toFixed(1)}% indicates the base neural network's raw assessment of synthetic manipulation, before any other physical or biological forensic sensors are consulted.</p>
+                <p>The visual backbone scans 380x380 normalized facial crops using compound-scaled MBConv blocks and Convolutional Block Attention (CBAM) to isolate spatial blending boundaries and upsampling checkerboard artifacts.</p>
+                <p style={{ marginTop: '0.5rem' }}><strong>What this score means:</strong> A score of {(result.nn_score * 100).toFixed(1)}% indicates the base neural network's raw prediction of synthetic manipulation, before being fused with the other 14 physical, spectral, and biological sensors.</p>
               </div>
             </div>
 
@@ -66,12 +66,12 @@ const VisualTab = ({
                 <div className="panel-icon" style={{ background: 'rgba(167,139,250,0.12)' }}><Search size={20} color="var(--accent)" /></div>
                 <div>
                   <div className="panel-title">GradCAM Localization</div>
-                  <div className="panel-subtitle">Where the neural network is looking</div>
+                  <div className="panel-subtitle">Dual-layer visual attribution (Coarse + Guided HDR)</div>
                 </div>
               </div>
               <div className="heatmap-container" style={{ position: 'relative', display: 'flex', gap: '1rem', overflowX: 'auto', background: 'transparent', padding: '0.5rem 0', flex: 1 }}>
                 <div style={{ flex: 1, minWidth: '200px' }}>
-                  <h4 style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 600 }}>Coarse Localization</h4>
+                  <h4 style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 600 }}>Coarse Grad-CAM (conv_head)</h4>
                   <div 
                     className="zoomable-image-container" 
                     onClick={() => {
@@ -99,7 +99,7 @@ const VisualTab = ({
                 </div>
                 {result.heatmaps && result.heatmaps.length > 1 && (
                   <div style={{ flex: 1, minWidth: '200px' }}>
-                    <h4 style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 600 }}>Pixel Gradients</h4>
+                    <h4 style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '0.75rem', fontSize: '0.8rem', fontWeight: 600 }}>Guided Grad-CAM (Inferno HDR)</h4>
                     <div 
                       className="zoomable-image-container"
                       onClick={() => setZoomedImage(`${API_BASE}/${result.heatmaps[1]}`)}
@@ -119,7 +119,7 @@ const VisualTab = ({
               </div>
               <div className="heatmap-legend" style={{ marginTop: 'auto', paddingTop: '1rem' }}>
                 <span className="heatmap-legend-icon"><Info size={16} color="var(--text-secondary)" /></span>
-                <span>Red/warm areas = high neural network attention.</span>
+                <span>Warm areas (Coarse Jet overlay) &amp; high-luminance gradients (Inferno HDR) reveal the exact facial features driving the FAKE verdict.</span>
               </div>
             </div>
 

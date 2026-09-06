@@ -99,39 +99,32 @@ class DeepfakeDetector:
         
         print("Loading custom EfficientNet-B4 deepfake detector architecture...")
         try:
-            improved_finetuned_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "improved_finetuned_model.pth")
-            finetuned_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "finetuned_model.pth")
+            weights_candidates = [
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "improved_finetuned_model_v2.pth"),
+                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "improved_finetuned_model_v2.pth"),
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "improved_finetuned_model.pth")
+            ]
+            weights_path = None
+            for p in weights_candidates:
+                if os.path.exists(p):
+                    weights_path = p
+                    break
             
-            if os.path.exists(improved_finetuned_path):
-                print("Found V2 weights! Loading ImprovedContrastiveFeatureExtractor (with CBAM Attention)...")
+            if weights_path is not None:
+                print(f"Loading EfficientNet-B4 + CBAM visual backbone from {os.path.basename(weights_path)}...")
                 self.model = ImprovedContrastiveFeatureExtractor()
-                ckpt = torch.load(improved_finetuned_path, map_location='cpu', weights_only=False)
+                ckpt = torch.load(weights_path, map_location='cpu', weights_only=False)
                 
                 if 'model' in ckpt:
                     self.model.load_state_dict(ckpt['model'], strict=False)
                 else:
                     self.model.load_state_dict(ckpt, strict=False)
                     
-                print("Improved Finetuned model loaded successfully!")
+                print(f"Visual backbone ({os.path.basename(weights_path)}) loaded successfully!")
                 # Add target layer for GradCAM to use with XAI Explainer
                 self.model.conv_head = self.model.efficient_net._conv_head
-                
-            elif os.path.exists(finetuned_path):
-                print("Loading V1 LOCAL finetuned weights from weights/finetuned_model.pth...")
-                self.model = ContrastiveFeatureExtractor()
-                ckpt = torch.load(finetuned_path, map_location='cpu', weights_only=False)
-                
-                if 'model' in ckpt:
-                    self.model.load_state_dict(ckpt['model'], strict=False)
-                else:
-                    self.model.load_state_dict(ckpt, strict=False)
-                    
-                print("V1 Finetuned model loaded successfully!")
-                # Add target layer for GradCAM to use with XAI Explainer
-                self.model.conv_head = self.model.global_feature_extractor.efficient_net._conv_head
-                
             else:
-                raise FileNotFoundError("Could not find any finetuned_model.pth in the weights folder. Please train and download your model.")
+                raise FileNotFoundError(f"Neither improved_finetuned_model_v2.pth nor improved_finetuned_model.pth found in weights directory.")
 
             self.model.eval()
             self.model.to(self.device)
