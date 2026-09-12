@@ -103,8 +103,8 @@ const ColorTab = ({
             </div>
 
             <div style={{ background: 'var(--panel-subtle)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: 180, width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
+              <div style={{ height: 180, width: '100%', minHeight: '180px' }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={160}>
                   <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 15, left: 25, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
                     <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-dim)', fontSize: 10 }} />
