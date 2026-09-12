@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir \
 # Install remaining dependencies
 COPY --chown=user:user requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
-    pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python 2>/dev/null; \
+    pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python 2>/dev/null || true; \
     pip install --no-cache-dir opencv-contrib-python-headless
 
 # Copy the rest of the backend files

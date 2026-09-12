@@ -1,8 +1,28 @@
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python bytecode & cache
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+
+# Temporary files, uploads, and outputs
 uploads/
 reports/
+temp/
+test_out/
+*.pdf
+.env
+
+# Git & IDE configs
 .git/
+.github/
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
+
