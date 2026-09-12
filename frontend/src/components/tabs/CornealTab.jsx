@@ -55,9 +55,72 @@ const CornealTab = ({
   const ssimVal = corneal.ssim !== undefined ? corneal.ssim : 0.921;
 
   const makeFallbackSvg = useCallback((type) => {
+    if (type === 'ocular_loupe') {
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
+          <rect width="380" height="380" fill="#050811" />
+          <text x="190" y="32" fill="rgba(255,255,255,0.6)" font-size="10" text-anchor="middle" font-family="monospace">DUAL-EYE SPECULAR MICRO-LOUPE (10X)</text>
+          
+          <!-- Left Loupe Box -->
+          <rect x="35" y="70" width="140" height="180" rx="6" fill="#090e1c" stroke="rgba(56,189,248,0.4)" stroke-width="1.5" />
+          <circle cx="105" cy="150" r="45" fill="#020408" stroke="#38bdf8" stroke-width="2" />
+          <polygon points="100,140 115,145 108,158 96,152" fill="#38bdf8" opacity="0.9" />
+          <text x="105" y="275" fill="#38bdf8" font-size="9" text-anchor="middle" font-family="monospace">LEFT CORNEA ROI</text>
+          
+          <!-- Right Loupe Box -->
+          <rect x="205" y="70" width="140" height="180" rx="6" fill="#090e1c" stroke="rgba(56,189,248,0.4)" stroke-width="1.5" />
+          <circle cx="275" cy="150" r="45" fill="#020408" stroke="#38bdf8" stroke-width="2" />
+          
+          ${isAnomaly ? `
+            <!-- Discrepant highlight shape (round instead of trapezoid) -->
+            <circle cx="275" cy="150" r="14" fill="#f43f5e" opacity="0.9" />
+            <text x="275" y="275" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace">RIGHT CORNEA (ASYMMETRY)</text>
+            <text x="190" y="325" fill="#f43f5e" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">SPECULAR POINT SPREAD MISMATCH</text>
+          ` : `
+            <polygon points="270,140 285,145 278,158 266,152" fill="#10b981" opacity="0.9" />
+            <text x="275" y="275" fill="#10b981" font-size="9" text-anchor="middle" font-family="monospace">RIGHT CORNEA (CONGRUENT)</text>
+            <text x="190" y="325" fill="#10b981" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">CONGRUENT BILATERAL HIGHLIGHT</text>
+          `}
+          <text x="190" y="350" fill="rgba(255,255,255,0.4)" font-size="9" text-anchor="middle" font-family="monospace">
+            STRUCTURAL SIMILARITY SSIM: ${(ssimVal || 0.92).toFixed(3)}
+          </text>
+        </svg>
+      `);
+    }
+
+    if (type === 'specular_vectors') {
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
+          <rect width="380" height="380" fill="#050811" />
+          <text x="190" y="32" fill="rgba(255,255,255,0.6)" font-size="10" text-anchor="middle" font-family="monospace">EPIPOLAR LIGHT SOURCE RAY TRACING</text>
+          
+          <circle cx="130" cy="200" r="28" fill="#0b1120" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+          <circle cx="250" cy="200" r="28" fill="#0b1120" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+          
+          ${isAnomaly ? `
+            <!-- Divergent light rays -->
+            <line x1="130" y1="200" x2="80" y2="80" stroke="#f43f5e" stroke-width="2" stroke-dasharray="4 3" />
+            <line x1="250" y1="200" x2="290" y2="80" stroke="#f43f5e" stroke-width="2" stroke-dasharray="4 3" />
+            <text x="190" y="80" fill="#f43f5e" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">DIVERGENT VIRTUAL ILLUMINANTS</text>
+          ` : `
+            <!-- Convergent rays meeting at environmental light source -->
+            <line x1="130" y1="200" x2="190" y2="90" stroke="#10b981" stroke-width="2" />
+            <line x1="250" y1="200" x2="190" y2="90" stroke="#10b981" stroke-width="2" />
+            <circle cx="190" cy="90" r="7" fill="#f59e0b" />
+            <text x="190" y="65" fill="#f59e0b" font-size="10" text-anchor="middle" font-family="monospace" font-weight="bold">COMMON LIGHT SOURCE</text>
+          `}
+          <text x="190" y="340" fill="rgba(255,255,255,0.4)" font-size="9" text-anchor="middle" font-family="monospace">
+            3D REFLECTION RAY TRACING VIA CORNEAL SPHERE
+          </text>
+        </svg>
+      `);
+    }
+
+    // Default: corneal_mask
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
         <rect width="380" height="380" fill="#050811" />
+        <text x="190" y="32" fill="rgba(255,255,255,0.6)" font-size="10" text-anchor="middle" font-family="monospace">BILATERAL OCULAR SPECULAR MASKS</text>
         <ellipse cx="140" cy="190" rx="42" ry="24" fill="none" stroke="rgba(56,189,248,0.4)" stroke-width="1.5" />
         <circle cx="140" cy="190" r="14" fill="#0f172a" stroke="rgba(56,189,248,0.8)" stroke-width="1.5" />
         <circle cx="143" cy="186" r="3.5" fill="#38bdf8" />
@@ -67,15 +130,20 @@ const CornealTab = ({
         ${isAnomaly ? `
           <circle cx="233" cy="194" r="5" fill="#f43f5e" />
           <path d="M143 186 L233 194" stroke="#f43f5e" stroke-width="1" stroke-dasharray="3 3" />
+          <text x="190" y="300" fill="#f43f5e" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">SPECULAR ASYMMETRY DETECTED</text>
         ` : `
           <circle cx="243" cy="186" r="3.5" fill="#38bdf8" />
           <path d="M143 186 L243 186" stroke="#10b981" stroke-width="1" stroke-dasharray="3 3" />
+          <text x="190" y="300" fill="#10b981" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">BILATERAL REFLECTIONS CONGRUENT</text>
         `}
         <text x="140" y="235" fill="rgba(255,255,255,0.4)" font-size="10" text-anchor="middle" font-family="monospace">LEFT CORNEA</text>
         <text x="240" y="235" fill="rgba(255,255,255,0.4)" font-size="10" text-anchor="middle" font-family="monospace">RIGHT CORNEA</text>
+        <text x="190" y="340" fill="rgba(255,255,255,0.4)" font-size="9" text-anchor="middle" font-family="monospace">
+          SPECULAR IoU: ${(iouVal || 0.88).toFixed(3)}
+        </text>
       </svg>
     `);
-  }, [isAnomaly]);
+  }, [isAnomaly, iouVal, ssimVal]);
 
   const resolveImg = useCallback((path, fallbackType) => {
     if (path) {
@@ -214,246 +282,259 @@ const CornealTab = ({
         )}
       </div>
 
-      {/* MASTER-DETAIL FORENSIC WORKBENCH */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1.35fr) minmax(320px, 1fr)', gap: '1.25rem' }}>
+      {/* MASTER-DETAIL FORENSIC WORKBENCH (Bulletproof Non-Overlapping Grid) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: INTERACTIVE STAGE & A/B WIPE */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div 
-            className="glass-panel" 
-            style={{ 
-              padding: '0.85rem', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              background: '#040711', 
-              border: '1px solid var(--glass-border)',
-              position: 'relative' 
-            }}
-          >
-            {/* Stage Control Ribbon */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setStageMode(stageMode === 'wipe' ? 'single' : 'wipe')}
-                  className={`chip-btn ${stageMode === 'wipe' ? 'active' : ''}`}
-                  style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.55rem' }}
-                  title="Toggle A/B Wipe vs Single Overlay View"
-                >
-                  <ArrowRightLeft size={12} />
-                  {stageMode === 'wipe' ? 'A/B Wipe Active' : 'Single Overlay'}
-                </button>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>|</span>
-                <span className="mono-font" style={{ fontSize: '0.7rem', color: 'var(--primary)' }}>
-                  {activeObj.name}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  <Sliders size={12} />
-                  <span>Highlight &tau;:</span>
-                  <input 
-                    type="range" 
-                    min="180" 
-                    max="250" 
-                    step="5"
-                    value={thresholdLevel} 
-                    onChange={(e) => setThresholdLevel(Number(e.target.value))}
-                    style={{ width: '65px', accentColor: 'var(--primary)', cursor: 'pointer' }}
-                  />
-                  <span className="mono-font" style={{ width: '24px' }}>{thresholdLevel}</span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setZoomedImage(activeObj.img)}
-                  style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px', padding: '0.3rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  title="Zoom Stage Exhibit"
-                >
-                  <Maximize2 size={13} />
-                </button>
-              </div>
+        <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          
+          {/* Stage Control Ribbon */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <button
+                type="button"
+                onClick={() => setStageMode(stageMode === 'wipe' ? 'single' : 'wipe')}
+                className={`chip-btn ${stageMode === 'wipe' ? 'active' : ''}`}
+                style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.55rem' }}
+                title="Toggle A/B Wipe vs Single Overlay View"
+              >
+                <ArrowRightLeft size={12} />
+                {stageMode === 'wipe' ? 'A/B Wipe Active' : 'Single Overlay'}
+              </button>
             </div>
 
-            {/* Stage Viewport */}
-            <div 
-              ref={stageContainerRef}
-              onMouseMove={handleStageMouseMove}
-              onMouseLeave={handleStageMouseLeave}
-              style={{
-                position: 'relative',
-                width: '100%',
-                aspectRatio: '1 / 1',
-                maxHeight: '440px',
-                background: '#020408',
-                borderRadius: '6px',
-                overflow: 'hidden',
-                cursor: 'crosshair',
-                border: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+            {/* Exhibit Quick Switcher (Toolbar integrated like VisualTab) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              {exhibits.map((ex) => {
+                const isSel = ex.id === activeExhibit;
+                return (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => setActiveExhibit(ex.id)}
+                    style={{
+                      background: isSel ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
+                      border: `1px solid ${isSel ? 'var(--primary)' : 'transparent'}`,
+                      color: isSel ? 'var(--primary)' : 'var(--text-muted)',
+                      borderRadius: '3px',
+                      padding: '2px 7px',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {ex.id === 'corneal_mask' ? 'Specular Masks' : ex.id === 'ocular_loupe' ? 'Micro-Loupe' : 'Ray Convergence'}
+                  </button>
+                );
+              })}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.25rem' }}>
+                <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>&tau;:</span>
+                <input 
+                  type="range" 
+                  min="180" 
+                  max="250" 
+                  step="5"
+                  value={thresholdLevel} 
+                  onChange={(e) => setThresholdLevel(Number(e.target.value))}
+                  style={{ width: '48px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                />
+                <span className="mono-font" style={{ fontSize: '0.62rem', width: '22px' }}>{thresholdLevel}</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setZoomedImage(activeObj.img)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px', padding: '0.3rem', color: 'var(--text-secondary)', cursor: 'pointer', marginLeft: '0.25rem' }}
+                title="Zoom Stage Exhibit"
+              >
+                <Maximize2 size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Stage Viewport */}
+          <div 
+            ref={stageContainerRef}
+            onMouseMove={handleStageMouseMove}
+            onMouseLeave={handleStageMouseLeave}
+            style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: '1 / 1',
+              maxHeight: '440px',
+              background: '#020408',
+              borderRadius: '6px',
+              overflow: 'hidden',
+              cursor: 'crosshair',
+              border: '1px solid rgba(255,255,255,0.05)'
+            }}
+          >
+            {/* Primary Underlay (Exhibit B) */}
+            <img 
+              src={activeObj.img} 
+              alt="" 
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = makeFallbackSvg(activeExhibit);
               }}
-            >
-              {/* Bottom Image: Active Corneal Exhibit */}
-              <img 
-                src={activeObj.img} 
-                alt={activeObj.name} 
-                style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  width: '100%', 
-                  height: '100%', 
-                  objectFit: 'contain'
-                }} 
-              />
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'contain',
+                display: 'block' 
+              }} 
+            />
 
-              {/* Top Layer: Original Camera Capture (for A/B Wipe) */}
-              {stageMode === 'wipe' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    clipPath: `polygon(0 0, ${wipePercent}% 0, ${wipePercent}% 100%, 0 100%)`,
-                    pointerEvents: 'none',
-                    overflow: 'hidden'
+            {/* A/B Wipe Overlay: Camera Capture (Layer A) */}
+            {stageMode === 'wipe' && (
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  clipPath: `polygon(0 0, ${wipePercent}% 0, ${wipePercent}% 100%, 0 100%)`,
+                  pointerEvents: 'none',
+                  overflow: 'hidden'
+                }}
+              >
+                <img 
+                  src={originalFaceUrl} 
+                  alt="" 
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = makeFallbackSvg('corneal_mask');
                   }}
-                >
-                  <img 
-                    src={originalFaceUrl} 
-                    alt="Camera Capture" 
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      objectFit: 'contain' 
-                    }} 
-                  />
-                  <div style={{
-                    position: 'absolute',
-                    top: '8px',
-                    left: '8px',
-                    background: 'rgba(0,0,0,0.65)',
-                    padding: '0.15rem 0.45rem',
-                    borderRadius: '3px',
-                    fontSize: '0.62rem',
-                    color: '#94a3b8',
-                    fontFamily: 'var(--font-mono)'
-                  }}>
-                    CAMERA CAPTURE [A]
-                  </div>
-                </div>
-              )}
-
-              {/* Wipe Divider Line */}
-              {stageMode === 'wipe' && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: `${wipePercent}%`,
-                    width: '2px',
-                    background: 'var(--primary)',
-                    boxShadow: '0 0 8px rgba(56, 189, 248, 0.8)',
-                    cursor: 'ew-resize',
-                    zIndex: 10
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    background: 'var(--primary)',
-                    color: '#000',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.65rem'
-                  }}>
-                    <ArrowRightLeft size={10} />
-                  </div>
-                </div>
-              )}
-
-              {/* Watermark Label for Exhibit B */}
-              {stageMode === 'wipe' && (
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    objectFit: 'contain' 
+                  }} 
+                />
                 <div style={{
                   position: 'absolute',
                   top: '8px',
-                  right: '8px',
+                  left: '8px',
                   background: 'rgba(0,0,0,0.65)',
                   padding: '0.15rem 0.45rem',
                   borderRadius: '3px',
                   fontSize: '0.62rem',
-                  color: 'var(--primary)',
+                  color: '#94a3b8',
                   fontFamily: 'var(--font-mono)'
                 }}>
-                  CORNEAL SPECULAR [B]
+                  ORIGINAL CAPTURE [A]
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Real-Time Crosshair HUD Overlay */}
-              {hudCoords && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    left: '10px',
-                    background: 'rgba(10, 15, 29, 0.88)',
-                    backdropFilter: 'blur(6px)',
-                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                    padding: '0.35rem 0.6rem',
-                    borderRadius: '4px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.65rem',
-                    color: '#e2e8f0',
-                    pointerEvents: 'none',
-                    zIndex: 20,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px'
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: '8px', color: 'var(--primary)' }}>
-                    <span>X: {hudCoords.pxX}px</span>
-                    <span>Y: {hudCoords.pxY}px</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', color: '#94a3b8' }}>
-                    <span>Intensity: {hudCoords.intensity} / 255</span>
-                    <span>Local NCC: {hudCoords.localNcc}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Wipe Scrubber Slider */}
+            {/* Wipe Divider Line */}
             {stageMode === 'wipe' && (
-              <div style={{ marginTop: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>SPLIT</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={wipePercent} 
-                  onChange={(e) => setWipePercent(Number(e.target.value))}
-                  style={{ flex: 1, accentColor: 'var(--primary)', cursor: 'ew-resize' }}
-                />
-                <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', width: '32px' }}>{wipePercent}%</span>
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: `${wipePercent}%`,
+                  width: '2px',
+                  background: 'var(--primary)',
+                  boxShadow: '0 0 8px rgba(56, 189, 248, 0.8)',
+                  cursor: 'ew-resize',
+                  zIndex: 10
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'var(--primary)',
+                  color: '#000',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.65rem'
+                }}>
+                  <ArrowRightLeft size={10} />
+                </div>
+              </div>
+            )}
+
+            {/* Watermark Label for Exhibit B */}
+            {stageMode === 'wipe' && (
+              <div style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                background: 'rgba(0,0,0,0.65)',
+                padding: '0.15rem 0.45rem',
+                borderRadius: '3px',
+                fontSize: '0.62rem',
+                color: 'var(--primary)',
+                fontFamily: 'var(--font-mono)'
+              }}>
+                CORNEAL SPECULAR EXHIBIT [B]
+              </div>
+            )}
+
+            {/* Real-Time Crosshair HUD Overlay */}
+            {hudCoords && (
+              <div 
+                style={{
+                  position: 'absolute',
+                  bottom: '10px',
+                  left: '10px',
+                  background: 'rgba(10, 15, 29, 0.88)',
+                  backdropFilter: 'blur(6px)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  padding: '0.35rem 0.6rem',
+                  borderRadius: '4px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.65rem',
+                  color: '#e2e8f0',
+                  pointerEvents: 'none',
+                  zIndex: 20,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}
+              >
+                <div style={{ display: 'flex', gap: '8px', color: 'var(--primary)' }}>
+                  <span>X: {hudCoords.pxX}px</span>
+                  <span>Y: {hudCoords.pxY}px</span>
+                  <span>{hudCoords.corneaEye}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', color: '#94a3b8' }}>
+                  <span>Intensity: {hudCoords.intensity}</span>
+                  <span>Local NCC: {hudCoords.localNcc}</span>
+                </div>
               </div>
             )}
           </div>
 
-          {/* FILMSTRIP THUMBNAIL SELECTOR */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+          {/* Wipe Scrubber Slider */}
+          {stageMode === 'wipe' && (
+            <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>SPLIT</span>
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={wipePercent} 
+                onChange={(e) => setWipePercent(Number(e.target.value))}
+                style={{ flex: 1, accentColor: 'var(--primary)', cursor: 'ew-resize' }}
+              />
+              <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', width: '32px' }}>{wipePercent}%</span>
+            </div>
+          )}
+
+          {/* FILMSTRIP THUMBNAIL SELECTOR (Robust flex layout with minWidth 0) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.5rem', marginTop: '0.85rem' }}>
             {exhibits.map((ex) => {
               const isSel = ex.id === activeExhibit;
               return (
@@ -468,27 +549,39 @@ const CornealTab = ({
                     padding: '0.45rem',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease'
+                    transition: 'all 0.15s ease',
+                    minWidth: 0,
+                    width: '100%',
+                    overflow: 'hidden'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: isSel ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', minWidth: 0 }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isSel ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, marginRight: '4px' }}>
                       {ex.name}
                     </span>
                     <span style={{
-                      fontSize: '0.55rem',
-                      padding: '0.1rem 0.3rem',
+                      fontSize: '0.52rem',
+                      padding: '0.1rem 0.25rem',
                       borderRadius: '2px',
                       background: ex.verdict.status === 'PASS' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
                       color: ex.verdict.status === 'PASS' ? 'var(--success)' : 'var(--danger)',
-                      fontWeight: 700
+                      fontWeight: 700,
+                      flexShrink: 0
                     }}>
                       {ex.verdict.status}
                     </span>
                   </div>
 
-                  <div style={{ height: '52px', background: '#020408', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img src={ex.img} alt={ex.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isSel ? 1 : 0.6 }} />
+                  <div style={{ height: '48px', background: '#020408', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img 
+                      src={ex.img} 
+                      alt="" 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = makeFallbackSvg(ex.id);
+                      }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isSel ? 1 : 0.6 }} 
+                    />
                   </div>
                 </button>
               );

@@ -53,6 +53,57 @@ const FlowTab = ({
   const isAnomaly = anomalyScore > 0.5;
 
   const makeFallbackSvg = useCallback((type) => {
+    if (type === 'flow_plot') {
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
+          <rect width="380" height="380" fill="#04060e" />
+          <text x="190" y="32" fill="rgba(255,255,255,0.6)" font-size="10" text-anchor="middle" font-family="monospace">VELOCITY DISCONTINUITY TIMELINE (JITTER)</text>
+          
+          <line x1="30" y1="280" x2="350" y2="280" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+          <line x1="30" y1="170" x2="350" y2="170" stroke="rgba(244,63,94,0.3)" stroke-width="1" stroke-dasharray="3 3" />
+          <text x="355" y="173" fill="#f43f5e" font-size="8" font-family="monospace">0.025</text>
+
+          ${isAnomaly ? `
+            <path d="M 30 270 Q 70 265, 110 270 L 140 120 L 160 270 L 220 268 L 240 90 L 260 272 L 310 270 L 350 268" fill="none" stroke="#f43f5e" stroke-width="2" />
+            <circle cx="140" cy="120" r="4" fill="#f43f5e" />
+            <circle cx="240" cy="90" r="4" fill="#f43f5e" />
+            <text x="190" y="70" fill="#f43f5e" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">ABNORMAL INTER-FRAME VELOCITY SPIKES</text>
+          ` : `
+            <path d="M 30 265 Q 90 250, 150 255 T 270 252 T 350 250" fill="none" stroke="#10b981" stroke-width="2" />
+            <text x="190" y="70" fill="#10b981" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">CONTINUOUS RIGID BODY ACCELERATION</text>
+          `}
+          <text x="190" y="340" fill="rgba(255,255,255,0.4)" font-size="9" text-anchor="middle" font-family="monospace">
+            VARIANCE OF MOTION VECTORS OVER CONSECUTIVE FRAMES
+          </text>
+        </svg>
+      `);
+    }
+
+    if (type === 'shear_map') {
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
+          <rect width="380" height="380" fill="#04060e" />
+          <text x="190" y="32" fill="rgba(255,255,255,0.6)" font-size="10" text-anchor="middle" font-family="monospace">PERIMETER SHEAR &amp; DIVERGENCE RESIDUAL</text>
+          
+          <ellipse cx="190" cy="180" rx="90" ry="115" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+          
+          ${isAnomaly ? `
+            <ellipse cx="190" cy="180" rx="90" ry="115" fill="none" stroke="#f43f5e" stroke-width="3" stroke-dasharray="8 6" />
+            <path d="M 100 130 Q 120 180, 100 230" fill="none" stroke="#f43f5e" stroke-width="3" />
+            <path d="M 280 130 Q 260 180, 280 230" fill="none" stroke="#f43f5e" stroke-width="3" />
+            <text x="190" y="70" fill="#f43f5e" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">PERIMETER SEAM WARPING DETECTED</text>
+          ` : `
+            <ellipse cx="190" cy="180" rx="90" ry="115" fill="rgba(16,185,129,0.08)" stroke="#10b981" stroke-width="2" />
+            <text x="190" y="70" fill="#10b981" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">ZERO BOUNDARY DISCONTINUITY</text>
+          `}
+          <text x="190" y="340" fill="rgba(255,255,255,0.4)" font-size="9" text-anchor="middle" font-family="monospace">
+            KINEMATIC DISPERSION DIV(v) ALONG CONTOUR
+          </text>
+        </svg>
+      `);
+    }
+
+    // Default: flow_field
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
         <defs>
@@ -223,257 +274,268 @@ const FlowTab = ({
         )}
       </div>
 
-      {/* MASTER-DETAIL FORENSIC WORKBENCH */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1.35fr) minmax(320px, 1fr)', gap: '1.25rem' }}>
+      {/* MASTER-DETAIL FORENSIC WORKBENCH (Bulletproof Non-Overlapping Grid) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: INTERACTIVE STAGE & A/B WIPE */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div 
-            className="glass-panel" 
-            style={{ 
-              padding: '0.85rem', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              background: '#040711', 
-              border: '1px solid var(--glass-border)',
-              position: 'relative' 
-            }}
-          >
-            {/* Stage Control Ribbon */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setStageMode(stageMode === 'wipe' ? 'single' : 'wipe')}
-                  className={`chip-btn ${stageMode === 'wipe' ? 'active' : ''}`}
-                  style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.55rem' }}
-                  title="Toggle A/B Wipe vs Single Overlay View"
-                >
-                  <ArrowRightLeft size={12} />
-                  {stageMode === 'wipe' ? 'A/B Wipe Active' : 'Single Overlay'}
-                </button>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>|</span>
-                <span className="mono-font" style={{ fontSize: '0.7rem', color: 'var(--primary)' }}>
-                  {activeObj.name}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  <Sliders size={12} />
-                  <span>Gain:</span>
-                  {[1.0, 1.5, 2.5].map((g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setFlowGain(g)}
-                      style={{
-                        padding: '0.15rem 0.4rem',
-                        fontSize: '0.65rem',
-                        borderRadius: '3px',
-                        border: 'none',
-                        background: flowGain === g ? 'var(--primary)' : 'rgba(255,255,255,0.06)',
-                        color: flowGain === g ? '#000' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        fontWeight: 700
-                      }}
-                    >
-                      {g}×
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setZoomedImage(activeObj.img)}
-                  style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px', padding: '0.3rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  title="Zoom Stage Exhibit"
-                >
-                  <Maximize2 size={13} />
-                </button>
-              </div>
+        <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          
+          {/* Stage Control Ribbon */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <button
+                type="button"
+                onClick={() => setStageMode(stageMode === 'wipe' ? 'single' : 'wipe')}
+                className={`chip-btn ${stageMode === 'wipe' ? 'active' : ''}`}
+                style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.55rem' }}
+                title="Toggle A/B Wipe vs Single Overlay View"
+              >
+                <ArrowRightLeft size={12} />
+                {stageMode === 'wipe' ? 'A/B Wipe Active' : 'Single Overlay'}
+              </button>
             </div>
 
-            {/* Stage Viewport */}
-            <div 
-              ref={stageContainerRef}
-              onMouseMove={handleStageMouseMove}
-              onMouseLeave={handleStageMouseLeave}
-              style={{
-                position: 'relative',
-                width: '100%',
-                aspectRatio: '1 / 1',
-                maxHeight: '440px',
-                background: '#020408',
-                borderRadius: '6px',
-                overflow: 'hidden',
-                cursor: 'crosshair',
-                border: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+            {/* Exhibit Quick Switcher (Toolbar integrated like VisualTab) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              {exhibits.map((ex) => {
+                const isSel = ex.id === activeExhibit;
+                return (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => setActiveExhibit(ex.id)}
+                    style={{
+                      background: isSel ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
+                      border: `1px solid ${isSel ? 'var(--primary)' : 'transparent'}`,
+                      color: isSel ? 'var(--primary)' : 'var(--text-muted)',
+                      borderRadius: '3px',
+                      padding: '2px 7px',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {ex.id === 'flow_field' ? 'Flow Field' : ex.id === 'flow_plot' ? 'Velocity Profile' : 'Shear Map'}
+                  </button>
+                );
+              })}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.25rem' }}>
+                <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>Gain:</span>
+                {[1.0, 1.5, 2.5].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setFlowGain(g)}
+                    style={{
+                      padding: '1px 5px',
+                      fontSize: '0.62rem',
+                      borderRadius: '3px',
+                      border: 'none',
+                      background: flowGain === g ? 'var(--primary)' : 'rgba(255,255,255,0.06)',
+                      color: flowGain === g ? '#000' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      fontWeight: 700
+                    }}
+                  >
+                    {g}×
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setZoomedImage(activeObj.img)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px', padding: '0.3rem', color: 'var(--text-secondary)', cursor: 'pointer', marginLeft: '0.25rem' }}
+                title="Zoom Stage Exhibit"
+              >
+                <Maximize2 size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Stage Viewport */}
+          <div 
+            ref={stageContainerRef}
+            onMouseMove={handleStageMouseMove}
+            onMouseLeave={handleStageMouseLeave}
+            style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: '1 / 1',
+              maxHeight: '440px',
+              background: '#020408',
+              borderRadius: '6px',
+              overflow: 'hidden',
+              cursor: 'crosshair',
+              border: '1px solid rgba(255,255,255,0.05)'
+            }}
+          >
+            {/* Primary Underlay (Exhibit B) */}
+            <img 
+              src={activeObj.img} 
+              alt="" 
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = makeFallbackSvg(activeExhibit);
               }}
-            >
-              {/* Bottom Image: Active Flow Exhibit */}
-              <img 
-                src={activeObj.img} 
-                alt={activeObj.name} 
-                style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  width: '100%', 
-                  height: '100%', 
-                  objectFit: 'contain',
-                  filter: `saturate(${flowGain * 100}%)`
-                }} 
-              />
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'contain',
+                display: 'block' 
+              }} 
+            />
 
-              {/* Top Layer: Original Camera Capture (for A/B Wipe) */}
-              {stageMode === 'wipe' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    clipPath: `polygon(0 0, ${wipePercent}% 0, ${wipePercent}% 100%, 0 100%)`,
-                    pointerEvents: 'none',
-                    overflow: 'hidden'
+            {/* A/B Wipe Overlay: Camera Capture (Layer A) */}
+            {stageMode === 'wipe' && (
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  clipPath: `polygon(0 0, ${wipePercent}% 0, ${wipePercent}% 100%, 0 100%)`,
+                  pointerEvents: 'none',
+                  overflow: 'hidden'
+                }}
+              >
+                <img 
+                  src={originalFaceUrl} 
+                  alt="" 
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = makeFallbackSvg('flow_field');
                   }}
-                >
-                  <img 
-                    src={originalFaceUrl} 
-                    alt="Camera Capture" 
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      objectFit: 'contain' 
-                    }} 
-                  />
-                  <div style={{
-                    position: 'absolute',
-                    top: '8px',
-                    left: '8px',
-                    background: 'rgba(0,0,0,0.65)',
-                    padding: '0.15rem 0.45rem',
-                    borderRadius: '3px',
-                    fontSize: '0.62rem',
-                    color: '#94a3b8',
-                    fontFamily: 'var(--font-mono)'
-                  }}>
-                    CAMERA CAPTURE [A]
-                  </div>
-                </div>
-              )}
-
-              {/* Wipe Divider Line */}
-              {stageMode === 'wipe' && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: `${wipePercent}%`,
-                    width: '2px',
-                    background: 'var(--primary)',
-                    boxShadow: '0 0 8px rgba(56, 189, 248, 0.8)',
-                    cursor: 'ew-resize',
-                    zIndex: 10
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    background: 'var(--primary)',
-                    color: '#000',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.65rem'
-                  }}>
-                    <ArrowRightLeft size={10} />
-                  </div>
-                </div>
-              )}
-
-              {/* Watermark Label for Exhibit B */}
-              {stageMode === 'wipe' && (
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    objectFit: 'contain' 
+                  }} 
+                />
                 <div style={{
                   position: 'absolute',
                   top: '8px',
-                  right: '8px',
+                  left: '8px',
                   background: 'rgba(0,0,0,0.65)',
                   padding: '0.15rem 0.45rem',
                   borderRadius: '3px',
                   fontSize: '0.62rem',
-                  color: 'var(--primary)',
+                  color: '#94a3b8',
                   fontFamily: 'var(--font-mono)'
                 }}>
-                  OPTICAL FLOW FIELD [B]
+                  ORIGINAL CAPTURE [A]
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Real-Time Crosshair HUD Overlay */}
-              {hudCoords && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    left: '10px',
-                    background: 'rgba(10, 15, 29, 0.88)',
-                    backdropFilter: 'blur(6px)',
-                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                    padding: '0.35rem 0.6rem',
-                    borderRadius: '4px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.65rem',
-                    color: '#e2e8f0',
-                    pointerEvents: 'none',
-                    zIndex: 20,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px'
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: '8px', color: 'var(--primary)' }}>
-                    <span>X: {hudCoords.pxX}px</span>
-                    <span>Y: {hudCoords.pxY}px</span>
-                    <span>Speed: {hudCoords.speed}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', color: '#94a3b8' }}>
-                    <span>Vector: {hudCoords.vector}</span>
-                    <span>Heading: {hudCoords.angle}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Wipe Scrubber Slider */}
+            {/* Wipe Divider Line */}
             {stageMode === 'wipe' && (
-              <div style={{ marginTop: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>SPLIT</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={wipePercent} 
-                  onChange={(e) => setWipePercent(Number(e.target.value))}
-                  style={{ flex: 1, accentColor: 'var(--primary)', cursor: 'ew-resize' }}
-                />
-                <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', width: '32px' }}>{wipePercent}%</span>
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: `${wipePercent}%`,
+                  width: '2px',
+                  background: 'var(--primary)',
+                  boxShadow: '0 0 8px rgba(56, 189, 248, 0.8)',
+                  cursor: 'ew-resize',
+                  zIndex: 10
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'var(--primary)',
+                  color: '#000',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.65rem'
+                }}>
+                  <ArrowRightLeft size={10} />
+                </div>
+              </div>
+            )}
+
+            {/* Watermark Label for Exhibit B */}
+            {stageMode === 'wipe' && (
+              <div style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                background: 'rgba(0,0,0,0.65)',
+                padding: '0.15rem 0.45rem',
+                borderRadius: '3px',
+                fontSize: '0.62rem',
+                color: 'var(--primary)',
+                fontFamily: 'var(--font-mono)'
+              }}>
+                FLOW FIELD EXHIBIT [B]
+              </div>
+            )}
+
+            {/* Real-Time Crosshair HUD Overlay */}
+            {hudCoords && (
+              <div 
+                style={{
+                  position: 'absolute',
+                  bottom: '10px',
+                  left: '10px',
+                  background: 'rgba(10, 15, 29, 0.88)',
+                  backdropFilter: 'blur(6px)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  padding: '0.35rem 0.6rem',
+                  borderRadius: '4px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.65rem',
+                  color: '#e2e8f0',
+                  pointerEvents: 'none',
+                  zIndex: 20,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}
+              >
+                <div style={{ display: 'flex', gap: '8px', color: 'var(--primary)' }}>
+                  <span>X: {hudCoords.pxX}px</span>
+                  <span>Y: {hudCoords.pxY}px</span>
+                  <span>Flow: {hudCoords.magnitude}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', color: '#94a3b8' }}>
+                  <span>Vector: {hudCoords.vector}</span>
+                  <span>Heading: {hudCoords.angle}</span>
+                </div>
               </div>
             )}
           </div>
 
-          {/* FILMSTRIP THUMBNAIL SELECTOR */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+          {/* Wipe Scrubber Slider */}
+          {stageMode === 'wipe' && (
+            <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>SPLIT</span>
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={wipePercent} 
+                onChange={(e) => setWipePercent(Number(e.target.value))}
+                style={{ flex: 1, accentColor: 'var(--primary)', cursor: 'ew-resize' }}
+              />
+              <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', width: '32px' }}>{wipePercent}%</span>
+            </div>
+          )}
+
+          {/* FILMSTRIP THUMBNAIL SELECTOR (Robust flex layout with minWidth 0) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.5rem', marginTop: '0.85rem' }}>
             {exhibits.map((ex) => {
               const isSel = ex.id === activeExhibit;
               return (
@@ -488,27 +550,39 @@ const FlowTab = ({
                     padding: '0.45rem',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease'
+                    transition: 'all 0.15s ease',
+                    minWidth: 0,
+                    width: '100%',
+                    overflow: 'hidden'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: isSel ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', minWidth: 0 }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isSel ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, marginRight: '4px' }}>
                       {ex.name}
                     </span>
                     <span style={{
-                      fontSize: '0.55rem',
-                      padding: '0.1rem 0.3rem',
+                      fontSize: '0.52rem',
+                      padding: '0.1rem 0.25rem',
                       borderRadius: '2px',
                       background: ex.verdict.status === 'PASS' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
                       color: ex.verdict.status === 'PASS' ? 'var(--success)' : 'var(--danger)',
-                      fontWeight: 700
+                      fontWeight: 700,
+                      flexShrink: 0
                     }}>
                       {ex.verdict.status}
                     </span>
                   </div>
 
-                  <div style={{ height: '52px', background: '#020408', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img src={ex.img} alt={ex.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isSel ? 1 : 0.6 }} />
+                  <div style={{ height: '48px', background: '#020408', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img 
+                      src={ex.img} 
+                      alt="" 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = makeFallbackSvg(ex.id);
+                      }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isSel ? 1 : 0.6 }} 
+                    />
                   </div>
                 </button>
               );

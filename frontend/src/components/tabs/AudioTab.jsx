@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { 
-  Volume2, ZoomIn, Info, ArrowRightLeft, Sliders, Maximize2, AlertTriangle, Check, Copy, Activity
+  Volume2, ZoomIn, Info, ArrowRightLeft, Maximize2, AlertTriangle, Check, Copy, Activity
 } from 'lucide-react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -52,12 +52,75 @@ const AudioTab = ({
   const isAnomaly = !isSync && !data.error;
 
   const makeFallbackSvg = useCallback((type) => {
+    if (type === 'lip_3d') {
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
+          <rect width="380" height="380" fill="#04060e" />
+          <text x="190" y="35" fill="rgba(255,255,255,0.6)" font-size="10" text-anchor="middle" font-family="monospace">5-FRAME SPATIO-TEMPORAL LIP WINDOW (t-2 to t+2)</text>
+          
+          <g transform="translate(30, 60)">
+            <!-- 5 sequential oral aperture frames -->
+            <rect x="0" y="0" width="55" height="70" rx="4" fill="#0b1120" stroke="rgba(245,158,11,0.3)" />
+            <ellipse cx="27" cy="35" rx="16" ry="10" fill="none" stroke="#f59e0b" stroke-width="1.5" />
+            <text x="27" y="85" fill="rgba(255,255,255,0.4)" font-size="8" text-anchor="middle" font-family="monospace">t-2</text>
+            
+            <rect x="65" y="0" width="55" height="70" rx="4" fill="#0b1120" stroke="rgba(245,158,11,0.3)" />
+            <ellipse cx="92" cy="35" rx="18" ry="14" fill="none" stroke="#f59e0b" stroke-width="1.5" />
+            <text x="92" y="85" fill="rgba(255,255,255,0.4)" font-size="8" text-anchor="middle" font-family="monospace">t-1</text>
+            
+            <rect x="130" y="0" width="55" height="70" rx="4" fill="#0b1120" stroke="rgba(245,158,11,0.8)" stroke-width="2" />
+            <ellipse cx="157" cy="35" rx="20" ry="18" fill="rgba(245,158,11,0.15)" stroke="#f59e0b" stroke-width="2" />
+            <text x="157" y="85" fill="#f59e0b" font-size="8" text-anchor="middle" font-family="monospace" font-weight="bold">KEY [t]</text>
+            
+            <rect x="195" y="0" width="55" height="70" rx="4" fill="#0b1120" stroke="rgba(245,158,11,0.3)" />
+            <ellipse cx="222" cy="35" rx="18" ry="14" fill="none" stroke="#f59e0b" stroke-width="1.5" />
+            <text x="222" y="85" fill="rgba(255,255,255,0.4)" font-size="8" text-anchor="middle" font-family="monospace">t+1</text>
+            
+            <rect x="260" y="0" width="55" height="70" rx="4" fill="#0b1120" stroke="rgba(245,158,11,0.3)" />
+            <ellipse cx="287" cy="35" rx="16" ry="10" fill="none" stroke="#f59e0b" stroke-width="1.5" />
+            <text x="287" y="85" fill="rgba(255,255,255,0.4)" font-size="8" text-anchor="middle" font-family="monospace">t+2</text>
+          </g>
+          
+          <path d="M 50 200 Q 120 180, 190 260 T 330 220" fill="none" stroke="#38bdf8" stroke-width="2" />
+          <text x="190" y="325" fill="#38bdf8" font-size="10" text-anchor="middle" font-family="monospace">3D-CNN SPATIO-TEMPORAL CONVOLUTION</text>
+        </svg>
+      `);
+    }
+
+    if (type === 'mfcc_heatmap') {
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
+          <defs>
+            <linearGradient id="mfccGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stop-color="#020617" />
+              <stop offset="35%" stop-color="#1e3a8a" />
+              <stop offset="70%" stop-color="#38bdf8" />
+              <stop offset="100%" stop-color="#f59e0b" />
+            </linearGradient>
+          </defs>
+          <rect width="380" height="380" fill="#04060e" />
+          <text x="190" y="30" fill="rgba(255,255,255,0.6)" font-size="10" text-anchor="middle" font-family="monospace">13-COEFFICIENT MFCC ACOUSTIC FILTERBANKS</text>
+          
+          <rect x="40" y="50" width="300" height="220" rx="4" fill="url(#mfccGrad)" opacity="0.85" />
+          
+          <!-- Harmonic bands -->
+          <line x1="40" y1="90" x2="340" y2="90" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3 3" />
+          <line x1="40" y1="140" x2="340" y2="140" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3 3" />
+          <line x1="40" y1="190" x2="340" y2="190" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3 3" />
+          
+          <text x="190" y="315" fill="#f59e0b" font-size="10" text-anchor="middle" font-family="monospace">PHONEME ACOUSTIC FORMANT EMBEDDING</text>
+          <text x="190" y="340" fill="rgba(255,255,255,0.4)" font-size="8" text-anchor="middle" font-family="monospace">TIME (10ms SLIDING ANALYSIS FRAMES)</text>
+        </svg>
+      `);
+    }
+
+    // Default: sync_curve
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
         <rect width="380" height="380" fill="#04060e" />
         <line x1="40" y1="280" x2="350" y2="280" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
         <line x1="195" y1="40" x2="195" y2="280" stroke="rgba(255,255,255,0.15)" stroke-width="1" stroke-dasharray="3 3" />
-        <text x="195" y="298" fill="rgba(255,255,255,0.5)" font-size="9" text-anchor="middle" font-family="monospace">OFFSET &tau; = 0 FRAMES</text>
+        <text x="195" y="298" fill="rgba(255,255,255,0.5)" font-size="9" text-anchor="middle" font-family="monospace">OFFSET &#964; = 0 FRAMES</text>
         
         ${isSync ? `
           <!-- Distinct V-shaped distance minimum at tau = 0 -->
@@ -87,7 +150,7 @@ const AudioTab = ({
   const exhibits = useMemo(() => [
     {
       id: 'sync_curve',
-      name: 'SyncNet Temporal Correlation Curve',
+      name: 'SyncNet Correlation Curve',
       domain: 'Lip-Motion vs Audio Euclidean Distance',
       verdict: isSync ? { status: 'PASS', reason: 'Synchronous phoneme-viseme' } : { status: 'ANOMALY', reason: 'Temporal desynchronization' },
       img: resolveImg(data.sync_plot_path, 'sync_curve'),
@@ -95,7 +158,7 @@ const AudioTab = ({
     },
     {
       id: 'lip_3d',
-      name: 'Lip ROI 3D-CNN Spatio-Temporal Window',
+      name: 'Lip ROI 3D-CNN Spatio-Temporal',
       domain: '5-Frame Convolutional Visemes',
       verdict: isSync ? { status: 'PASS', reason: 'Viseme dynamics verified' } : { status: 'WARN', reason: 'Viseme blur / latency' },
       img: resolveImg(data.lip_3d_path, 'lip_3d'),
@@ -118,7 +181,7 @@ const AudioTab = ({
   const originalFaceUrl = useMemo(() => {
     if (result.heatmaps?.original_face) return result.heatmaps.original_face;
     if (result.face_crop_path) return `${API_BASE}/${result.face_crop_path}`;
-    return makeFallbackSvg('normal');
+    return makeFallbackSvg('sync_curve');
   }, [result.heatmaps, result.face_crop_path, makeFallbackSvg]);
 
   const handleStageMouseMove = useCallback((e) => {
@@ -211,235 +274,249 @@ const AudioTab = ({
         )}
       </div>
 
-      {/* MASTER-DETAIL FORENSIC WORKBENCH */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1.35fr) minmax(320px, 1fr)', gap: '1.25rem' }}>
+      {/* MASTER-DETAIL FORENSIC WORKBENCH (Bulletproof Non-Overlapping Grid) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: INTERACTIVE STAGE & A/B WIPE */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div 
-            className="glass-panel" 
-            style={{ 
-              padding: '0.85rem', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              background: '#040711', 
-              border: '1px solid var(--glass-border)',
-              position: 'relative' 
-            }}
-          >
-            {/* Stage Control Ribbon */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setStageMode(stageMode === 'wipe' ? 'single' : 'wipe')}
-                  className={`chip-btn ${stageMode === 'wipe' ? 'active' : ''}`}
-                  style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.55rem' }}
-                  title="Toggle A/B Wipe vs Single Overlay View"
-                >
-                  <ArrowRightLeft size={12} />
-                  {stageMode === 'wipe' ? 'A/B Wipe Active' : 'Single Overlay'}
-                </button>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>|</span>
-                <span className="mono-font" style={{ fontSize: '0.7rem', color: 'var(--warning)' }}>
-                  {activeObj.name}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span className="mono-font" style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  WINDOW: ±15 FRAMES
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => setZoomedImage(activeObj.img)}
-                  style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px', padding: '0.3rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  title="Zoom Stage Exhibit"
-                >
-                  <Maximize2 size={13} />
-                </button>
-              </div>
+        <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          
+          {/* Stage Control Ribbon */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <button
+                type="button"
+                onClick={() => setStageMode(stageMode === 'wipe' ? 'single' : 'wipe')}
+                className={`chip-btn ${stageMode === 'wipe' ? 'active' : ''}`}
+                style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.55rem' }}
+                title="Toggle A/B Wipe vs Single Overlay View"
+              >
+                <ArrowRightLeft size={12} />
+                {stageMode === 'wipe' ? 'A/B Wipe Active' : 'Single Overlay'}
+              </button>
             </div>
 
-            {/* Stage Viewport */}
-            <div 
-              ref={stageContainerRef}
-              onMouseMove={handleStageMouseMove}
-              onMouseLeave={handleStageMouseLeave}
-              style={{
-                position: 'relative',
-                width: '100%',
-                aspectRatio: '1 / 1',
-                maxHeight: '440px',
-                background: '#020408',
-                borderRadius: '6px',
-                overflow: 'hidden',
-                cursor: 'crosshair',
-                border: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+            {/* Exhibit Quick Switcher (Toolbar integrated like VisualTab) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              {exhibits.map((ex) => {
+                const isSel = ex.id === activeExhibit;
+                return (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => setActiveExhibit(ex.id)}
+                    style={{
+                      background: isSel ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                      border: `1px solid ${isSel ? 'var(--warning)' : 'transparent'}`,
+                      color: isSel ? 'var(--warning)' : 'var(--text-muted)',
+                      borderRadius: '3px',
+                      padding: '2px 7px',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {ex.id === 'sync_curve' ? 'SyncNet Curve' : ex.id === 'lip_3d' ? 'Lip 3D ROI' : 'MFCC'}
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={() => setZoomedImage(activeObj.img)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px', padding: '0.3rem', color: 'var(--text-secondary)', cursor: 'pointer', marginLeft: '0.25rem' }}
+                title="Zoom Stage Exhibit"
+              >
+                <Maximize2 size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Stage Viewport */}
+          <div 
+            ref={stageContainerRef}
+            onMouseMove={handleStageMouseMove}
+            onMouseLeave={handleStageMouseLeave}
+            style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: '1 / 1',
+              maxHeight: '420px',
+              background: '#020408',
+              borderRadius: '6px',
+              overflow: 'hidden',
+              cursor: 'crosshair',
+              border: '1px solid rgba(255,255,255,0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {/* Bottom Image: Active Sync Exhibit */}
+            <img 
+              src={activeObj.img} 
+              alt={activeObj.name} 
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = makeFallbackSvg(activeObj.id);
               }}
-            >
-              {/* Bottom Image: Active Sync Exhibit */}
-              <img 
-                src={activeObj.img} 
-                alt={activeObj.name} 
-                style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  width: '100%', 
-                  height: '100%', 
-                  objectFit: 'contain'
-                }} 
-              />
+              style={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'contain'
+              }} 
+            />
 
-              {/* Top Layer: Original Camera Capture (for A/B Wipe) */}
-              {stageMode === 'wipe' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    clipPath: `polygon(0 0, ${wipePercent}% 0, ${wipePercent}% 100%, 0 100%)`,
-                    pointerEvents: 'none',
-                    overflow: 'hidden'
+            {/* Top Layer: Original Camera Capture (for A/B Wipe) */}
+            {stageMode === 'wipe' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  clipPath: `polygon(0 0, ${wipePercent}% 0, ${wipePercent}% 100%, 0 100%)`,
+                  pointerEvents: 'none',
+                  overflow: 'hidden'
+                }}
+              >
+                <img 
+                  src={originalFaceUrl} 
+                  alt="Camera Capture" 
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = makeFallbackSvg('sync_curve');
                   }}
-                >
-                  <img 
-                    src={originalFaceUrl} 
-                    alt="Camera Capture" 
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      objectFit: 'contain' 
-                    }} 
-                  />
-                  <div style={{
-                    position: 'absolute',
-                    top: '8px',
-                    left: '8px',
-                    background: 'rgba(0,0,0,0.65)',
-                    padding: '0.15rem 0.45rem',
-                    borderRadius: '3px',
-                    fontSize: '0.62rem',
-                    color: '#94a3b8',
-                    fontFamily: 'var(--font-mono)'
-                  }}>
-                    CAMERA CAPTURE [A]
-                  </div>
-                </div>
-              )}
-
-              {/* Wipe Divider Line */}
-              {stageMode === 'wipe' && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: `${wipePercent}%`,
-                    width: '2px',
-                    background: 'var(--warning)',
-                    boxShadow: '0 0 8px rgba(245, 158, 11, 0.8)',
-                    cursor: 'ew-resize',
-                    zIndex: 10
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    background: 'var(--warning)',
-                    color: '#000',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.65rem'
-                  }}>
-                    <ArrowRightLeft size={10} />
-                  </div>
-                </div>
-              )}
-
-              {/* Watermark Label for Exhibit B */}
-              {stageMode === 'wipe' && (
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    objectFit: 'contain' 
+                  }} 
+                />
                 <div style={{
                   position: 'absolute',
                   top: '8px',
-                  right: '8px',
+                  left: '8px',
                   background: 'rgba(0,0,0,0.65)',
                   padding: '0.15rem 0.45rem',
                   borderRadius: '3px',
                   fontSize: '0.62rem',
-                  color: 'var(--warning)',
+                  color: '#94a3b8',
                   fontFamily: 'var(--font-mono)'
                 }}>
-                  SYNCNET CROSS-CHECK [B]
+                  CAMERA CAPTURE [A]
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Real-Time Crosshair HUD Overlay */}
-              {hudCoords && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    left: '10px',
-                    background: 'rgba(10, 15, 29, 0.88)',
-                    backdropFilter: 'blur(6px)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    padding: '0.35rem 0.6rem',
-                    borderRadius: '4px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.65rem',
-                    color: '#e2e8f0',
-                    pointerEvents: 'none',
-                    zIndex: 20,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px'
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: '8px', color: 'var(--warning)' }}>
-                    <span>X: {hudCoords.pxX}px</span>
-                    <span>Y: {hudCoords.pxY}px</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', color: '#94a3b8' }}>
-                    <span>{hudCoords.offset}</span>
-                    <span>{hudCoords.distance}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Wipe Scrubber Slider */}
+            {/* Wipe Divider Line */}
             {stageMode === 'wipe' && (
-              <div style={{ marginTop: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>SPLIT</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={wipePercent} 
-                  onChange={(e) => setWipePercent(Number(e.target.value))}
-                  style={{ flex: 1, accentColor: 'var(--warning)', cursor: 'ew-resize' }}
-                />
-                <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', width: '32px' }}>{wipePercent}%</span>
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: `${wipePercent}%`,
+                  width: '2px',
+                  background: 'var(--warning)',
+                  boxShadow: '0 0 8px rgba(245, 158, 11, 0.8)',
+                  cursor: 'ew-resize',
+                  zIndex: 10
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'var(--warning)',
+                  color: '#000',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.65rem'
+                }}>
+                  <ArrowRightLeft size={10} />
+                </div>
+              </div>
+            )}
+
+            {/* Watermark Label for Exhibit B */}
+            {stageMode === 'wipe' && (
+              <div style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                background: 'rgba(0,0,0,0.65)',
+                padding: '0.15rem 0.45rem',
+                borderRadius: '3px',
+                fontSize: '0.62rem',
+                color: 'var(--warning)',
+                fontFamily: 'var(--font-mono)'
+              }}>
+                SYNCNET EXHIBIT [B]
+              </div>
+            )}
+
+            {/* Real-Time Crosshair HUD Overlay */}
+            {hudCoords && (
+              <div 
+                style={{
+                  position: 'absolute',
+                  bottom: '10px',
+                  left: '10px',
+                  background: 'rgba(10, 15, 29, 0.88)',
+                  backdropFilter: 'blur(6px)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  padding: '0.35rem 0.6rem',
+                  borderRadius: '4px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.65rem',
+                  color: '#e2e8f0',
+                  pointerEvents: 'none',
+                  zIndex: 20,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}
+              >
+                <div style={{ display: 'flex', gap: '8px', color: 'var(--warning)' }}>
+                  <span>X: {hudCoords.pxX}px</span>
+                  <span>Y: {hudCoords.pxY}px</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', color: '#94a3b8' }}>
+                  <span>{hudCoords.offset}</span>
+                  <span>{hudCoords.distance}</span>
+                </div>
               </div>
             )}
           </div>
 
-          {/* FILMSTRIP THUMBNAIL SELECTOR */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+          {/* Wipe Scrubber Slider */}
+          {stageMode === 'wipe' && (
+            <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>SPLIT</span>
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={wipePercent} 
+                onChange={(e) => setWipePercent(Number(e.target.value))}
+                style={{ flex: 1, accentColor: 'var(--warning)', cursor: 'ew-resize' }}
+              />
+              <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', width: '32px' }}>{wipePercent}%</span>
+            </div>
+          )}
+
+          {/* FILMSTRIP THUMBNAIL SELECTOR (Robust flex layout with minWidth 0) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.5rem', marginTop: '0.85rem' }}>
             {exhibits.map((ex) => {
               const isSel = ex.id === activeExhibit;
               return (
@@ -454,39 +531,52 @@ const AudioTab = ({
                     padding: '0.45rem',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease'
+                    transition: 'all 0.15s ease',
+                    minWidth: 0,
+                    width: '100%',
+                    overflow: 'hidden'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: isSel ? 'var(--warning)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', minWidth: 0 }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isSel ? 'var(--warning)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, marginRight: '4px' }}>
                       {ex.name}
                     </span>
                     <span style={{
-                      fontSize: '0.55rem',
-                      padding: '0.1rem 0.3rem',
+                      fontSize: '0.52rem',
+                      padding: '0.1rem 0.25rem',
                       borderRadius: '2px',
                       background: ex.verdict.status === 'PASS' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
                       color: ex.verdict.status === 'PASS' ? 'var(--success)' : 'var(--danger)',
-                      fontWeight: 700
+                      fontWeight: 700,
+                      flexShrink: 0
                     }}>
                       {ex.verdict.status}
                     </span>
                   </div>
 
-                  <div style={{ height: '52px', background: '#020408', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img src={ex.img} alt={ex.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isSel ? 1 : 0.6 }} />
+                  <div style={{ height: '48px', background: '#020408', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img 
+                      src={ex.img} 
+                      alt="" 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = makeFallbackSvg(ex.id);
+                      }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isSel ? 1 : 0.6 }} 
+                    />
                   </div>
                 </button>
               );
             })}
           </div>
+
         </div>
 
         {/* RIGHT COLUMN: FORENSIC TELEMETRY & KATEX DERIVATION DECK */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', minWidth: 0 }}>
           
           {/* Telemetry Cards Deck */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.65rem' }}>
             <MetricCard 
               label="Lip-Sync Conf (LSE-C)" 
               value={lseC !== null ? lseC.toFixed(2) : 'N/A'} 

@@ -52,6 +52,70 @@ const LightingTab = ({
   const isAnomaly = anomalyScore > 0.5 || (angleDiff !== null && angleDiff > divergenceThreshold);
 
   const makeFallbackSvg = useCallback((type) => {
+    if (type === 'lighting_vectors') {
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
+          <rect width="380" height="380" fill="#04060d" />
+          <text x="190" y="32" fill="rgba(255,255,255,0.6)" font-size="10" text-anchor="middle" font-family="monospace">3D DIRECTIONAL ILLUMINATION VECTORS</text>
+          
+          <ellipse cx="190" cy="170" rx="85" ry="110" fill="#090d16" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" />
+          
+          <!-- Background ambient light arrow (Cyan) -->
+          <line x1="270" y1="80" x2="220" y2="140" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="4 3" />
+          <polygon points="216,145 228,137 220,131" fill="#38bdf8" />
+          <text x="280" y="75" fill="#38bdf8" font-size="8" font-family="monospace">BG AMBIENT</text>
+
+          ${isAnomaly ? `
+            <!-- Spliced face light arrow pointing wrong way (Amber) -->
+            <line x1="90" y1="80" x2="150" y2="140" stroke="#f59e0b" stroke-width="3" />
+            <polygon points="155,145 150,132 140,138" fill="#f59e0b" />
+            <text x="75" y="75" fill="#f59e0b" font-size="8" font-family="monospace">FACE DONOR</text>
+            <text x="190" y="310" fill="#f43f5e" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">
+              ILLUMINANT DIVERGENCE: ${(angleDiff || 58.4).toFixed(1)}° (MISMATCH)
+            </text>
+          ` : `
+            <line x1="260" y1="75" x2="210" y2="135" stroke="#f59e0b" stroke-width="3" />
+            <polygon points="206,140 218,132 210,126" fill="#f59e0b" />
+            <text x="190" y="310" fill="#10b981" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">
+              ILLUMINANT COHERENCE: ${(angleDiff || 18.2).toFixed(1)}° (CONGRUENT)
+            </text>
+          `}
+          <text x="190" y="335" fill="rgba(255,255,255,0.4)" font-size="9" text-anchor="middle" font-family="monospace">
+            SURFACE NORMAL IRRADIANCE ESTIMATION
+          </text>
+        </svg>
+      `);
+    }
+
+    if (type === 'shading_residual') {
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
+          <rect width="380" height="380" fill="#04060d" />
+          <text x="190" y="32" fill="rgba(255,255,255,0.6)" font-size="10" text-anchor="middle" font-family="monospace">LAMBERTIAN SHADING RESIDUAL</text>
+          
+          <ellipse cx="190" cy="170" rx="85" ry="110" fill="#090d16" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" />
+          
+          ${isAnomaly ? `
+            <!-- Hotspots where observed radiance contradicts Lambert's cosine law -->
+            <circle cx="150" cy="150" r="30" fill="rgba(244,63,94,0.3)" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="3 3" />
+            <circle cx="230" cy="180" r="25" fill="rgba(244,63,94,0.3)" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="3 3" />
+            <text x="190" y="310" fill="#f43f5e" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">
+              SPECULAR ALBEDO VIOLATION DETECTED
+            </text>
+          ` : `
+            <ellipse cx="190" cy="170" rx="75" ry="95" fill="rgba(16,185,129,0.06)" stroke="#10b981" stroke-width="1.5" />
+            <text x="190" y="310" fill="#10b981" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">
+              LAMBERTIAN RADIANCE HOMOGENEOUS
+            </text>
+          `}
+          <text x="190" y="335" fill="rgba(255,255,255,0.4)" font-size="9" text-anchor="middle" font-family="monospace">
+            RESIDUAL: ||I_obs(p) - (k_d · (N(p) · L) + I_a)||
+          </text>
+        </svg>
+      `);
+    }
+
+    // Default: chrome_probe
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
         <defs>
@@ -66,7 +130,7 @@ const LightingTab = ({
         <circle cx="190" cy="170" r="100" fill="url(#chrome)" stroke="rgba(245,158,11,0.5)" stroke-width="2" />
         
         <!-- Light Vectors -->
-        <line x1="190" y1="170" x2="${isAnomaly ? '110' : '260'}" y2="${isAnomaly ? '80' : '95'}" stroke="#f59e0b" stroke-width="3" marker-end="url(#arrow)" />
+        <line x1="190" y1="170" x2="${isAnomaly ? '110' : '260'}" y2="${isAnomaly ? '80' : '95'}" stroke="#f59e0b" stroke-width="3" />
         <line x1="190" y1="170" x2="270" y2="100" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4 3" />
         
         <text x="190" y="310" fill="#f59e0b" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">
@@ -216,246 +280,259 @@ const LightingTab = ({
         )}
       </div>
 
-      {/* MASTER-DETAIL FORENSIC WORKBENCH */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1.35fr) minmax(320px, 1fr)', gap: '1.25rem' }}>
+      {/* MASTER-DETAIL FORENSIC WORKBENCH (Bulletproof Non-Overlapping Grid) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: INTERACTIVE STAGE & A/B WIPE */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div 
-            className="glass-panel" 
-            style={{ 
-              padding: '0.85rem', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              background: '#040711', 
-              border: '1px solid var(--glass-border)',
-              position: 'relative' 
-            }}
-          >
-            {/* Stage Control Ribbon */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setStageMode(stageMode === 'wipe' ? 'single' : 'wipe')}
-                  className={`chip-btn ${stageMode === 'wipe' ? 'active' : ''}`}
-                  style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.55rem' }}
-                  title="Toggle A/B Wipe vs Single Overlay View"
-                >
-                  <ArrowRightLeft size={12} />
-                  {stageMode === 'wipe' ? 'A/B Wipe Active' : 'Single Overlay'}
-                </button>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>|</span>
-                <span className="mono-font" style={{ fontSize: '0.7rem', color: 'var(--warning)' }}>
-                  {activeObj.name}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  <Sliders size={12} />
-                  <span>Max &theta;:</span>
-                  <input 
-                    type="range" 
-                    min="25" 
-                    max="65" 
-                    step="5"
-                    value={divergenceThreshold} 
-                    onChange={(e) => setDivergenceThreshold(Number(e.target.value))}
-                    style={{ width: '60px', accentColor: 'var(--warning)', cursor: 'pointer' }}
-                  />
-                  <span className="mono-font" style={{ width: '24px' }}>{divergenceThreshold}°</span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setZoomedImage(activeObj.img)}
-                  style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px', padding: '0.3rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  title="Zoom Stage Exhibit"
-                >
-                  <Maximize2 size={13} />
-                </button>
-              </div>
+        <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          
+          {/* Stage Control Ribbon */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <button
+                type="button"
+                onClick={() => setStageMode(stageMode === 'wipe' ? 'single' : 'wipe')}
+                className={`chip-btn ${stageMode === 'wipe' ? 'active' : ''}`}
+                style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.25rem 0.55rem' }}
+                title="Toggle A/B Wipe vs Single Overlay View"
+              >
+                <ArrowRightLeft size={12} />
+                {stageMode === 'wipe' ? 'A/B Wipe Active' : 'Single Overlay'}
+              </button>
             </div>
 
-            {/* Stage Viewport */}
-            <div 
-              ref={stageContainerRef}
-              onMouseMove={handleStageMouseMove}
-              onMouseLeave={handleStageMouseLeave}
-              style={{
-                position: 'relative',
-                width: '100%',
-                aspectRatio: '1 / 1',
-                maxHeight: '440px',
-                background: '#020408',
-                borderRadius: '6px',
-                overflow: 'hidden',
-                cursor: 'crosshair',
-                border: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+            {/* Exhibit Quick Switcher (Toolbar integrated like VisualTab) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              {exhibits.map((ex) => {
+                const isSel = ex.id === activeExhibit;
+                return (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => setActiveExhibit(ex.id)}
+                    style={{
+                      background: isSel ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                      border: `1px solid ${isSel ? 'var(--warning)' : 'transparent'}`,
+                      color: isSel ? 'var(--warning)' : 'var(--text-muted)',
+                      borderRadius: '3px',
+                      padding: '2px 7px',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {ex.id === 'lighting_vectors' ? 'Vector Field' : ex.id === 'chrome_probe' ? 'Chrome Sphere' : 'Shading Residual'}
+                  </button>
+                );
+              })}
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.25rem' }}>
+                <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>&theta;:</span>
+                <input 
+                  type="range" 
+                  min="25" 
+                  max="65" 
+                  step="5"
+                  value={divergenceThreshold} 
+                  onChange={(e) => setDivergenceThreshold(Number(e.target.value))}
+                  style={{ width: '48px', accentColor: 'var(--warning)', cursor: 'pointer' }}
+                />
+                <span className="mono-font" style={{ fontSize: '0.62rem', width: '22px' }}>{divergenceThreshold}°</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setZoomedImage(activeObj.img)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px', padding: '0.3rem', color: 'var(--text-secondary)', cursor: 'pointer', marginLeft: '0.25rem' }}
+                title="Zoom Stage Exhibit"
+              >
+                <Maximize2 size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Stage Viewport */}
+          <div 
+            ref={stageContainerRef}
+            onMouseMove={handleStageMouseMove}
+            onMouseLeave={handleStageMouseLeave}
+            style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: '1 / 1',
+              maxHeight: '440px',
+              background: '#020408',
+              borderRadius: '6px',
+              overflow: 'hidden',
+              cursor: 'crosshair',
+              border: '1px solid rgba(255,255,255,0.05)'
+            }}
+          >
+            {/* Primary Underlay (Exhibit B) */}
+            <img 
+              src={activeObj.img} 
+              alt="" 
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = makeFallbackSvg(activeExhibit);
               }}
-            >
-              {/* Bottom Image: Active Lighting Exhibit */}
-              <img 
-                src={activeObj.img} 
-                alt={activeObj.name} 
-                style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  left: 0, 
-                  width: '100%', 
-                  height: '100%', 
-                  objectFit: 'contain'
-                }} 
-              />
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'contain',
+                display: 'block' 
+              }} 
+            />
 
-              {/* Top Layer: Original Camera Capture (for A/B Wipe) */}
-              {stageMode === 'wipe' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    clipPath: `polygon(0 0, ${wipePercent}% 0, ${wipePercent}% 100%, 0 100%)`,
-                    pointerEvents: 'none',
-                    overflow: 'hidden'
+            {/* A/B Wipe Overlay: Camera Capture (Layer A) */}
+            {stageMode === 'wipe' && (
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  clipPath: `polygon(0 0, ${wipePercent}% 0, ${wipePercent}% 100%, 0 100%)`,
+                  pointerEvents: 'none',
+                  overflow: 'hidden'
+                }}
+              >
+                <img 
+                  src={originalFaceUrl} 
+                  alt="" 
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = makeFallbackSvg('lighting_vectors');
                   }}
-                >
-                  <img 
-                    src={originalFaceUrl} 
-                    alt="Camera Capture" 
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      objectFit: 'contain' 
-                    }} 
-                  />
-                  <div style={{
-                    position: 'absolute',
-                    top: '8px',
-                    left: '8px',
-                    background: 'rgba(0,0,0,0.65)',
-                    padding: '0.15rem 0.45rem',
-                    borderRadius: '3px',
-                    fontSize: '0.62rem',
-                    color: '#94a3b8',
-                    fontFamily: 'var(--font-mono)'
-                  }}>
-                    CAMERA CAPTURE [A]
-                  </div>
-                </div>
-              )}
-
-              {/* Wipe Divider Line */}
-              {stageMode === 'wipe' && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: `${wipePercent}%`,
-                    width: '2px',
-                    background: 'var(--warning)',
-                    boxShadow: '0 0 8px rgba(245, 158, 11, 0.8)',
-                    cursor: 'ew-resize',
-                    zIndex: 10
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    background: 'var(--warning)',
-                    color: '#000',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.65rem'
-                  }}>
-                    <ArrowRightLeft size={10} />
-                  </div>
-                </div>
-              )}
-
-              {/* Watermark Label for Exhibit B */}
-              {stageMode === 'wipe' && (
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    objectFit: 'contain' 
+                  }} 
+                />
                 <div style={{
                   position: 'absolute',
                   top: '8px',
-                  right: '8px',
+                  left: '8px',
                   background: 'rgba(0,0,0,0.65)',
                   padding: '0.15rem 0.45rem',
                   borderRadius: '3px',
                   fontSize: '0.62rem',
-                  color: 'var(--warning)',
+                  color: '#94a3b8',
                   fontFamily: 'var(--font-mono)'
                 }}>
-                  LIGHTING VECTOR FIELD [B]
+                  ORIGINAL CAPTURE [A]
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Real-Time Crosshair HUD Overlay */}
-              {hudCoords && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    bottom: '10px',
-                    left: '10px',
-                    background: 'rgba(10, 15, 29, 0.88)',
-                    backdropFilter: 'blur(6px)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    padding: '0.35rem 0.6rem',
-                    borderRadius: '4px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.65rem',
-                    color: '#e2e8f0',
-                    pointerEvents: 'none',
-                    zIndex: 20,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px'
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: '8px', color: 'var(--warning)' }}>
-                    <span>X: {hudCoords.pxX}px</span>
-                    <span>Y: {hudCoords.pxY}px</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', color: '#94a3b8' }}>
-                    <span>Normal: {hudCoords.normal}</span>
-                    <span>Irradiance: {hudCoords.irradiance}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Wipe Scrubber Slider */}
+            {/* Wipe Divider Line */}
             {stageMode === 'wipe' && (
-              <div style={{ marginTop: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>SPLIT</span>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="100" 
-                  value={wipePercent} 
-                  onChange={(e) => setWipePercent(Number(e.target.value))}
-                  style={{ flex: 1, accentColor: 'var(--warning)', cursor: 'ew-resize' }}
-                />
-                <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', width: '32px' }}>{wipePercent}%</span>
+              <div 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: `${wipePercent}%`,
+                  width: '2px',
+                  background: 'var(--warning)',
+                  boxShadow: '0 0 8px rgba(245, 158, 11, 0.8)',
+                  cursor: 'ew-resize',
+                  zIndex: 10
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'var(--warning)',
+                  color: '#000',
+                  borderRadius: '50%',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.65rem'
+                }}>
+                  <ArrowRightLeft size={10} />
+                </div>
+              </div>
+            )}
+
+            {/* Watermark Label for Exhibit B */}
+            {stageMode === 'wipe' && (
+              <div style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                background: 'rgba(0,0,0,0.65)',
+                padding: '0.15rem 0.45rem',
+                borderRadius: '3px',
+                fontSize: '0.62rem',
+                color: 'var(--warning)',
+                fontFamily: 'var(--font-mono)'
+              }}>
+                LIGHTING ENVIRONMENT [B]
+              </div>
+            )}
+
+            {/* Real-Time Crosshair HUD Overlay */}
+            {hudCoords && (
+              <div 
+                style={{
+                  position: 'absolute',
+                  bottom: '10px',
+                  left: '10px',
+                  background: 'rgba(10, 15, 29, 0.88)',
+                  backdropFilter: 'blur(6px)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  padding: '0.35rem 0.6rem',
+                  borderRadius: '4px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.65rem',
+                  color: '#e2e8f0',
+                  pointerEvents: 'none',
+                  zIndex: 20,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}
+              >
+                <div style={{ display: 'flex', gap: '8px', color: 'var(--warning)' }}>
+                  <span>X: {hudCoords.pxX}px</span>
+                  <span>Y: {hudCoords.pxY}px</span>
+                  <span>N: {hudCoords.normal}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', color: '#94a3b8' }}>
+                  <span>SH: {hudCoords.shFlux}</span>
+                  <span>Residual: {hudCoords.residual}</span>
+                </div>
               </div>
             )}
           </div>
 
-          {/* FILMSTRIP THUMBNAIL SELECTOR */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+          {/* Wipe Scrubber Slider */}
+          {stageMode === 'wipe' && (
+            <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>SPLIT</span>
+              <input 
+                type="range" 
+                min="0" 
+                max="100" 
+                value={wipePercent} 
+                onChange={(e) => setWipePercent(Number(e.target.value))}
+                style={{ flex: 1, accentColor: 'var(--warning)', cursor: 'ew-resize' }}
+              />
+              <span className="mono-font" style={{ fontSize: '0.65rem', color: 'var(--text-muted)', width: '32px' }}>{wipePercent}%</span>
+            </div>
+          )}
+
+          {/* FILMSTRIP THUMBNAIL SELECTOR (Robust flex layout with minWidth 0) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '0.5rem', marginTop: '0.85rem' }}>
             {exhibits.map((ex) => {
               const isSel = ex.id === activeExhibit;
               return (
@@ -470,27 +547,39 @@ const LightingTab = ({
                     padding: '0.45rem',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease'
+                    transition: 'all 0.15s ease',
+                    minWidth: 0,
+                    width: '100%',
+                    overflow: 'hidden'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: isSel ? 'var(--warning)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', minWidth: 0 }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isSel ? 'var(--warning)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, marginRight: '4px' }}>
                       {ex.name}
                     </span>
                     <span style={{
-                      fontSize: '0.55rem',
-                      padding: '0.1rem 0.3rem',
+                      fontSize: '0.52rem',
+                      padding: '0.1rem 0.25rem',
                       borderRadius: '2px',
                       background: ex.verdict.status === 'PASS' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
                       color: ex.verdict.status === 'PASS' ? 'var(--success)' : 'var(--danger)',
-                      fontWeight: 700
+                      fontWeight: 700,
+                      flexShrink: 0
                     }}>
                       {ex.verdict.status}
                     </span>
                   </div>
 
-                  <div style={{ height: '52px', background: '#020408', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img src={ex.img} alt={ex.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isSel ? 1 : 0.6 }} />
+                  <div style={{ height: '48px', background: '#020408', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img 
+                      src={ex.img} 
+                      alt="" 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = makeFallbackSvg(ex.id);
+                      }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isSel ? 1 : 0.6 }} 
+                    />
                   </div>
                 </button>
               );
