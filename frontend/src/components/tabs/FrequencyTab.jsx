@@ -579,9 +579,12 @@ const FrequencyTab = ({
               <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <img 
                   src={originalFaceUrl} 
-                  alt="Original Face Reference" 
+                  alt="" 
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
-                  onError={(e) => { e.target.style.display = 'none'; }}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = makeSpectralFallbackSvg('face_normal', isAnomaly);
+                  }}
                 />
                 <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', border: '1px solid var(--glass-border)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                   A: ORIGINAL CAPTURE
@@ -605,9 +608,12 @@ const FrequencyTab = ({
             >
               <img 
                 src={activeTransform.img} 
-                alt={activeTransform.name} 
+                alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = makeSpectralFallbackSvg(activeTransform.id, isAnomaly);
+                }}
               />
               {stageMode === 'wipe' && (
                 <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(59,130,246,0.4)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
@@ -952,7 +958,15 @@ const FrequencyTab = ({
                 }}
               >
                 <div style={{ height: '70px', background: '#05070a', borderRadius: '3px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img src={t.img} alt={t.shortTitle} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                  <img 
+                    src={t.img} 
+                    alt="" 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = makeSpectralFallbackSvg(t.id, isAnomaly);
+                    }} 
+                  />
                 </div>
                 <div style={{ fontSize: '0.72rem', fontWeight: 700, color: isSelected ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.name}>
                   {t.shortTitle}

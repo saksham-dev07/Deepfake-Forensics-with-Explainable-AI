@@ -186,10 +186,10 @@ const MetaTab = ({
       </div>
 
       {/* TWO COLUMN WORKBENCH: EXIF TAG EXPLORER + MATHEMATICAL DERIVATION */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1.4fr) minmax(320px, 1fr)', gap: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: EXTRACTED EXIF & CONTAINER TAG EXPLORER */}
-        <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <Terminal size={14} color="var(--primary)" />
@@ -263,7 +263,7 @@ const MetaTab = ({
         </div>
 
         {/* RIGHT COLUMN: ARCHITECTURE BLUEPRINT & ENTROPY DERIVATION */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', minWidth: 0 }}>
           
           {/* Multi-Modal Architecture Blueprint */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>

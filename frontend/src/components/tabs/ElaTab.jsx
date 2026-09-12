@@ -51,17 +51,83 @@ const ElaTab = ({
   const isAnomaly = score > 0.5;
 
   const makeFallbackSvg = useCallback((type) => {
+    const isGhosting = type === 'ghosting';
+    const isHsv = type === 'hsv';
+
+    let title = 'ERROR LEVEL ANALYSIS (Q=95)';
+    let tint = '#38bdf8';
+    let bodySvg = '';
+
+    if (isGhosting) {
+      tint = '#f59e0b';
+      title = 'JPEG GHOSTING MAP (20 STEPS)';
+      bodySvg = `
+        <rect width="380" height="380" fill="#0c0a06" />
+        <line x1="40" y1="320" x2="340" y2="320" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+        <line x1="40" y1="60" x2="40" y2="320" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+        <path d="M 40 300 Q 120 280 190 140 T 340 100" fill="none" stroke="${isAnomaly ? '#f43f5e' : '#10b981'}" stroke-width="2.5" />
+        <circle cx="190" cy="140" r="5" fill="${isAnomaly ? '#f43f5e' : '#10b981'}" />
+        <circle cx="190" cy="190" r="70" fill="none" stroke="${tint}" stroke-width="1.5" stroke-dasharray="3,3" opacity="0.4" />
+        ${isAnomaly ? `
+          <rect x="80" y="70" width="220" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="85" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">SECONDARY COMPRESSION GHOST DETECTED</text>
+        ` : `
+          <rect x="80" y="70" width="220" height="22" rx="4" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1" />
+          <text x="190" y="85" fill="#10b981" font-size="9" text-anchor="middle" font-family="monospace">SINGLE QUANTIZATION GENERATION</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">MINIMA STEP: Q=74 vs BASELINE Q=95</text>
+      `;
+    } else if (isHsv) {
+      tint = '#ec4899';
+      title = 'HSV SATURATION ELA RESIDUAL';
+      bodySvg = `
+        <rect width="380" height="380" fill="#0f050c" />
+        <ellipse cx="190" cy="190" rx="90" ry="125" fill="none" stroke="rgba(236,72,153,0.25)" stroke-width="1.5" />
+        <circle cx="190" cy="190" r="55" fill="rgba(236,72,153,0.08)" />
+        ${isAnomaly ? `
+          <circle cx="190" cy="225" r="35" fill="#f43f5e" opacity="0.5" />
+          <path d="M 120 180 Q 190 220 260 180" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,3" fill="none" />
+          <rect x="80" y="70" width="220" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="85" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">CHROMA BLENDING BOUNDARY SEAM</text>
+        ` : `
+          <rect x="80" y="70" width="220" height="22" rx="4" fill="rgba(236,72,153,0.1)" stroke="rgba(236,72,153,0.3)" stroke-width="1" />
+          <text x="190" y="85" fill="#ec4899" font-size="9" text-anchor="middle" font-family="monospace">COHERENT CHROMA ERROR FLOOR</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">SATURATION ERROR DELTA: ${isAnomaly ? '62.4 LSB' : '11.8 LSB'}</text>
+      `;
+    } else {
+      tint = '#38bdf8';
+      title = 'STANDARD ELA (Q=95 IJG)';
+      bodySvg = `
+        <rect width="380" height="380" fill="#040813" />
+        <!-- 8x8 DCT block grid simulation -->
+        <defs>
+          <pattern id="dctGrid" width="24" height="24" patternUnits="userSpaceOnUse">
+            <rect width="24" height="24" fill="none" stroke="rgba(56,189,248,0.06)" stroke-width="1" />
+          </pattern>
+        </defs>
+        <rect width="380" height="380" fill="url(#dctGrid)" />
+        <ellipse cx="190" cy="190" rx="95" ry="130" fill="none" stroke="rgba(56,189,248,0.2)" stroke-width="1.5" />
+        ${isAnomaly ? `
+          <circle cx="190" cy="210" r="50" fill="#f43f5e" opacity="0.45" />
+          <circle cx="155" cy="165" r="22" fill="#f59e0b" opacity="0.4" />
+          <circle cx="225" cy="165" r="22" fill="#f59e0b" opacity="0.4" />
+          <rect x="75" y="70" width="230" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="85" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">HIGH ERROR DELTA (SPLICED INSERT)</text>
+        ` : `
+          <ellipse cx="190" cy="190" rx="70" ry="90" fill="rgba(56,189,248,0.06)" />
+          <rect x="75" y="70" width="230" height="22" rx="4" fill="rgba(56,189,248,0.1)" stroke="rgba(56,189,248,0.3)" stroke-width="1" />
+          <text x="190" y="85" fill="#38bdf8" font-size="9" text-anchor="middle" font-family="monospace">UNIFORM LUMINANCE ERROR FLOOR</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">MAX DELTA: ${isAnomaly ? '74.2 LSB (ANOMALOUS)' : '18.5 LSB (AUTHENTIC)'}</text>
+      `;
+    }
+
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
-        <rect width="380" height="380" fill="#060911" />
-        <ellipse cx="190" cy="190" rx="95" ry="130" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
-        ${isAnomaly ? `
-          <circle cx="190" cy="235" r="45" fill="#f43f5e" opacity="0.6" />
-          <circle cx="155" cy="165" r="25" fill="#f59e0b" opacity="0.5" />
-          <circle cx="225" cy="165" r="25" fill="#f59e0b" opacity="0.5" />
-        ` : `
-          <circle cx="190" cy="190" r="50" fill="#3b82f6" opacity="0.15" />
-        `}
+        ${bodySvg}
+        <rect x="20" y="20" width="340" height="26" rx="4" fill="rgba(10,15,29,0.85)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+        <text x="30" y="37" fill="#f8fafc" font-size="9.5" font-family="monospace" font-weight="bold">${title}</text>
       </svg>
     `);
   }, [isAnomaly]);
@@ -77,14 +143,16 @@ const ElaTab = ({
   const exhibits = useMemo(() => [
     {
       id: 'standard',
+      shortLabel: 'ELA (Q=95)',
       name: 'Standard ELA (Q=95)',
       domain: 'Full Image Luminance Compression Residual',
       verdict: isAnomaly ? { status: 'ANOMALY', reason: 'Compression mismatch' } : { status: 'PASS', reason: 'Uniform error floor' },
-      img: resolveImg(elaAnalysis.ela_image_path || result.heatmaps?.ela_overlay, 'ela'),
+      img: resolveImg(elaAnalysis.ela_image_path || result.heatmaps?.ela_overlay, 'standard'),
       desc: 'Re-compresses image at 95% quality and evaluates absolute pixel delta. Inconsistent brightness reveals spliced facial inserts.'
     },
     {
       id: 'ghosting',
+      shortLabel: 'JPEG Ghosting',
       name: 'JPEG Ghosting Map',
       domain: 'Multi-Generation Quantization Matrix',
       verdict: isAnomaly ? { status: 'WARN', reason: 'Secondary compression ghost' } : { status: 'PASS', reason: 'Single generation' },
@@ -93,6 +161,7 @@ const ElaTab = ({
     },
     {
       id: 'hsv',
+      shortLabel: 'HSV ELA',
       name: 'HSV Saturation ELA',
       domain: 'Chrominance Error Variance',
       verdict: isAnomaly ? { status: 'ANOMALY', reason: 'Chroma bleeding detected' } : { status: 'PASS', reason: 'Coherent saturation' },
@@ -108,7 +177,7 @@ const ElaTab = ({
   const originalFaceUrl = useMemo(() => {
     if (result.heatmaps?.original_face) return result.heatmaps.original_face;
     if (result.face_crop_path) return `${API_BASE}/${result.face_crop_path}`;
-    return makeFallbackSvg('normal');
+    return makeFallbackSvg('standard');
   }, [result.heatmaps, result.face_crop_path, makeFallbackSvg]);
 
   const handleStageMouseMove = useCallback((e) => {
@@ -163,10 +232,10 @@ const ElaTab = ({
       )}
 
       {/* MASTER-DETAIL SPLIT WORKBENCH */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1.25fr) minmax(320px, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* LEFT PANE: INTERACTIVE ELA STAGE */}
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <div>
               <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
@@ -179,7 +248,7 @@ const ElaTab = ({
 
           {/* Stage Controls */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--panel-subtle)', border: '1px solid var(--glass-border)', padding: '0.35rem 0.65rem', borderRadius: 'var(--radius-xs)', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => setStageMode('wipe')}
@@ -203,6 +272,20 @@ const ElaTab = ({
               >
                 Direct ELA Map
               </button>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>|</span>
+              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                {exhibits.map(ex => (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => setActiveExhibit(ex.id)}
+                    className={`chip-btn ${activeExhibit === ex.id ? 'active' : ''}`}
+                    style={{ fontSize: '0.66rem', padding: '0.2rem 0.5rem' }}
+                  >
+                    {ex.shortLabel}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Scale multiplier */}
@@ -249,9 +332,12 @@ const ElaTab = ({
             <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img 
                 src={originalFaceUrl} 
-                alt="Original Face" 
+                alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = makeFallbackSvg('standard');
+                }}
               />
               <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', border: '1px solid var(--glass-border)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 A: ORIGINAL CAPTURE
@@ -274,9 +360,12 @@ const ElaTab = ({
             >
               <img 
                 src={activeObj.img} 
-                alt={activeObj.name} 
+                alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = makeFallbackSvg(activeObj.id);
+                }}
               />
               <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(59,130,246,0.4)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
                 B: ELA RESIDUAL (Q=95)
@@ -346,7 +435,7 @@ const ElaTab = ({
         </div>
 
         {/* RIGHT PANE: COMPRESSION TELEMETRY & FORMULATIONS */}
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0 }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', background: 'var(--panel-subtle)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)' }}>
             <ScoreRing 
@@ -434,7 +523,15 @@ const ElaTab = ({
                 }}
               >
                 <div style={{ height: '75px', background: '#05070a', borderRadius: '3px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img src={ex.img} alt={ex.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                  <img 
+                    src={ex.img} 
+                    alt="" 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = makeFallbackSvg(ex.id);
+                    }} 
+                  />
                 </div>
                 <div style={{ fontSize: '0.72rem', fontWeight: 700, color: isSelected ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {ex.name}

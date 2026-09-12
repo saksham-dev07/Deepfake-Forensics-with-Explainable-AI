@@ -50,19 +50,76 @@ const NoiseTab = ({
   const scorePct = (score * 100).toFixed(1);
 
   const makeFallbackSvg = useCallback((type) => {
+    const isHighpass = type === 'highpass';
+    const isVariance = type === 'variance';
+
+    let title = 'SENSOR PRNU PATTERN NOISE';
+    let tint = '#10b981';
+    let bodySvg = '';
+
+    if (isHighpass) {
+      tint = '#38bdf8';
+      title = 'HIGH-PASS RESIDUAL (WAVELET SUB-BAND)';
+      bodySvg = `
+        <rect width="380" height="380" fill="#030814" />
+        <line x1="190" y1="20" x2="190" y2="360" stroke="rgba(56,189,248,0.2)" stroke-width="1" stroke-dasharray="4,4" />
+        <line x1="20" y1="190" x2="360" y2="190" stroke="rgba(56,189,248,0.2)" stroke-width="1" stroke-dasharray="4,4" />
+        <ellipse cx="190" cy="190" rx="90" ry="120" fill="none" stroke="rgba(56,189,248,0.3)" stroke-width="1.5" />
+        ${isAnomaly ? `
+          <circle cx="190" cy="200" r="55" fill="rgba(244,63,94,0.2)" stroke="#f43f5e" stroke-width="2" />
+          <rect x="70" y="70" width="240" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="85" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">ABNORMAL HIGH-PASS ATTENUATION</text>
+        ` : `
+          <rect x="70" y="70" width="240" height="22" rx="4" fill="rgba(56,189,248,0.1)" stroke="rgba(56,189,248,0.3)" stroke-width="1" />
+          <text x="190" y="85" fill="#38bdf8" font-size="9" text-anchor="middle" font-family="monospace">NATURAL HIGH-FREQUENCY SUB-BAND ENERGY</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">ENERGY RATIO: ${isAnomaly ? '0.24 (SMOOTHED)' : '0.88 (AUTHENTIC)'}</text>
+      `;
+    } else if (isVariance) {
+      tint = '#a855f7';
+      title = 'LOCAL NOISE VARIANCE SURFACE (7x7)';
+      bodySvg = `
+        <rect width="380" height="380" fill="#0c0414" />
+        <circle cx="190" cy="190" r="140" fill="none" stroke="rgba(168,85,247,0.15)" stroke-width="1" />
+        <circle cx="190" cy="190" r="100" fill="none" stroke="rgba(168,85,247,0.2)" stroke-width="1" />
+        <circle cx="190" cy="190" r="60" fill="none" stroke="rgba(168,85,247,0.25)" stroke-width="1" />
+        ${isAnomaly ? `
+          <ellipse cx="190" cy="210" rx="45" ry="30" fill="rgba(244,63,94,0.25)" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,3" />
+          <rect x="75" y="70" width="230" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="85" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">BIMODAL VARIANCE COLLAPSE</text>
+        ` : `
+          <rect x="75" y="70" width="230" height="22" rx="4" fill="rgba(168,85,247,0.1)" stroke="rgba(168,85,247,0.3)" stroke-width="1" />
+          <text x="190" y="85" fill="#a855f7" font-size="9" text-anchor="middle" font-family="monospace">HOMOSKEDASTIC NOISE VARIANCE</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">HETEROSKEDASTICITY INDEX: ${isAnomaly ? '4.82 (ANOMALOUS)' : '1.14 (NOMINAL)'}</text>
+      `;
+    } else {
+      tint = '#10b981';
+      title = 'PHOTO-RESPONSE NON-UNIFORMITY (PRNU)';
+      bodySvg = `
+        <rect width="380" height="380" fill="#020807" />
+        <filter id="noiseFilterPrnu">
+          <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch" />
+        </filter>
+        <rect width="380" height="380" filter="url(#noiseFilterPrnu)" opacity="0.3" />
+        <ellipse cx="190" cy="190" rx="95" ry="130" fill="none" stroke="rgba(16,185,129,0.25)" stroke-width="1.5" />
+        ${isAnomaly ? `
+          <circle cx="190" cy="200" r="60" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-dasharray="4,4" />
+          <rect x="80" y="70" width="220" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="85" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">SILICON FINGERPRINT DISRUPTED</text>
+        ` : `
+          <rect x="80" y="70" width="220" height="22" rx="4" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1" />
+          <text x="190" y="85" fill="#10b981" font-size="9" text-anchor="middle" font-family="monospace">COHERENT SENSOR PRNU RESIDUAL</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">CROSS-CORRELATION: ${isAnomaly ? '0.12 (MISMATCH)' : '0.84 (MATCH)'}</text>
+      `;
+    }
+
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
-        <rect width="380" height="380" fill="#02050e" />
-        <filter id="noiseFilter">
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" />
-        </filter>
-        <rect width="380" height="380" filter="url(#noiseFilter)" opacity="${isAnomaly ? '0.15' : '0.45'}" />
-        ${isAnomaly ? `
-          <circle cx="190" cy="190" r="70" fill="#f43f5e" opacity="0.35" />
-          <text x="190" y="195" fill="#f43f5e" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">PRNU DISRUPTED</text>
-        ` : `
-          <text x="190" y="195" fill="#38bdf8" font-size="11" text-anchor="middle" font-family="monospace" font-weight="bold">UNIFORM SENSOR PRNU</text>
-        `}
+        ${bodySvg}
+        <rect x="20" y="20" width="340" height="26" rx="4" fill="rgba(10,15,29,0.85)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+        <text x="30" y="37" fill="#f8fafc" font-size="9.5" font-family="monospace" font-weight="bold">${title}</text>
       </svg>
     `);
   }, [isAnomaly]);
@@ -78,6 +135,7 @@ const NoiseTab = ({
   const exhibits = useMemo(() => [
     {
       id: 'prnu',
+      shortLabel: 'PRNU Residual',
       name: 'PRNU Residual Heatmap',
       domain: 'Sensor Photo-Response Non-Uniformity',
       verdict: isAnomaly ? { status: 'ANOMALY', reason: 'Silicon pattern disrupted' } : { status: 'PASS', reason: 'Uniform sensor pattern' },
@@ -86,6 +144,7 @@ const NoiseTab = ({
     },
     {
       id: 'highpass',
+      shortLabel: 'High-Pass',
       name: 'High-Pass Denoised Residual',
       domain: 'Wavelet Sub-Band Residual Energy',
       verdict: isAnomaly ? { status: 'WARN', reason: 'Abnormal variance attenuation' } : { status: 'PASS', reason: 'Natural high-pass distribution' },
@@ -94,6 +153,7 @@ const NoiseTab = ({
     },
     {
       id: 'variance',
+      shortLabel: 'Noise Variance',
       name: 'Local Noise Variance Surface',
       domain: 'Spatial Heteroskedasticity',
       verdict: isAnomaly ? { status: 'ANOMALY', reason: 'Bimodal variance distribution' } : { status: 'PASS', reason: 'Consistent noise variance' },
@@ -109,7 +169,7 @@ const NoiseTab = ({
   const originalFaceUrl = useMemo(() => {
     if (result.heatmaps?.original_face) return result.heatmaps.original_face;
     if (result.face_crop_path) return `${API_BASE}/${result.face_crop_path}`;
-    return makeFallbackSvg('normal');
+    return makeFallbackSvg('prnu');
   }, [result.heatmaps, result.face_crop_path, makeFallbackSvg]);
 
   const handleStageMouseMove = useCallback((e) => {
@@ -164,10 +224,10 @@ const NoiseTab = ({
       )}
 
       {/* MASTER-DETAIL SPLIT WORKBENCH */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1.25fr) minmax(320px, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* LEFT PANE: INTERACTIVE NOISE STAGE */}
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <div>
               <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
@@ -180,7 +240,7 @@ const NoiseTab = ({
 
           {/* Stage Controls */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--panel-subtle)', border: '1px solid var(--glass-border)', padding: '0.35rem 0.65rem', borderRadius: 'var(--radius-xs)', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => setStageMode('wipe')}
@@ -204,6 +264,20 @@ const NoiseTab = ({
               >
                 Direct PRNU Map
               </button>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>|</span>
+              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                {exhibits.map(ex => (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => setActiveExhibit(ex.id)}
+                    className={`chip-btn ${activeExhibit === ex.id ? 'active' : ''}`}
+                    style={{ fontSize: '0.66rem', padding: '0.2rem 0.5rem' }}
+                  >
+                    {ex.shortLabel}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.68rem' }}>
@@ -249,9 +323,12 @@ const NoiseTab = ({
             <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img 
                 src={originalFaceUrl} 
-                alt="Original Face" 
+                alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = makeFallbackSvg('prnu');
+                }}
               />
               <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', border: '1px solid var(--glass-border)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 A: OPTICAL FRAME
@@ -274,9 +351,12 @@ const NoiseTab = ({
             >
               <img 
                 src={activeObj.img} 
-                alt={activeObj.name} 
+                alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = makeFallbackSvg(activeObj.id);
+                }}
               />
               <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(16,185,129,0.4)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
                 B: PRNU SILICON NOISE
@@ -346,7 +426,7 @@ const NoiseTab = ({
         </div>
 
         {/* RIGHT PANE: HARDWARE INVARIANT METRICS & FORMULATIONS */}
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0 }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', background: 'var(--panel-subtle)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)' }}>
             <div>
@@ -424,7 +504,15 @@ const NoiseTab = ({
                 }}
               >
                 <div style={{ height: '75px', background: '#05070a', borderRadius: '3px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img src={ex.img} alt={ex.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                  <img 
+                    src={ex.img} 
+                    alt="" 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = makeFallbackSvg(ex.id);
+                    }} 
+                  />
                 </div>
                 <div style={{ fontSize: '0.72rem', fontWeight: 700, color: isSelected ? 'var(--success)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {ex.name}

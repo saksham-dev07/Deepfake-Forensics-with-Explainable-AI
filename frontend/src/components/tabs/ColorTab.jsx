@@ -67,28 +67,105 @@ const ColorTab = ({
   ], [cbVar, crVar, sVar, aVar]);
 
   const makeFallbackSvg = useCallback((type) => {
+    const isCb = type === 'cb' || type === 'cb_channel';
+    const isCr = type === 'cr' || type === 'cr_channel';
+    const isS = type === 's' || type === 's_channel';
+
+    let title = 'CHROMINANCE DECOMPOSITION';
     let tint = '#38bdf8';
-    if (type === 'cr') tint = '#f43f5e';
-    else if (type === 's') tint = '#f59e0b';
-    else if (type === 'a') tint = '#10b981';
+    let bodySvg = '';
+
+    if (isCb) {
+      tint = '#38bdf8';
+      title = 'YCbCr: Cb (BLUE CHROMINANCE)';
+      bodySvg = `
+        <rect width="380" height="380" fill="#040914" />
+        <line x1="40" y1="190" x2="340" y2="190" stroke="rgba(56,189,248,0.18)" stroke-width="1" />
+        <line x1="190" y1="40" x2="190" y2="340" stroke="rgba(56,189,248,0.18)" stroke-width="1" />
+        <ellipse cx="190" cy="190" rx="95" ry="130" fill="none" stroke="rgba(56,189,248,0.25)" stroke-width="1.5" stroke-dasharray="3,3" />
+        <ellipse cx="190" cy="190" rx="75" ry="105" fill="rgba(56,189,248,0.08)" />
+        <ellipse cx="150" cy="165" rx="18" ry="10" fill="rgba(56,189,248,0.3)" />
+        <ellipse cx="230" cy="165" rx="18" ry="10" fill="rgba(56,189,248,0.3)" />
+        <path d="M 170 235 Q 190 250 210 235" stroke="rgba(56,189,248,0.4)" stroke-width="2" fill="none" />
+        ${isAnomaly ? `
+          <path d="M 100 120 C 130 90, 250 90, 280 120" stroke="#f43f5e" stroke-width="2.5" stroke-dasharray="4,3" fill="none" />
+          <circle cx="100" cy="120" r="4" fill="#f43f5e" />
+          <circle cx="280" cy="120" r="4" fill="#f43f5e" />
+          <rect x="95" y="60" width="190" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="75" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">BLENDED BOUNDARY Cb LEAKAGE</text>
+        ` : `
+          <rect x="95" y="60" width="190" height="22" rx="4" fill="rgba(56,189,248,0.1)" stroke="rgba(56,189,248,0.3)" stroke-width="1" />
+          <text x="190" y="75" fill="#38bdf8" font-size="9" text-anchor="middle" font-family="monospace">UNIFORM DERMAL Cb DISTRIBUTION</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">Cb VARIANCE: ${cbVar.toFixed(4)}</text>
+      `;
+    } else if (isCr) {
+      tint = '#f43f5e';
+      title = 'YCbCr: Cr (RED CHROMINANCE / FLUSH)';
+      bodySvg = `
+        <rect width="380" height="380" fill="#120407" />
+        <circle cx="190" cy="190" r="140" fill="none" stroke="rgba(244,63,94,0.12)" stroke-width="1" />
+        <ellipse cx="190" cy="190" rx="95" ry="130" fill="none" stroke="rgba(244,63,94,0.25)" stroke-width="1.5" />
+        <circle cx="145" cy="195" r="26" fill="rgba(244,63,94,0.35)" />
+        <circle cx="235" cy="195" r="26" fill="rgba(244,63,94,0.35)" />
+        <ellipse cx="190" cy="240" rx="28" ry="12" fill="rgba(244,63,94,0.4)" />
+        ${isAnomaly ? `
+          <path d="M 120 280 Q 190 320 260 280" stroke="#f43f5e" stroke-width="3" stroke-dasharray="4,4" fill="none" />
+          <rect x="90" y="60" width="200" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="75" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">HEMOGLOBIN FLUSH SEAM DROP</text>
+        ` : `
+          <rect x="90" y="60" width="200" height="22" rx="4" fill="rgba(244,63,94,0.1)" stroke="rgba(244,63,94,0.3)" stroke-width="1" />
+          <text x="190" y="75" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace">NATURAL HEMOGLOBIN PERFUSION</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">Cr VARIANCE: ${crVar.toFixed(4)}</text>
+      `;
+    } else if (isS) {
+      tint = '#f59e0b';
+      title = 'HSV: SATURATION CHANNEL (S)';
+      bodySvg = `
+        <rect width="380" height="380" fill="#120c03" />
+        <circle cx="190" cy="190" r="130" fill="none" stroke="rgba(245,158,11,0.15)" stroke-width="1" />
+        <circle cx="190" cy="190" r="85" fill="none" stroke="rgba(245,158,11,0.2)" stroke-width="1" />
+        <ellipse cx="190" cy="190" rx="90" ry="125" fill="rgba(245,158,11,0.08)" stroke="rgba(245,158,11,0.25)" stroke-width="1.5" />
+        ${isAnomaly ? `
+          <path d="M 130 140 L 250 140 M 120 180 L 260 180 M 135 220 L 245 220" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="2,2" />
+          <rect x="85" y="60" width="210" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="75" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">SATURATION BANDING DISCONTINUITY</text>
+        ` : `
+          <rect x="85" y="60" width="210" height="22" rx="4" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" stroke-width="1" />
+          <text x="190" y="75" fill="#f59e0b" font-size="9" text-anchor="middle" font-family="monospace">HOMOGENEOUS S PROFILE</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">S VARIANCE: ${sVar.toFixed(4)}</text>
+      `;
+    } else {
+      tint = '#10b981';
+      title = 'CIE-LAB: a* (GREEN-RED OPPONENT)';
+      bodySvg = `
+        <rect width="380" height="380" fill="#03120b" />
+        <line x1="50" y1="190" x2="330" y2="190" stroke="rgba(16,185,129,0.2)" stroke-width="1" />
+        <ellipse cx="190" cy="190" rx="92" ry="128" fill="rgba(16,185,129,0.07)" stroke="rgba(16,185,129,0.3)" stroke-width="1.5" />
+        <circle cx="150" cy="170" r="16" fill="rgba(16,185,129,0.25)" />
+        <circle cx="230" cy="170" r="16" fill="rgba(16,185,129,0.25)" />
+        ${isAnomaly ? `
+          <ellipse cx="190" cy="200" rx="55" ry="45" fill="none" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,3" />
+          <rect x="75" y="60" width="230" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="75" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">NON-LAMBERTIAN SCATTERING</text>
+        ` : `
+          <rect x="75" y="60" width="230" height="22" rx="4" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1" />
+          <text x="190" y="75" fill="#10b981" font-size="9" text-anchor="middle" font-family="monospace">NATURAL EPIDERMAL SCATTERING</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">a* VARIANCE: ${aVar.toFixed(4)}</text>
+      `;
+    }
 
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
-        <rect width="380" height="380" fill="#040712" />
-        <ellipse cx="190" cy="190" rx="90" ry="125" fill="${tint}" opacity="${isAnomaly ? '0.35' : '0.15'}" />
-        <circle cx="150" cy="165" r="15" fill="${tint}" opacity="0.4" />
-        <circle cx="230" cy="165" r="15" fill="${tint}" opacity="0.4" />
-        <ellipse cx="190" cy="235" rx="30" ry="15" fill="${tint}" opacity="0.5" />
-        
-        ${isAnomaly ? `
-          <path d="M 100 120 Q 190 80, 280 120" stroke="#f43f5e" stroke-width="3" stroke-dasharray="4 4" fill="none" />
-          <text x="190" y="325" fill="#f43f5e" font-size="10" text-anchor="middle" font-family="monospace" font-weight="bold">CHROMINANCE SEAM DISCONTINUITY</text>
-        ` : `
-          <text x="190" y="325" fill="${tint}" font-size="10" text-anchor="middle" font-family="monospace">UNIFORM DERMAL CHROMINANCE GAMUT</text>
-        `}
+        ${bodySvg}
+        <rect x="20" y="20" width="340" height="26" rx="4" fill="rgba(10,15,29,0.85)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+        <text x="30" y="37" fill="#f8fafc" font-size="9.5" font-family="monospace" font-weight="bold">${title}</text>
       </svg>
     `);
-  }, [isAnomaly]);
+  }, [isAnomaly, cbVar, crVar, sVar, aVar]);
 
   const resolveImg = useCallback((path, fallbackType) => {
     if (path) {
@@ -101,34 +178,38 @@ const ColorTab = ({
   const exhibits = useMemo(() => [
     {
       id: 'cb_channel',
+      shortLabel: 'Cb Blue',
       name: 'YCbCr: Cb (Blue Chrominance)',
       domain: 'Blue-Difference Perceptual Variance',
       verdict: isAnomaly ? { status: 'ANOMALY', reason: 'High Cb boundary variance' } : { status: 'PASS', reason: 'Normal blue-difference gradient' },
-      img: resolveImg(data.cb_map_path, 'cb'),
+      img: resolveImg(data.cb_map_path, 'cb_channel'),
       desc: 'Isolates the blue-difference chrominance component. Blended and face-swapped borders exhibit unnatural blue channel bleeding against natural background skin.'
     },
     {
       id: 'cr_channel',
+      shortLabel: 'Cr Flush',
       name: 'YCbCr: Cr (Red Chrominance)',
       domain: 'Red-Difference Hemoglobin Flush',
       verdict: isAnomaly ? { status: 'ANOMALY', reason: 'Sub-surface flush discrepancy' } : { status: 'PASS', reason: 'Natural hemoglobin distribution' },
-      img: resolveImg(data.cr_map_path, 'cr'),
+      img: resolveImg(data.cr_map_path, 'cr_channel'),
       desc: 'Isolates the red-difference chrominance plane. Real human faces exhibit diffuse redness around lips and cheeks; synthetic faces show flat or posterized red tone boundaries.'
     },
     {
       id: 's_channel',
+      shortLabel: 'Saturation',
       name: 'HSV: Saturation Channel (S)',
       domain: 'Skin Tone Saturation Uniformity',
       verdict: isAnomaly ? { status: 'WARN', reason: 'Saturation banding detected' } : { status: 'PASS', reason: 'Homogeneous saturation profile' },
-      img: resolveImg(data.s_map_path, 's'),
+      img: resolveImg(data.s_map_path, 's_channel'),
       desc: 'Decouples color purity from lighting luminance. Deepfake generators frequently create saturation discontinuities where synthetic faces are pasted onto source lighting.'
     },
     {
       id: 'a_channel',
+      shortLabel: 'LAB a*',
       name: 'CIE-LAB: a* Channel (Green-Red)',
       domain: 'Perceptual Dermal Opponent Channel',
       verdict: isAnomaly ? { status: 'ANOMALY', reason: 'Non-Lambertian scattering' } : { status: 'PASS', reason: 'Natural sub-surface scattering' },
-      img: resolveImg(data.a_map_path, 'a'),
+      img: resolveImg(data.a_map_path, 'a_channel'),
       desc: 'Perceptually uniform green-red axis measuring light scattering beneath human epidermal layers (sub-surface scattering).'
     }
   ], [data, isAnomaly, resolveImg]);
@@ -140,7 +221,7 @@ const ColorTab = ({
   const originalFaceUrl = useMemo(() => {
     if (result.heatmaps?.original_face) return result.heatmaps.original_face;
     if (result.face_crop_path) return `${API_BASE}/${result.face_crop_path}`;
-    return makeFallbackSvg('normal');
+    return makeFallbackSvg('cb_channel');
   }, [result.heatmaps, result.face_crop_path, makeFallbackSvg]);
 
   const handleStageMouseMove = useCallback((e) => {
@@ -217,10 +298,10 @@ const ColorTab = ({
       </div>
 
       {/* MASTER-DETAIL FORENSIC WORKBENCH */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1.35fr) minmax(320px, 1fr)', gap: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* LEFT COLUMN: INTERACTIVE STAGE & A/B WIPE */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: 0 }}>
           <div 
             className="glass-panel" 
             style={{ 
@@ -234,7 +315,7 @@ const ColorTab = ({
           >
             {/* Stage Control Ribbon */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setStageMode(stageMode === 'wipe' ? 'single' : 'wipe')}
@@ -243,12 +324,22 @@ const ColorTab = ({
                   title="Toggle A/B Wipe vs Single Overlay View"
                 >
                   <ArrowRightLeft size={12} />
-                  {stageMode === 'wipe' ? 'A/B Wipe Active' : 'Single Overlay'}
+                  {stageMode === 'wipe' ? 'A/B Wipe' : 'Direct Map'}
                 </button>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>|</span>
-                <span className="mono-font" style={{ fontSize: '0.7rem', color: 'var(--primary)' }}>
-                  {activeObj.name}
-                </span>
+                <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                  {exhibits.map(ex => (
+                    <button
+                      key={ex.id}
+                      type="button"
+                      onClick={() => setActiveExhibit(ex.id)}
+                      className={`chip-btn ${activeExhibit === ex.id ? 'active' : ''}`}
+                      style={{ fontSize: '0.66rem', padding: '0.2rem 0.5rem' }}
+                    >
+                      {ex.shortLabel}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -286,7 +377,11 @@ const ColorTab = ({
               {/* Bottom Image: Active Color Exhibit */}
               <img 
                 src={activeObj.img} 
-                alt={activeObj.name} 
+                alt="" 
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = makeFallbackSvg(activeObj.id);
+                }}
                 style={{ 
                   position: 'absolute', 
                   top: 0, 
@@ -313,7 +408,11 @@ const ColorTab = ({
                 >
                   <img 
                     src={originalFaceUrl} 
-                    alt="Camera Capture" 
+                    alt="" 
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = makeFallbackSvg('cb_channel');
+                    }}
                     style={{ 
                       width: '100%', 
                       height: '100%', 
@@ -440,7 +539,7 @@ const ColorTab = ({
           </div>
 
           {/* FILMSTRIP THUMBNAIL SELECTOR */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '0.5rem' }}>
             {exhibits.map((ex) => {
               const isSel = ex.id === activeExhibit;
               return (
@@ -449,6 +548,9 @@ const ColorTab = ({
                   type="button"
                   onClick={() => setActiveExhibit(ex.id)}
                   style={{
+                    minWidth: 0,
+                    width: '100%',
+                    overflow: 'hidden',
                     background: isSel ? 'rgba(56, 189, 248, 0.08)' : 'var(--panel-subtle)',
                     border: isSel ? '1.5px solid var(--primary)' : '1px solid var(--glass-border)',
                     borderRadius: '6px',
@@ -458,11 +560,12 @@ const ColorTab = ({
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isSel ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {ex.name.split(':')[1] || ex.name}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', minWidth: 0 }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isSel ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, marginRight: '4px' }}>
+                      {ex.shortLabel}
                     </span>
                     <span style={{
+                      flexShrink: 0,
                       fontSize: '0.5rem',
                       padding: '0.1rem 0.25rem',
                       borderRadius: '2px',
@@ -475,7 +578,15 @@ const ColorTab = ({
                   </div>
 
                   <div style={{ height: '48px', background: '#020408', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img src={ex.img} alt={ex.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isSel ? 1 : 0.6 }} />
+                    <img 
+                      src={ex.img} 
+                      alt="" 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = makeFallbackSvg(ex.id);
+                      }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: isSel ? 1 : 0.6 }} 
+                    />
                   </div>
                 </button>
               );
@@ -484,7 +595,7 @@ const ColorTab = ({
         </div>
 
         {/* RIGHT COLUMN: FORENSIC TELEMETRY & KATEX DERIVATION DECK */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', minWidth: 0 }}>
           
           {/* Channel Variance Chart */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>

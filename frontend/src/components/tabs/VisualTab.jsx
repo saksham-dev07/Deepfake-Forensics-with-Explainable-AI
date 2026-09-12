@@ -280,9 +280,12 @@ const VisualTab = ({
             <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img 
                 src={originalFaceUrl} 
-                alt="Original Facial Crop" 
+                alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = makeFallbackSvg('normal');
+                }}
               />
               <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', border: '1px solid var(--glass-border)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 A: ORIGINAL FACE (380×380)
@@ -306,9 +309,12 @@ const VisualTab = ({
             >
               <img 
                 src={currentHeatmapUrl} 
-                alt="Grad-CAM Saliency" 
+                alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = makeFallbackSvg(activeHeatmap);
+                }}
               />
               <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(244,63,94,0.4)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--danger)', fontFamily: 'var(--font-mono)' }}>
                 B: GRAD-CAM ATTRIBUTION

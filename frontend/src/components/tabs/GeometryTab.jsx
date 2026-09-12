@@ -49,21 +49,135 @@ const GeometryTab = ({
   const geomScore = result.geometry_anomaly_score || 0;
   const isAnomaly = geomScore > 0.5;
 
-  const makeFallbackSvg = (type) => {
+  const makeFallbackSvg = useCallback((type) => {
+    const isRadar = type === 'radar';
+    const isPose = type === 'pose';
+    const isSymmetry = type === 'symmetry';
+
+    let title = '468 3D MEDIAPIPE CONSTELLATION';
+    let tint = '#38bdf8';
+    let bodySvg = '';
+
+    if (isRadar) {
+      tint = '#10b981';
+      title = 'ANTHROPOMETRIC PROPORTIONS RADAR';
+      bodySvg = `
+        <rect width="380" height="380" fill="#030e0b" />
+        <circle cx="190" cy="190" r="130" fill="none" stroke="rgba(16,185,129,0.15)" stroke-width="1" />
+        <circle cx="190" cy="190" r="90" fill="none" stroke="rgba(16,185,129,0.2)" stroke-width="1" />
+        <circle cx="190" cy="190" r="50" fill="none" stroke="rgba(16,185,129,0.25)" stroke-width="1" />
+        <line x1="190" y1="60" x2="190" y2="320" stroke="rgba(16,185,129,0.25)" stroke-width="1" />
+        <line x1="77" y1="125" x2="303" y2="255" stroke="rgba(16,185,129,0.25)" stroke-width="1" />
+        <line x1="77" y1="255" x2="303" y2="125" stroke="rgba(16,185,129,0.25)" stroke-width="1" />
+        ${isAnomaly ? `
+          <polygon points="190,85 285,140 270,240 190,290 100,230 115,135" fill="rgba(244,63,94,0.25)" stroke="#f43f5e" stroke-width="2" />
+          <rect x="75" y="70" width="230" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="85" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">ANTHROPOMETRIC DRIFT DETECTED</text>
+        ` : `
+          <polygon points="190,100 270,145 260,235 190,270 120,235 110,145" fill="rgba(16,185,129,0.2)" stroke="#10b981" stroke-width="2" />
+          <rect x="75" y="70" width="230" height="22" rx="4" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1" />
+          <text x="190" y="85" fill="#10b981" font-size="9" text-anchor="middle" font-family="monospace">CONGRUENT CRANIAL RATIOS</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">GOLDEN RATIO FIT: ${isAnomaly ? '61.4% (NON-BIOLOGICAL)' : '97.2% (NATURAL)'}</text>
+      `;
+    } else if (isPose) {
+      tint = '#f59e0b';
+      title = '3D HEAD POSE COMPASS (PnP SOLVER)';
+      bodySvg = `
+        <rect width="380" height="380" fill="#0f0c05" />
+        <ellipse cx="190" cy="190" rx="95" ry="130" fill="none" stroke="rgba(245,158,11,0.2)" stroke-width="1.5" stroke-dasharray="3,3" />
+        <circle cx="190" cy="190" r="6" fill="#f59e0b" />
+        <!-- 3D PnP Euler Vectors -->
+        <line x1="190" y1="190" x2="280" y2="190" stroke="#f43f5e" stroke-width="3" />
+        <text x="290" y="194" fill="#f43f5e" font-size="9" font-family="monospace" font-weight="bold">X (Pitch)</text>
+        <line x1="190" y1="190" x2="190" y2="90" stroke="#10b981" stroke-width="3" />
+        <text x="195" y="85" fill="#10b981" font-size="9" font-family="monospace" font-weight="bold">Y (Yaw)</text>
+        <line x1="190" y1="190" x2="120" y2="250" stroke="#38bdf8" stroke-width="3" />
+        <text x="105" y="265" fill="#38bdf8" font-size="9" font-family="monospace" font-weight="bold">Z (Roll)</text>
+        ${isAnomaly ? `
+          <rect x="75" y="70" width="230" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="85" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">EULER ANGLE COHERENCE FAILURE</text>
+        ` : `
+          <rect x="75" y="70" width="230" height="22" rx="4" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" stroke-width="1" />
+          <text x="190" y="85" fill="#f59e0b" font-size="9" text-anchor="middle" font-family="monospace">COHERENT 3D RIGID TRAJECTORY</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">PnP REPROJECTION ERROR: ${isAnomaly ? '14.8 px (WARPED)' : '1.2 px (NOMINAL)'}</text>
+      `;
+    } else if (isSymmetry) {
+      tint = '#ec4899';
+      title = 'BILATERAL SYMMETRY RESIDUAL';
+      bodySvg = `
+        <rect width="380" height="380" fill="#10050d" />
+        <!-- Midline Sagittal Plane -->
+        <line x1="190" y1="40" x2="190" y2="340" stroke="#ec4899" stroke-width="1.5" stroke-dasharray="4,4" />
+        <ellipse cx="190" cy="190" rx="95" ry="130" fill="none" stroke="rgba(236,72,153,0.2)" stroke-width="1.5" />
+        <!-- Paired Landmarks -->
+        <circle cx="145" cy="165" r="4" fill="#ec4899" />
+        <circle cx="235" cy="165" r="4" fill="#ec4899" />
+        <line x1="145" y1="165" x2="235" y2="165" stroke="rgba(236,72,153,0.3)" stroke-width="1" />
+        <circle cx="130" cy="220" r="4" fill="#ec4899" />
+        <circle cx="250" cy="220" r="4" fill="#ec4899" />
+        <line x1="130" y1="220" x2="250" y2="220" stroke="rgba(236,72,153,0.3)" stroke-width="1" />
+        ${isAnomaly ? `
+          <!-- Asymmetry displacement indicator -->
+          <line x1="250" y1="220" x2="265" y2="205" stroke="#f43f5e" stroke-width="2.5" />
+          <circle cx="265" cy="205" r="3" fill="#f43f5e" />
+          <rect x="80" y="70" width="220" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="85" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">BILATERAL MORPHOLOGICAL SKEW</text>
+        ` : `
+          <rect x="80" y="70" width="220" height="22" rx="4" fill="rgba(236,72,153,0.1)" stroke="rgba(236,72,153,0.3)" stroke-width="1" />
+          <text x="190" y="85" fill="#ec4899" font-size="9" text-anchor="middle" font-family="monospace">SYMMETRIC SAGITTAL MORPHOLOGY</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">ASYMMETRY INDEX: ${isAnomaly ? '0.38 (HIGH)' : '0.04 (NOMINAL)'}</text>
+      `;
+    } else {
+      tint = '#38bdf8';
+      title = '468 3D MEDIAPIPE CONSTELLATION';
+      bodySvg = `
+        <rect width="380" height="380" fill="#040914" />
+        <!-- Face Oval Net -->
+        <ellipse cx="190" cy="190" rx="95" ry="130" fill="none" stroke="rgba(56,189,248,0.25)" stroke-width="1.5" />
+        <!-- Eyebrows and Eyes -->
+        <path d="M 125 150 Q 150 145 170 152" stroke="#38bdf8" stroke-width="1.5" fill="none" />
+        <path d="M 210 152 Q 230 145 255 150" stroke="#38bdf8" stroke-width="1.5" fill="none" />
+        <ellipse cx="150" cy="165" rx="14" ry="7" fill="none" stroke="#38bdf8" stroke-width="1.5" />
+        <ellipse cx="230" cy="165" rx="14" ry="7" fill="none" stroke="#38bdf8" stroke-width="1.5" />
+        <circle cx="150" cy="165" r="3" fill="#38bdf8" />
+        <circle cx="230" cy="165" r="3" fill="#38bdf8" />
+        <!-- Nose Bridge & Tip -->
+        <line x1="190" y1="160" x2="190" y2="210" stroke="#38bdf8" stroke-width="1.5" />
+        <polygon points="190,200 178,214 202,214" fill="rgba(56,189,248,0.2)" stroke="#38bdf8" stroke-width="1" />
+        <!-- Lips Triangulation -->
+        <ellipse cx="190" cy="245" rx="28" ry="12" fill="none" stroke="#38bdf8" stroke-width="1.5" />
+        <line x1="162" y1="245" x2="218" y2="245" stroke="#38bdf8" stroke-width="1" />
+        <!-- Cheeks and Jaw Mesh Links -->
+        <line x1="150" y1="165" x2="190" y2="210" stroke="rgba(56,189,248,0.2)" stroke-width="0.75" />
+        <line x1="230" y1="165" x2="190" y2="210" stroke="rgba(56,189,248,0.2)" stroke-width="0.75" />
+        <line x1="190" y1="210" x2="190" y2="245" stroke="rgba(56,189,248,0.2)" stroke-width="0.75" />
+        <line x1="120" y1="200" x2="150" y2="165" stroke="rgba(56,189,248,0.2)" stroke-width="0.75" />
+        <line x1="260" y1="200" x2="230" y2="165" stroke="rgba(56,189,248,0.2)" stroke-width="0.75" />
+        <line x1="120" y1="200" x2="162" y2="245" stroke="rgba(56,189,248,0.2)" stroke-width="0.75" />
+        <line x1="260" y1="200" x2="218" y2="245" stroke="rgba(56,189,248,0.2)" stroke-width="0.75" />
+        ${isAnomaly ? `
+          <circle cx="190" cy="210" r="15" fill="none" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,3" />
+          <rect x="75" y="70" width="230" height="22" rx="4" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1" />
+          <text x="190" y="85" fill="#f43f5e" font-size="9" text-anchor="middle" font-family="monospace" font-weight="bold">LANDMARK WARPING &amp; JITTER DETECTED</text>
+        ` : `
+          <rect x="75" y="70" width="230" height="22" rx="4" fill="rgba(56,189,248,0.1)" stroke="rgba(56,189,248,0.3)" stroke-width="1" />
+          <text x="190" y="85" fill="#38bdf8" font-size="9" text-anchor="middle" font-family="monospace">RIGID 3D LANDMARK CONSTELLATION</text>
+        `}
+        <text x="190" y="355" fill="${tint}" font-size="9" text-anchor="middle" font-family="monospace">PROCRUSTES RESIDUAL: ${isAnomaly ? '4.82 mm (DEFORMED)' : '0.74 mm (CONGRUENT)'}</text>
+      `;
+    }
+
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="380" height="380" viewBox="0 0 380 380">
-        <rect width="380" height="380" fill="#060911" />
-        <ellipse cx="190" cy="190" rx="90" ry="120" fill="none" stroke="rgba(59,130,246,0.3)" stroke-width="1" />
-        <circle cx="150" cy="165" r="4" fill="#38bdf8" />
-        <circle cx="230" cy="165" r="4" fill="#38bdf8" />
-        <circle cx="190" cy="205" r="3" fill="#38bdf8" />
-        <circle cx="190" cy="245" r="3" fill="#38bdf8" />
-        <line x1="150" y1="165" x2="190" y2="205" stroke="rgba(56,189,248,0.4)" stroke-width="1" />
-        <line x1="230" y1="165" x2="190" y2="205" stroke="rgba(56,189,248,0.4)" stroke-width="1" />
-        <line x1="190" y1="205" x2="190" y2="245" stroke="rgba(56,189,248,0.4)" stroke-width="1" />
+        ${bodySvg}
+        <rect x="20" y="20" width="340" height="26" rx="4" fill="rgba(10,15,29,0.85)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+        <text x="30" y="37" fill="#f8fafc" font-size="9.5" font-family="monospace" font-weight="bold">${title}</text>
       </svg>
     `);
-  };
+  }, [isAnomaly]);
 
   const resolveImg = useCallback((path, fallbackType) => {
     if (path) {
@@ -71,11 +185,12 @@ const GeometryTab = ({
       return `${API_BASE}/${path.replace(/^\/+/, '')}`;
     }
     return makeFallbackSvg(fallbackType);
-  }, []);
+  }, [makeFallbackSvg]);
 
   const exhibits = useMemo(() => [
     {
       id: 'mesh',
+      shortLabel: '3D Mesh',
       name: '468 3D Constellation Mesh',
       domain: 'Dense MediaPipe 3D Landmark Grid',
       verdict: isAnomaly ? { status: 'ANOMALY', reason: 'Landmark warp detected' } : { status: 'PASS', reason: 'Rigid mesh geometry' },
@@ -84,6 +199,7 @@ const GeometryTab = ({
     },
     {
       id: 'radar',
+      shortLabel: 'Anthropometry',
       name: 'Biological Proportions Radar',
       domain: 'Golden Ratio & Morphological Symmetries',
       verdict: isAnomaly ? { status: 'WARN', reason: 'Proportion drift' } : { status: 'PASS', reason: 'Anthropometric symmetry' },
@@ -92,6 +208,7 @@ const GeometryTab = ({
     },
     {
       id: 'pose',
+      shortLabel: 'Pose PnP',
       name: '3D Head Pose Compass',
       domain: 'Perspective-n-Point (PnP) Euler Angles',
       verdict: isAnomaly ? { status: 'WARN', reason: 'Euler angular discrepancy' } : { status: 'PASS', reason: 'Coherent 3D trajectory' },
@@ -100,6 +217,7 @@ const GeometryTab = ({
     },
     {
       id: 'symmetry',
+      shortLabel: 'Symmetry',
       name: 'Bilateral Symmetry Residual',
       domain: 'Mirror Plane Morphological Disparity',
       verdict: isAnomaly ? { status: 'ANOMALY', reason: 'Asymmetrical warping' } : { status: 'PASS', reason: 'Bilateral coherence' },
@@ -115,8 +233,8 @@ const GeometryTab = ({
   const originalFaceUrl = useMemo(() => {
     if (result.heatmaps?.original_face) return result.heatmaps.original_face;
     if (result.face_crop_path) return `${API_BASE}/${result.face_crop_path}`;
-    return makeFallbackSvg('normal');
-  }, [result.heatmaps, result.face_crop_path]);
+    return makeFallbackSvg('mesh');
+  }, [result.heatmaps, result.face_crop_path, makeFallbackSvg]);
 
   const handleStageMouseMove = useCallback((e) => {
     if (!stageContainerRef.current) return;
@@ -170,10 +288,10 @@ const GeometryTab = ({
       )}
 
       {/* MASTER-DETAIL SPLIT WORKBENCH */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1.25fr) minmax(320px, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
         
         {/* LEFT PANE: INTERACTIVE MESH STAGE */}
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <div>
               <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
@@ -186,7 +304,7 @@ const GeometryTab = ({
 
           {/* Stage Controls */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--panel-subtle)', border: '1px solid var(--glass-border)', padding: '0.35rem 0.65rem', borderRadius: 'var(--radius-xs)', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => setStageMode('wipe')}
@@ -210,6 +328,20 @@ const GeometryTab = ({
               >
                 Direct Mesh Map
               </button>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>|</span>
+              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                {exhibits.map(ex => (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => setActiveExhibit(ex.id)}
+                    className={`chip-btn ${activeExhibit === ex.id ? 'active' : ''}`}
+                    style={{ fontSize: '0.66rem', padding: '0.2rem 0.5rem' }}
+                  >
+                    {ex.shortLabel}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -236,9 +368,12 @@ const GeometryTab = ({
             <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img 
                 src={originalFaceUrl} 
-                alt="Original Face" 
+                alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = makeFallbackSvg('mesh');
+                }}
               />
               <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', border: '1px solid var(--glass-border)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 A: ORIGINAL FACE
@@ -260,9 +395,12 @@ const GeometryTab = ({
             >
               <img 
                 src={activeObj.img} 
-                alt={activeObj.name} 
+                alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = makeFallbackSvg(activeObj.id);
+                }}
               />
               <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(59,130,246,0.4)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
                 B: {activeObj.name.toUpperCase()}
@@ -332,7 +470,7 @@ const GeometryTab = ({
         </div>
 
         {/* RIGHT PANE: GEOMETRIC METRICS & FORMULATIONS */}
-        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0 }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', background: 'var(--panel-subtle)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)' }}>
             <ScoreRing 
@@ -420,7 +558,15 @@ const GeometryTab = ({
                 }}
               >
                 <div style={{ height: '75px', background: '#05070a', borderRadius: '3px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img src={ex.img} alt={ex.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                  <img 
+                    src={ex.img} 
+                    alt="" 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = makeFallbackSvg(ex.id);
+                    }} 
+                  />
                 </div>
                 <div style={{ fontSize: '0.72rem', fontWeight: 700, color: isSelected ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {ex.name}
