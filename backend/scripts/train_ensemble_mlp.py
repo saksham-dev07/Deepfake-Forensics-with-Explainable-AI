@@ -499,7 +499,9 @@ def train_ensemble_classifier(
     ax4.grid(True, alpha=0.25)
 
     plt.tight_layout()
-    report_img_path = os.path.join(BACKEND_DIR, "weights", "ensemble_training_report.png")
+    report_dir = os.path.join(BACKEND_DIR, "benchmark_artifacts", "v2", "ensemble")
+    os.makedirs(report_dir, exist_ok=True)
+    report_img_path = os.path.join(report_dir, "ensemble_training_report.png")
     plt.savefig(report_img_path, dpi=250)
     plt.close()
     print(f"[+] Saved visual diagnostic report to: {report_img_path}")

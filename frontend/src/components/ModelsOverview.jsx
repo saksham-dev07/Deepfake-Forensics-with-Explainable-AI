@@ -802,7 +802,13 @@ const ModelsOverview = () => {
           {/* Quick Action Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
             <button
-              onClick={() => handleCopy(VISUAL_V2_CONFIG.checkpoint, 'Production Weights')}
+              onClick={() => {
+                const targetCheckpoint =
+                  activeModel === 'meta' ? 'ensemble_mlp.pth' :
+                  activeModel === 'audio' ? 'syncnet_v2.model' :
+                  VISUAL_V2_CONFIG.checkpoint;
+                handleCopy(targetCheckpoint, `${model.name} Checkpoint`);
+              }}
               className="btn-secondary"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.82rem', padding: '0.55rem 0.9rem' }}
               title="Copy active model checkpoint name"
@@ -1857,6 +1863,37 @@ const ModelsOverview = () => {
               </div>
             </div>
           </div>
+
+          {/* Active Model Weights & Architecture Banner */}
+          <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Active Production Checkpoints</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.2rem' }}>
+                  ensemble_mlp.pth <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>(PyTorch 110 KB)</span> &amp; ensemble_mlp_xgb.json <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>(XGBoost 309 KB)</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => handleCopy('ensemble_mlp.pth', 'PyTorch Checkpoint')}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Copy size={13} /> Copy .pth
+                </button>
+                <button
+                  onClick={() => handleCopy('ensemble_mlp_xgb.json', 'XGBoost Weights')}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Copy size={13} /> Copy .json
+                </button>
+              </div>
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, borderTop: '1px solid var(--glass-border)', paddingTop: '0.8rem' }}>
+              Trained via <code>backend/scripts/train_ensemble_mlp.py</code> with Multimodal Modality Masking, Correlated Sensor Covariance, and Calibrated Focal Loss. Visual diagnostics stored at <code>backend/benchmark_artifacts/v2/ensemble/ensemble_training_report.png</code>.
+            </div>
+          </div>
         </div>
       )}
 
@@ -1933,6 +1970,37 @@ const ModelsOverview = () => {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+            </div>
+          </div>
+
+          {/* Active Audio Model Weights Banner */}
+          <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Active Production Checkpoints</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.2rem' }}>
+                  syncnet_v2.model <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>(SyncNet 54.6 MB)</span> &amp; voice_spoofing.pth <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>(Audio Anti-Spoof 171 KB)</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => handleCopy('syncnet_v2.model', 'SyncNet Weights')}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Copy size={13} /> Copy SyncNet
+                </button>
+                <button
+                  onClick={() => handleCopy('voice_spoofing.pth', 'Voice Anti-Spoof Weights')}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Copy size={13} /> Copy Voice CNN
+                </button>
+              </div>
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, borderTop: '1px solid var(--glass-border)', paddingTop: '0.8rem' }}>
+              Wav2Lip Siamese SyncNet projects 13-bin MFCCs and 5-frame 3D lip crops into a 1024-D metric space for viseme-phoneme synchronization error detection. The 2D-CNN uses Depthwise Separable Convolutions on 128-mel spectrograms for neural vocoder and voice clone detection.
             </div>
           </div>
         </div>

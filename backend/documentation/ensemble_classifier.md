@@ -263,3 +263,25 @@ When triggered:
 3. `result.alteration_type = "AI Facial Enhancement & Retouching (e.g., Gemini / Inpainting)"`
 4. `result.alteration_details = "Underlying human identity is authentic, but localized AI retouching detected (Facial Geometry Reshaping, Color Filter Array Disruption, Software Re-encoding Traces)."`
 
+---
+
+## 10. Meta-Classifier Training Engine & Benchmark Suite (`train_ensemble_mlp.py`)
+
+The production Meta-Classifier is trained via [`backend/scripts/train_ensemble_mlp.py`](../scripts/train_ensemble_mlp.py).
+
+### 10.1 Key Enhancements in V2.5 Training Engine
+1. **Multimodal Modality Masking**: Injects stochastic dropout (e.g. 20% silent video simulation) so missing audio tracks (`sync_score`, `voice_score` = 0.5) do not corrupt predictions.
+2. **Correlated Sensor Modeling**: Replaces independent random variables with 8 realistic physical archetypes (Pristine, Heavy Social Media Compression, Silent Real, Sunglasses/Eyewear Occlusion, Full-Head Diffusion, Face Swap, Lip-Sync Voice Clone, and Adversarial NN Evasion).
+3. **Calibrated Focal Loss**: Uses $\gamma = 1.5$ with label smoothing ($[0.05, 0.95]$) to penalize borderline ambiguity and prevent overconfident logit saturation.
+4. **Validation-Guided Checkpointing**: Uses AdamW with Cosine Annealing learning rate warm restarts, preserving the model with the highest validation ROC-AUC.
+
+### 10.2 Training Artifacts & Visual Diagnostics
+* **PyTorch Weights**: [`backend/weights/ensemble_mlp.pth`](../weights/ensemble_mlp.pth) (110 KB)
+* **XGBoost Model**: [`backend/weights/ensemble_mlp_xgb.json`](../weights/ensemble_mlp_xgb.json) (309 KB)
+* **Visual Diagnostic Report**: [`backend/benchmark_artifacts/v2/ensemble/ensemble_training_report.png`](../benchmark_artifacts/v2/ensemble/ensemble_training_report.png)
+  - Focal Loss convergence curve (Train vs. Validation)
+  - ROC curve with Equal Error Rate (EER) threshold marker
+  - Precision-Recall curve with Average Precision (AP)
+  - Permutation Feature Sensitivity bar chart (Self-Attention audit)
+
+

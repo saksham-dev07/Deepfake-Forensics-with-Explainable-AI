@@ -310,9 +310,15 @@ pip install -r requirements.txt
 ### 7.3 Model Weights Directory (`backend/weights/`)
 Place the required pre-trained model weights into `backend/weights/`:
 * `improved_finetuned_model_v2.pth` (or `improved_finetuned_model.pth`): Fine-tuned EfficientNet-B4 + CBAM weights (**96.80% multi-domain validation accuracy** across FaceForensics++ C23, Celeb-DF v2, 140k Faces, and DFDC). (Falls back to ImageNet timm if omitted).
-* `ensemble_mlp.pth`: Weights for the PyTorch Tabular ResNet Meta-Classifier.
-* `voice_spoofing.pth`: Pretrained weights for `LightweightAudioAntiSpoof`.
-* `syncnet_v2.model`: Official Wav2Lip SyncNet audio-visual weights.
+* `ensemble_mlp.pth`: Weights for the PyTorch Tabular ResNet Meta-Classifier with Self-Attention gating (110 KB).
+* `ensemble_mlp_xgb.json`: Companion XGBoost gradient-boosted decision tree model (309 KB).
+* `voice_spoofing.pth`: Pretrained weights for `LightweightAudioAntiSpoof` 2D-CNN (171 KB).
+* `syncnet_v2.model`: Official Wav2Lip SyncNet dual-stream 3D-CNN audio-visual weights (54.6 MB).
+* `face_detection_yunet_2023mar.onnx`: High-speed YuNet OpenCV DNN face detector (233 KB).
+* `face_landmarker.task`: MediaPipe 468 3D landmark mesh model (3.8 MB).
+
+> [!NOTE]
+> To retrain the Meta-Classifier with calibrated focal loss, run `python backend/scripts/train_ensemble_mlp.py`. Visual training diagnostics are saved to `backend/benchmark_artifacts/v2/ensemble/ensemble_training_report.png`.
 
 ### 7.4 Running the Local Server
 ```bash
