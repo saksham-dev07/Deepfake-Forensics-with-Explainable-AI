@@ -1891,7 +1891,136 @@ const ModelsOverview = () => {
               </div>
             </div>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, borderTop: '1px solid var(--glass-border)', paddingTop: '0.8rem' }}>
-              Trained via <code>backend/scripts/train_ensemble_mlp.py</code> with Multimodal Modality Masking, Correlated Sensor Covariance, and Calibrated Focal Loss. Visual diagnostics stored at <code>backend/benchmark_artifacts/v2/ensemble/ensemble_training_report.png</code>.
+              Trained via <code>backend/scripts/train_ensemble_mlp.py</code> with Multimodal Modality Masking, Correlated Sensor Covariance, and Calibrated Focal Loss.
+            </div>
+          </div>
+
+          {/* Visual Training & Feature Sensitivity Diagnostics */}
+          <div className="glass-panel" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                  <span style={{ 
+                    padding: '0.2rem 0.6rem', 
+                    borderRadius: '20px', 
+                    fontSize: '0.7rem', 
+                    fontWeight: 700, 
+                    background: 'rgba(59, 130, 246, 0.15)', 
+                    color: 'var(--primary)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)'
+                  }}>
+                    ROC-AUC 0.9995 • PR-AUC 0.9994
+                  </span>
+                  <span style={{ 
+                    padding: '0.2rem 0.6rem', 
+                    borderRadius: '20px', 
+                    fontSize: '0.7rem', 
+                    fontWeight: 700, 
+                    background: 'rgba(16, 185, 129, 0.15)', 
+                    color: 'var(--success)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)'
+                  }}>
+                    15 Sensors Calibrated
+                  </span>
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                  Production Ensemble Diagnostic &amp; Sensitivity Report
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem', maxWidth: '850px', lineHeight: 1.5 }}>
+                  Empirical 4-panel forensic diagnostic verifying Focal Loss convergence across 45 epochs, discrimination curves (ROC &amp; PR), and Permutation Feature Importance across all 15 anomaly sensors.
+                </div>
+              </div>
+
+              <button
+                onClick={() => setLightboxImage({
+                  id: 'ensemble_report',
+                  title: 'Production Ensemble Diagnostic & Sensitivity Report',
+                  subtitle: 'Focal Loss Convergence (Train/Val), ROC Curve (AUC=0.9995), Precision-Recall Curve (AP=0.9994), and 15-Sensor Permutation Importance Ranking',
+                  src: '/benchmark_artifacts/v2/ensemble/ensemble_training_report.png',
+                  badge: 'ROC-AUC: 0.9995 • PR-AUC: 0.9994'
+                })}
+                className="btn-secondary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
+              >
+                <Maximize2 size={14} /> Fullscreen Zoom
+              </button>
+            </div>
+
+            {/* Diagnostic Image Container */}
+            <div 
+              onClick={() => setLightboxImage({
+                id: 'ensemble_report',
+                title: 'Production Ensemble Diagnostic & Sensitivity Report',
+                subtitle: 'Focal Loss Convergence (Train/Val), ROC Curve (AUC=0.9995), Precision-Recall Curve (AP=0.9994), and 15-Sensor Permutation Importance Ranking',
+                src: '/benchmark_artifacts/v2/ensemble/ensemble_training_report.png',
+                badge: 'ROC-AUC: 0.9995 • PR-AUC: 0.9994'
+              })}
+              style={{
+                background: '#040711',
+                borderRadius: '10px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                padding: '1rem',
+                textAlign: 'center',
+                cursor: 'zoom-in',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: 'inset 0 0 40px rgba(0, 0, 0, 0.6)'
+              }}
+            >
+              <img 
+                src="/benchmark_artifacts/v2/ensemble/ensemble_training_report.png"
+                alt="Ensemble MLP & XGBoost Training Report and Permutation Sensitivity"
+                style={{
+                  width: '100%',
+                  maxHeight: '580px',
+                  objectFit: 'contain',
+                  borderRadius: '6px',
+                  display: 'block',
+                  margin: '0 auto'
+                }}
+              />
+              <div style={{
+                position: 'absolute',
+                bottom: '1.25rem',
+                right: '1.25rem',
+                background: 'rgba(0, 0, 0, 0.75)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: 'var(--text-main)',
+                fontSize: '0.75rem',
+                padding: '0.35rem 0.7rem',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                pointerEvents: 'none'
+              }}>
+                <Maximize2 size={12} /> Click to inspect high-resolution
+              </div>
+            </div>
+
+            {/* Methodology & Parameter Notes */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: '0.75rem',
+              paddingTop: '0.5rem'
+            }}>
+              <div style={{ background: 'rgba(0,0,0,0.25)', padding: '0.75rem 1rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Optimization Strategy</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600, marginTop: '0.2rem' }}>Calibrated Focal Loss (γ=2.0, α=0.65)</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Suppresses easy genuine examples, penalizing hard boundary synthetic edge cases.</div>
+              </div>
+              <div style={{ background: 'rgba(0,0,0,0.25)', padding: '0.75rem 1rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Missing Modality Robustness</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600, marginTop: '0.2rem' }}>Multimodal Modality Masking (p=0.15)</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Ensures ensemble stability if audio streams, lips, or metadata sensors are missing.</div>
+              </div>
+              <div style={{ background: 'rgba(0,0,0,0.25)', padding: '0.75rem 1rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Feature Dominance Hierarchy</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600, marginTop: '0.2rem' }}>Visual EfficientNet + Audio Vocoder + SyncNet</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Permutation importance confirms multi-modal consensus prevents single-sensor spoofing.</div>
+              </div>
             </div>
           </div>
         </div>
