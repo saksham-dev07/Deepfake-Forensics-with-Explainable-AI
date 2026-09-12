@@ -30,8 +30,9 @@ Copy-Item (Join-Path $src ".gitattributes") (Join-Path $deployDir ".gitattribute
 Copy-Item -Recurse (Join-Path $src "pipeline") (Join-Path $deployDir "pipeline")
 Copy-Item -Recurse (Join-Path $src "weights") (Join-Path $deployDir "weights")
 
-# Clean bytecode
+# Clean bytecode and evaluation reports
 Get-ChildItem -Path $deployDir -Include "__pycache__" -Recurse -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem -Path (Join-Path $deployDir "weights") -Include "*.png","*.jpg","*.pdf" -Recurse -Force | Remove-Item -Force -ErrorAction SilentlyContinue
 
 Write-Host "==> [2/4] Initializing Git with LFS tracking..." -ForegroundColor Cyan
 Push-Location $deployDir
