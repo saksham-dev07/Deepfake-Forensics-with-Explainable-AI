@@ -11,6 +11,21 @@ RUN apt-get update && apt-get install -y \
     libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Upgrade pip and packaging tools to prevent wheel naming incompatibilities
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install CPU-only PyTorch (using --extra-index-url so PyPI dependencies resolve)
+RUN pip install --no-cache-dir \
+    torch torchvision --extra-index-url https://download.pytorch.org/whl/cpu
+
+# Install remaining dependencies
+WORKDIR /tmp/install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python 2>/dev/null || true; \
+    pip install --no-cache-dir opencv-contrib-python-headless && \
+    rm -rf /tmp/install
+
 # Set up a new user named "user" with user ID 1000 (Required by Hugging Face Spaces)
 RUN useradd -m -u 1000 user
 USER user
@@ -24,24 +39,15 @@ ENV HOME=/home/user \
 # Set the working directory
 WORKDIR $HOME/app
 
-# Install CPU-only PyTorch FIRST (avoids downloading 2.5GB of useless NVIDIA CUDA libs)
-RUN pip install --no-cache-dir \
-    torch torchvision --index-url https://download.pytorch.org/whl/cpu
-
-# Install remaining dependencies
-COPY --chown=user:user requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python 2>/dev/null || true; \
-    pip install --no-cache-dir opencv-contrib-python-headless
-
 # Copy the rest of the backend files
 COPY --chown=user:user . .
 
-# Ensure the upload and report directories exist and are writable
-RUN mkdir -p uploads reports weights
+# Ensure mutable directories exist and are writable
+RUN mkdir -p uploads reports weights temp
 
 # Hugging Face Spaces exposes port 7860 by default
 EXPOSE 7860
 
 # Start FastAPI directly via Uvicorn (prevents silent Gunicorn worker failures on HF Spaces)
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+

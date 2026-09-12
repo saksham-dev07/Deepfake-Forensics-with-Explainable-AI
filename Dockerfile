@@ -42,9 +42,12 @@ ENV HOME=/home/user \
 
 WORKDIR $HOME/app/backend
 
+# Upgrade pip and packaging tools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
 # Pre-install CPU-optimized PyTorch wheels to maximize container speed and save disk space
 RUN pip install --no-cache-dir \
-    torch torchvision --index-url https://download.pytorch.org/whl/cpu
+    torch torchvision --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Copy requirements and install remaining dependencies
 COPY --chown=user:user backend/requirements.txt .
