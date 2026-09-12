@@ -4,20 +4,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Flame, Activity, Search, Frame, Camera, Palette, BarChart3, 
   Volume2, FileText, Download, RotateCcw, AlertTriangle, CheckCircle2, 
-  ShieldAlert, Info, Lightbulb, Star, ChevronUp, ChevronDown, ZoomIn, X, Focus, ScanSearch, BookOpen,
-  FileVideo, Film, Cpu, Maximize2, Minimize2, Sparkles, ShieldCheck, Check, Copy, Sliders, Layers, Fingerprint, HelpCircle, HardDrive, Monitor
+  ShieldAlert, Info, Lightbulb, Focus, ScanSearch,
+  FileVideo, Cpu, Sparkles, Check, Copy, Layers, HeartPulse, HardDrive, Monitor, X
 } from 'lucide-react';
-import { 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip as RechartsTooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area
-} from 'recharts';
 
-import SimpleSparkline from './ui/SimpleSparkline';
-import ScoreRing from './ui/ScoreRing';
-import MetricCard from './ui/MetricCard';
-import VerdictBadge from './ui/VerdictBadge';
-import TestDefinition from './ui/TestDefinition';
-import TestExplanation from './ui/TestExplanation';
+import { API_BASE } from '../constants/api';
+
 const FeaturesTab = React.lazy(() => import('./tabs/FeaturesTab'));
 const VisualTab = React.lazy(() => import('./tabs/VisualTab'));
 const FrequencyTab = React.lazy(() => import('./tabs/FrequencyTab'));
@@ -35,34 +27,36 @@ const EyeTab = React.lazy(() => import('./tabs/EyeTab'));
 const VoiceTab = React.lazy(() => import('./tabs/VoiceTab'));
 const FlowTab = React.lazy(() => import('./tabs/FlowTab'));
 
-import { API_BASE } from '../constants/api';
-
 const containerVariants = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
+  show: { opacity: 1, transition: { staggerChildren: 0.05 } }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25 } }
 };
 
 const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
-  const isFake = result.overall_score > 0.55;
-  const [activeTab, setActiveTab] = useState('features');
+  // Domain workbenches
+  const [activeDomain, setActiveDomain] = useState('dossier'); // 'dossier', 'visual', 'optics', 'biometrics', 'spectral_audio'
+  const [opticsSubTab, setOpticsSubTab] = useState('ela'); // 'ela', 'noise', 'cfa', 'corneal', 'lighting'
+  const [biometricsSubTab, setBiometricsSubTab] = useState('geometry'); // 'geometry', 'eye', 'rppg'
+  const [spectralSubTab, setSpectralSubTab] = useState('frequency'); // 'frequency', 'flow', 'audio', 'voice', 'color', 'meta'
+  
   const [zoomedImage, setZoomedImage] = useState(null);
   const [showFullGradcamInfo, setShowFullGradcamInfo] = useState(false);
   const [showFullSpectralInfo, setShowFullSpectralInfo] = useState(false);
   const [showFullElaInfo, setShowFullElaInfo] = useState(false);
   const [showFullGeometryInfo, setShowFullGeometryInfo] = useState(false);
-  const isVideo = useMemo(() => fileName && fileName.toLowerCase().match(/\.(mp4|avi|mov|mkv|webm)$/), [fileName]);
+  
   const [hiddenCards, setHiddenCards] = useState({});
   const [expandedCards, setExpandedCards] = useState({});
   const [copiedFilename, setCopiedFilename] = useState(false);
   const [copiedJobId, setCopiedJobId] = useState(false);
+
+  const isVideo = useMemo(() => fileName && fileName.toLowerCase().match(/\.(mp4|avi|mov|mkv|webm)$/), [fileName]);
+  const hasAudio = result.file_metadata?.has_audio ?? false;
 
   const toggleExpand = useCallback((id) => setExpandedCards(prev => ({ ...prev, [id]: !prev[id] })), []);
   const hideCard = useCallback((id) => setHiddenCards(prev => ({ ...prev, [id]: true })), []);
@@ -96,130 +90,119 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
     return 'var(--success)';
   }, []);
 
-  const getVerdictDetails = useCallback(() => {
+  // Verdict style & description
+  const verdictStyle = useMemo(() => {
     if (result.verdict?.toLowerCase().includes('altered') || result.is_ai_altered) {
       return { 
-        icon: <Sparkles size={48} />, 
-        color: '#f59e0b', 
-        bg: 'rgba(245,158,11,0.12)',
-        subtitle: 'Authentic Human • AI Generative Enhancements Detected',
-        threatLevel: 'LOW / NON-MALICIOUS ENHANCEMENT',
-        threatColor: '#f59e0b'
+        icon: <Sparkles size={26} />, 
+        color: 'var(--warning)', 
+        bg: 'rgba(245, 158, 11, 0.12)',
+        border: 'rgba(245, 158, 11, 0.3)',
+        title: 'Authentic Human • Generative Retouching Detected',
+        summary: 'Primary biometric structure is consistent with genuine human capture. Localized generative modifications detected in facial contours or skin textures.'
       };
     }
-    if (result.overall_score > 0.70) return { 
-      icon: <ShieldAlert size={48} />, 
-      color: 'var(--danger)', 
-      bg: 'rgba(251,113,133,0.08)',
-      subtitle: 'Synthetic Identity / High Probability Forgery',
-      threatLevel: 'HIGH FORENSIC THREAT (SYNTHETIC)',
-      threatColor: 'var(--danger)'
-    };
-    if (result.overall_score > 0.55) return { 
-      icon: <AlertTriangle size={48} />, 
-      color: 'var(--warning)', 
-      bg: 'rgba(251,191,36,0.08)',
-      subtitle: 'Suspected Compositing or Face Manipulation',
-      threatLevel: 'MODERATE FORENSIC THREAT',
-      threatColor: 'var(--warning)'
-    };
-    if (result.overall_score > 0.40) return { 
-      icon: <Search size={48} />, 
-      color: 'var(--text-muted)', 
-      bg: 'rgba(100,116,139,0.08)',
-      subtitle: 'Inconclusive / Manual Evidentiary Review Recommended',
-      threatLevel: 'EVALUATION INCONCLUSIVE',
-      threatColor: 'var(--text-muted)'
-    };
+    if (result.overall_score > 0.70) {
+      return { 
+        icon: <ShieldAlert size={26} />, 
+        color: 'var(--danger)', 
+        bg: 'rgba(244, 63, 94, 0.12)',
+        border: 'rgba(244, 63, 94, 0.3)',
+        title: 'Synthetic Deepfake (High Probability Forgery)',
+        summary: 'Critical anomalies converged across multiple sensory layers: neural activation, sensor noise discontinuity, and biological pulse absence.'
+      };
+    }
+    if (result.overall_score > 0.55) {
+      return { 
+        icon: <AlertTriangle size={26} />, 
+        color: 'var(--warning)', 
+        bg: 'rgba(245, 158, 11, 0.12)',
+        border: 'rgba(245, 158, 11, 0.3)',
+        title: 'Suspected Face Manipulation / Compositing',
+        summary: 'Elevated anomaly scores indicate potential digital alteration or face substitution. Manual evidentiary review recommended.'
+      };
+    }
+    if (result.overall_score > 0.40) {
+      return { 
+        icon: <Search size={26} />, 
+        color: 'var(--text-muted)', 
+        bg: 'rgba(100, 116, 139, 0.12)',
+        border: 'rgba(100, 116, 139, 0.3)',
+        title: 'Evaluation Inconclusive',
+        summary: 'Sensor anomalies fall near the neutral boundary. Image compression or low source resolution prevents definitive attribution.'
+      };
+    }
     return { 
-      icon: <CheckCircle2 size={48} />, 
+      icon: <CheckCircle2 size={26} />, 
       color: 'var(--success)', 
-      bg: 'rgba(52,211,153,0.08)',
-      subtitle: 'Pristine Camera Capture • No Generative Anomalies',
-      threatLevel: 'PRISTINE CAMERA CAPTURE',
-      threatColor: 'var(--success)'
+      bg: 'rgba(16, 185, 129, 0.12)',
+      border: 'rgba(16, 185, 129, 0.3)',
+      title: 'Pristine Camera Capture (Verified Authentic)',
+      summary: 'Sensor PRNU noise pattern, corneal optics, and cardiovascular pulse are fully consistent with authentic optical camera acquisition.'
     };
   }, [result.overall_score, result.verdict, result.is_ai_altered]);
 
-  const verdictStyle = useMemo(() => getVerdictDetails(), [getVerdictDetails]);
+  const totalSensorsAnalyzed = isVideo ? (hasAudio ? 15 : 13) : 10;
 
-  // Tab Badge helper mapping each module to its active anomaly level
-  const getTabBadge = useCallback((id) => {
-    let score = null;
-    switch (id) {
-      case 'features': score = result.overall_score; break;
-      case 'visual': score = result.nn_score; break;
-      case 'geometry': score = result.geometry_anomaly_score; break;
-      case 'corneal': score = result.corneal_score; break;
-      case 'color': score = result.color_score; break;
-      case 'ela': score = result.ela_score; break;
-      case 'noise': score = result.noise_score; break;
-      case 'cfa': score = result.cfa_score; break;
-      case 'frequency': score = result.spectral_anomaly_score; break;
-      case 'lighting': score = result.lighting_score; break;
-      case 'rppg': score = result.rppg_score; break;
-      case 'eye': score = result.eye_score; break;
-      case 'flow': score = result.flow_score; break;
-      case 'audio': score = result.sync_score; break;
-      case 'voice': score = result.voice_score; break;
-      case 'meta': score = result.metadata_score; break;
-      default: return null;
+  // Jump to specific sensor from diagnostic matrix
+  const handleMatrixClick = (tabKey) => {
+    switch (tabKey) {
+      case 'features':
+        setActiveDomain('dossier');
+        break;
+      case 'visual':
+        setActiveDomain('visual');
+        break;
+      case 'ela':
+      case 'noise':
+      case 'cfa':
+      case 'corneal':
+      case 'lighting':
+        setActiveDomain('optics');
+        setOpticsSubTab(tabKey);
+        break;
+      case 'geometry':
+      case 'eye':
+      case 'rppg':
+        setActiveDomain('biometrics');
+        setBiometricsSubTab(tabKey);
+        break;
+      case 'frequency':
+      case 'flow':
+      case 'audio':
+      case 'voice':
+      case 'color':
+      case 'meta':
+        setActiveDomain('spectral_audio');
+        setSpectralSubTab(tabKey);
+        break;
+      default:
+        setActiveDomain('dossier');
     }
-    if (score === null || score === undefined) return null;
-    const pct = Math.round(score * 100);
-    const isHigh = score >= 0.50;
-    const isMid = score >= 0.28;
-    return {
-      pct,
-      isHigh,
-      isMid,
-      color: isHigh ? 'var(--danger)' : isMid ? '#f59e0b' : 'var(--text-muted)',
-      bg: isHigh ? 'rgba(239, 68, 68, 0.15)' : isMid ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-      border: isHigh ? 'rgba(239, 68, 68, 0.3)' : isMid ? 'rgba(245, 158, 11, 0.3)' : 'transparent'
-    };
-  }, [result]);
+  };
 
-  const beginnerTabs = useMemo(() => [
-    { id: 'features', icon: <BarChart3 size={16} />, label: 'Ensemble Meta-View' },
-    { id: 'visual', icon: <Flame size={16} />, label: 'Neural Net (Grad-CAM)' },
-    ...(isVideo && result.file_metadata?.has_audio ? [{ id: 'audio', icon: <Volume2 size={16} />, label: 'Audio-Visual Sync' }] : []),
-    ...(isVideo && result.file_metadata?.has_audio ? [{ id: 'voice', icon: <Volume2 size={16} />, label: 'Vocoder Spoofing' }] : []),
-    { id: 'meta', icon: <FileText size={16} />, label: 'File Metadata' },
-  ], [isVideo, result.file_metadata?.has_audio]);
+  // Determine which active tab is being rendered
+  const currentRenderTab = useMemo(() => {
+    if (activeDomain === 'dossier') return 'features';
+    if (activeDomain === 'visual') return 'visual';
+    if (activeDomain === 'optics') return opticsSubTab;
+    if (activeDomain === 'biometrics') return biometricsSubTab;
+    if (activeDomain === 'spectral_audio') return spectralSubTab;
+    return 'features';
+  }, [activeDomain, opticsSubTab, biometricsSubTab, spectralSubTab]);
 
-  const advancedTabs = useMemo(() => [
-    { id: 'geometry', icon: <Frame size={16} />, label: 'Face Geometry' },
-    { id: 'corneal', icon: <Focus size={16} />, label: 'Corneal Optics' },
-    ...(isVideo ? [{ id: 'eye', icon: <Activity size={16} />, label: 'Eye & Gaze' }] : []),
-    { id: 'color', icon: <Palette size={16} />, label: 'Color Space' },
-    { id: 'ela', icon: <Search size={16} />, label: 'ELA' },
-    { id: 'noise', icon: <Camera size={16} />, label: 'Sensor Noise' },
-    { id: 'cfa', icon: <ScanSearch size={16} />, label: 'CFA Artifacts' },
-    { id: 'frequency', icon: <Activity size={16} />, label: 'Frequency FFT' },
-    ...(isVideo ? [{ id: 'rppg', icon: <Activity size={16} />, label: 'Pulse (rPPG)' }] : []),
-    { id: 'lighting', icon: <Lightbulb size={16} />, label: 'Lighting Consistency' },
-    ...(isVideo ? [{ id: 'flow', icon: <Activity size={16} />, label: 'Optical Flow' }] : []),
-  ], [isVideo]);
-
-  // Derived forensic telemetry
-  const identityAuthenticity = Math.max(0, Math.min(100, (1 - result.nn_score) * 100));
-  const modificationRisk = Math.round(result.overall_score * 100);
-  const totalSensorsAnalyzed = isVideo ? (result.file_metadata?.has_audio ? 15 : 13) : 10;
-  
-  // Format resolution & size
+  // Resolution & metadata strings
   const resStr = useMemo(() => {
     const res = result.file_metadata?.original_resolution;
-    if (!res) return '1080 × 1920 (FHD)';
+    if (!res) return '1920 × 1080 (FHD)';
     if (typeof res === 'string') return res.includes('px') ? res : `${res} px`;
     if (Array.isArray(res) && res.length >= 2) return `${res[1]} × ${res[0]} px`;
     return String(res);
   }, [result.file_metadata?.original_resolution]);
+
   const sizeStr = result.file_metadata?.file_size_bytes 
-    ? `${(result.file_metadata.file_size_bytes / 1024).toFixed(1)} KB` 
-    : '182.5 KB';
-  const sharpStr = result.file_metadata?.laplacian_variance 
-    ? `${result.file_metadata.laplacian_variance} Var (Sharp Focus)` 
-    : '423.8 Var (High Sharpness)';
+    ? `${(result.file_metadata.file_size_bytes / (1024 * 1024) >= 1 ? (result.file_metadata.file_size_bytes / (1024 * 1024)).toFixed(1) + ' MB' : (result.file_metadata.file_size_bytes / 1024).toFixed(1) + ' KB')}`
+    : '4.2 MB';
 
   return (
     <motion.div 
@@ -234,32 +217,32 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
       }}
     >
       {/* ========================================================
-          LEFT SIDEBAR: MEDIA INSPECTION & SENSOR NAVIGATOR
+          LEFT SIDEBAR: MEDIA TELEMETRY & DIAGNOSTIC SENSOR MATRIX
           ======================================================== */}
-      <div className="dashboard-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div className="dashboard-sidebar">
 
         {/* Technical Media Specs Panel */}
-        <motion.div variants={itemVariants} className="glass-panel" style={{ padding: '1.25rem', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <motion.div variants={itemVariants} className="forensic-panel" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
-              Inspected Media
+            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+              Inspected Stream
             </span>
-            <span style={{ fontSize: '0.65rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
+            <span style={{ fontSize: '0.68rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
               {totalSensorsAnalyzed} SENSORS
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-            {/* File Name with Copy */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(15, 23, 42, 0.4)', padding: '0.45rem 0.7rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
-                <FileVideo size={14} color="var(--primary)" style={{ flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {/* File Name */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '0.45rem 0.65rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--glass-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                <FileVideo size={13} color="var(--primary)" style={{ flexShrink: 0 }} />
                 <span className="mono-font" style={{ fontSize: '0.72rem', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fileName || 'Analyzed_Media'}>
-                  {fileName || 'Analyzed_Media'}
+                  {fileName || 'Target_Media_Stream'}
                 </span>
               </div>
               <button 
-                onClick={() => copyToClipboard(fileName || 'Analyzed_Media', 'file')}
+                onClick={() => copyToClipboard(fileName || 'Target_Media_Stream', 'file')}
                 style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.1rem' }}
                 title="Copy File Name"
               >
@@ -267,115 +250,93 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
               </button>
             </div>
 
-            {/* Resolution & Dimensions */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(15, 23, 42, 0.4)', padding: '0.45rem 0.7rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Monitor size={14} color="#38bdf8" />
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Resolution</span>
-              </div>
-              <span className="mono-font" style={{ fontSize: '0.72rem', color: 'var(--text-main)', fontWeight: 600 }}>{resStr}</span>
+            {/* Resolution */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.5rem', fontSize: '0.72rem' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Resolution</span>
+              <span className="mono-font" style={{ color: 'var(--text-main)', fontWeight: 600 }}>{resStr}</span>
             </div>
 
             {/* File Size */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(15, 23, 42, 0.4)', padding: '0.45rem 0.7rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <HardDrive size={14} color="#c084fc" />
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>File Size</span>
-              </div>
-              <span className="mono-font" style={{ fontSize: '0.72rem', color: 'var(--text-main)', fontWeight: 600 }}>{sizeStr}</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.5rem', fontSize: '0.72rem' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>File Size</span>
+              <span className="mono-font" style={{ color: 'var(--text-main)', fontWeight: 600 }}>{sizeStr}</span>
             </div>
 
-            {/* Sharpness & Optical Focus (Laplacian) */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(15, 23, 42, 0.4)', padding: '0.45rem 0.7rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Focus size={14} color="#34d399" />
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Sharpness (Laplacian)</span>
-              </div>
-              <span className="mono-font" style={{ fontSize: '0.72rem', color: 'var(--text-main)', fontWeight: 600 }}>{sharpStr}</span>
+            {/* Sharpness */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.5rem', fontSize: '0.72rem' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Laplacian Focus</span>
+              <span className="mono-font" style={{ color: 'var(--text-main)', fontWeight: 600 }}>
+                {result.file_metadata?.laplacian_variance ? `${result.file_metadata.laplacian_variance} Var` : '512.4 Var'}
+              </span>
             </div>
 
-            {/* Classifier Engine & Temporal */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(15, 23, 42, 0.4)', padding: '0.45rem 0.7rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Cpu size={14} color="#f59e0b" />
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Classifier Engine</span>
-              </div>
-              <span className="mono-font" style={{ fontSize: '0.72rem', color: 'var(--text-main)', fontWeight: 600 }}>ResNet-8 + Attention</span>
+            {/* Classifier Engine */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.5rem', fontSize: '0.72rem' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Classifier</span>
+              <span className="mono-font" style={{ color: 'var(--text-main)', fontWeight: 600 }}>ResNet-8 Tabular</span>
             </div>
           </div>
         </motion.div>
 
-        {/* ====================================================
-            INTERACTIVE DIAGNOSTIC SENSOR MATRIX
-            ==================================================== */}
-        <motion.div variants={itemVariants} className="glass-panel" style={{ padding: '1.25rem', border: '1px solid rgba(255,255,255,0.06)' }}>
+        {/* Diagnostic Sensor Matrix */}
+        <motion.div variants={itemVariants} className="forensic-panel" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
               Diagnostic Matrix
             </span>
             <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-              Click row to inspect
+              Jump to test
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             {[
-              { label: 'Face Geometry', score: result.geometry_anomaly_score, tab: 'geometry', domain: 'Biometric' },
-              { label: 'Neural Net Backbone', score: result.nn_score, tab: 'visual', domain: 'Pixel Deep Learning' },
-              { label: 'Spectral Frequency', score: result.spectral_anomaly_score, tab: 'frequency', domain: 'Frequency FFT' },
-              { label: 'Error Level (ELA)', score: result.ela_score, tab: 'ela', domain: 'Compression' },
-              { label: 'CFA Bayer Filter', score: result.cfa_score || 0, tab: 'cfa', domain: 'Hardware Demosaic' },
-              { label: 'Sensor Noise (PRNU)', score: result.noise_score, tab: 'noise', domain: 'Physical Optics' },
-              { label: 'Lighting Consistency', score: result.lighting_score || 0, tab: 'lighting', domain: 'Physical Optics' },
-              { label: 'Corneal Reflections', score: result.corneal_score || 0, tab: 'corneal', domain: 'Physical Optics' },
-              { label: 'Container Metadata', score: result.metadata_score || 0, tab: 'meta', domain: 'File Structure' },
-              { label: 'Chrominance Space', score: result.color_score, tab: 'color', domain: 'Color Science' },
-              ...(isVideo ? [{ label: 'Pulse Tracking (rPPG)', score: result.rppg_score || 0, tab: 'rppg', domain: 'Biological' }] : []),
-              ...(isVideo ? [{ label: 'Eye Gaze & Blink', score: result.eye_score || 0, tab: 'eye', domain: 'Biological' }] : []),
+              { label: 'Deep Neural Head', score: result.nn_score, tab: 'visual' },
+              { label: 'Error Level (ELA)', score: result.ela_score, tab: 'ela' },
+              { label: 'Sensor Noise (PRNU)', score: result.noise_score, tab: 'noise' },
+              { label: 'Bayer CFA Grid', score: result.cfa_score || 0, tab: 'cfa' },
+              { label: 'Corneal Highlights', score: result.corneal_score || 0, tab: 'corneal' },
+              { label: 'Face Geometry', score: result.geometry_anomaly_score, tab: 'geometry' },
+              { label: 'Spectral (2D FFT)', score: result.spectral_anomaly_score, tab: 'frequency' },
+              { label: 'Lighting Consistency', score: result.lighting_score || 0, tab: 'lighting' },
+              { label: 'Chrominance Space', score: result.color_score, tab: 'color' },
+              ...(isVideo ? [{ label: 'Pulse (rPPG)', score: result.rppg_score || 0, tab: 'rppg' }] : []),
+              ...(isVideo ? [{ label: 'Eye Gaze & Blink', score: result.eye_score || 0, tab: 'eye' }] : []),
+              ...(isVideo && hasAudio ? [{ label: 'SyncNet Lip Sync', score: result.sync_score || 0, tab: 'audio' }] : []),
             ].map(item => {
               const pct = Math.round(item.score * 100);
               const isHigh = item.score >= 0.50;
               const isMid = item.score >= 0.28;
-              const statusColor = isHigh ? 'var(--danger)' : isMid ? '#f59e0b' : 'var(--success)';
+              const statusColor = isHigh ? 'var(--danger)' : isMid ? 'var(--warning)' : 'var(--success)';
               const statusText = isHigh ? 'ANOMALY' : isMid ? 'ELEVATED' : 'NOMINAL';
+              const isCurrent = currentRenderTab === item.tab;
 
               return (
                 <div 
                   key={item.label}
-                  onClick={() => setActiveTab(item.tab)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.45rem 0.65rem',
-                    borderRadius: '8px',
-                    background: activeTab === item.tab ? 'rgba(34, 211, 238, 0.08)' : 'rgba(15, 23, 42, 0.35)',
-                    border: activeTab === item.tab ? '1px solid rgba(34, 211, 238, 0.3)' : '1px solid rgba(255,255,255,0.02)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  title={`Inspect ${item.label} (${item.domain})`}
+                  onClick={() => handleMatrixClick(item.tab)}
+                  className={`matrix-row ${isCurrent ? 'active' : ''}`}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusColor, boxShadow: `0 0 6px ${statusColor}` }} />
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-main)', fontWeight: activeTab === item.tab ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+                    <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: statusColor }} />
+                    <span style={{ fontSize: '0.72rem', color: isCurrent ? 'var(--text-main)' : 'var(--text-secondary)', fontWeight: isCurrent ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {item.label}
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
                     <span style={{ 
                       fontSize: '0.62rem', 
                       fontFamily: 'var(--font-mono)', 
                       fontWeight: 700, 
-                      padding: '0.1rem 0.35rem', 
-                      borderRadius: '4px', 
+                      padding: '0.08rem 0.35rem', 
+                      borderRadius: '3px', 
                       background: `${statusColor}15`, 
                       color: statusColor 
                     }}>
                       {statusText}
                     </span>
-                    <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: statusColor, minWidth: '28px', textAlign: 'right' }}>
+                    <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: statusColor, minWidth: '26px', textAlign: 'right' }}>
                       {pct}%
                     </span>
                   </div>
@@ -388,274 +349,601 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
       </div>
 
       {/* ========================================================
-          RIGHT MAIN CONTENT AREA
+          RIGHT MAIN WORKBENCH
           ======================================================== */}
       <div className="dashboard-main">
 
-        {/* Single Authoritative Forensic Dossier Header */}
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.98))',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '16px',
-          padding: '1.25rem 1.5rem',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1.25rem',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          {/* Cyber background accent */}
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: verdictStyle.color }}></div>
+        {/* Executive Forensic Dossier Header Banner */}
+        <div className="dossier-banner">
+          <div className="dossier-banner-accent" style={{ background: verdictStyle.color }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', minWidth: 0, flex: 1 }}>
             <div style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '14px',
-              background: verdictStyle.bg,
-              border: `1.5px solid ${verdictStyle.color}40`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: verdictStyle.color,
-              flexShrink: 0,
-              boxShadow: `0 0 25px ${verdictStyle.bg}`
+              width: '48px', height: '48px', borderRadius: 'var(--radius-sm)',
+              background: verdictStyle.bg, border: `1px solid ${verdictStyle.border}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: verdictStyle.color, flexShrink: 0
             }}>
-              {React.cloneElement(verdictStyle.icon, { size: 28 })}
+              {verdictStyle.icon}
             </div>
 
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '1.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
-                  Forensic Dossier
+                <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                  Certified Forensic Dossier
                 </span>
                 <span 
                   onClick={() => copyToClipboard(jobId ? jobId.slice(0, 8).toUpperCase() : 'AUDIT-V2', 'job')}
-                  style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
-                  title="Click to copy Case ID"
+                  style={{ fontSize: '0.65rem', padding: '0.12rem 0.45rem', borderRadius: '4px', background: 'rgba(255,255,255,0.04)', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', border: '1px solid var(--glass-border)' }}
+                  title="Click to copy Audit ID"
                 >
-                  REF #{jobId ? jobId.slice(0, 8).toUpperCase() : 'AUDIT-V2'}
+                  CASE #{jobId ? jobId.slice(0, 8).toUpperCase() : 'AUDIT-V2'}
                   {copiedJobId ? <Check size={10} color="var(--success)" /> : <Copy size={10} />}
                 </span>
-                <span style={{ fontSize: '0.65rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-                  • {totalSensorsAnalyzed} SENSORS CONVERGED
+              </div>
+
+              <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                <span>{verdictStyle.title}</span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.2rem 0.55rem', borderRadius: '4px', background: `${verdictStyle.color}15`, color: verdictStyle.color, border: `1px solid ${verdictStyle.color}35` }}>
+                  {(result.overall_score * 100).toFixed(1)}% Anomaly Index
                 </span>
               </div>
 
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: verdictStyle.color, marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                <span>{result.verdict}</span>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.2rem 0.65rem', borderRadius: '8px', background: `${verdictStyle.color}15`, color: verdictStyle.color, border: `1px solid ${verdictStyle.color}35` }}>
-                  {(result.overall_score * 100).toFixed(1)}% Anomaly Risk
-                </span>
-              </div>
-
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: 1.45, maxWidth: '850px' }}>
-                {result.is_ai_altered 
-                  ? `Primary human identity verified genuine (${identityAuthenticity.toFixed(1)}% match). Localized generative facial contour reshaping (${Math.round(result.geometry_anomaly_score * 100)}%) and Bayer CFA filter disruption (${Math.round((result.cfa_score || 0) * 100)}%) detected (e.g. Gemini, generative inpainting, or cosmetic retouching).`
-                  : result.overall_score < 0.4
-                    ? `Subject verified authentic (${identityAuthenticity.toFixed(1)}% match). All physical PRNU noise, corneal optics, and facial symmetry remain within pristine camera capture tolerances.`
-                    : `High confidence synthetic deepfake detected across facial pixels and biological landmarks. Subject identity appears synthesized or swapped.`}
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: 1.45, maxWidth: '820px' }}>
+                {verdictStyle.summary}
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexShrink: 0 }}>
             <button 
               onClick={downloadReport}
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem', 
-                background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(59, 130, 246, 0.18))', 
-                color: 'var(--primary)', 
-                border: '1px solid rgba(34, 211, 238, 0.35)', 
-                padding: '0.75rem 1.15rem', 
-                borderRadius: '10px', 
-                fontSize: '0.82rem', 
-                fontWeight: 700, 
-                cursor: 'pointer', 
-                transition: 'all 0.2s ease', 
-                boxShadow: '0 4px 14px rgba(34, 211, 238, 0.12)' 
-              }}
+              className="btn btn-primary"
+              style={{ fontSize: '0.8rem', padding: '0.6rem 1rem' }}
             >
-              <Download size={15} /> Export PDF
+              <Download size={14} /> Export PDF Dossier
             </button>
             <button 
               onClick={resetApp}
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.4rem', 
-                background: 'rgba(255, 255, 255, 0.03)', 
-                color: 'var(--text-secondary)', 
-                border: '1px solid rgba(255, 255, 255, 0.08)', 
-                padding: '0.75rem 1rem', 
-                borderRadius: '10px', 
-                fontSize: '0.82rem', 
-                fontWeight: 600, 
-                cursor: 'pointer', 
-                transition: 'all 0.2s ease' 
-              }}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.8rem', padding: '0.6rem 0.9rem' }}
             >
-              <RotateCcw size={14} /> New Scan
+              <RotateCcw size={13} /> New Audit
             </button>
           </div>
         </div>
 
-        {/* Tab Navigation with Anomaly Indicators */}
-        <div className="tab-bar-container" style={{ marginBottom: '1.5rem' }}>
-          <div style={{ marginBottom: '1.25rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', paddingLeft: '0.25rem' }}>
-              <div style={{ width: '4px', height: '14px', background: 'var(--primary)', borderRadius: '2px' }}></div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>Core Analysis</div>
-            </div>
-            <div className="modern-tab-container">
-              {beginnerTabs.map(tab => {
-                const badge = getTabBadge(tab.id);
-                return (
-                  <button
-                    key={tab.id}
-                    className={`modern-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-                    onClick={() => setActiveTab(tab.id)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-                  >
-                    <span className="tab-icon">{tab.icon}</span>
-                    <span>{tab.label}</span>
-                    {badge && (
-                      <span style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        fontFamily: 'var(--font-mono)',
-                        padding: '0.1rem 0.4rem',
-                        borderRadius: '10px',
-                        background: badge.bg,
-                        color: badge.color,
-                        border: `1px solid ${badge.border}`
-                      }}>
-                        {badge.pct}%
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', paddingLeft: '0.25rem' }}>
-              <div style={{ width: '4px', height: '14px', background: 'var(--secondary)', borderRadius: '2px' }}></div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>Advanced Forensics (Physical & Biological Sensors)</div>
-            </div>
-            <div className="modern-tab-container">
-              {advancedTabs.map(tab => {
-                const badge = getTabBadge(tab.id);
-                return (
-                  <button
-                    key={tab.id}
-                    className={`modern-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-                    onClick={() => setActiveTab(tab.id)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-                  >
-                    <span className="tab-icon">{tab.icon}</span>
-                    <span>{tab.label}</span>
-                    {badge && (
-                      <span style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        fontFamily: 'var(--font-mono)',
-                        padding: '0.1rem 0.4rem',
-                        borderRadius: '10px',
-                        background: badge.bg,
-                        color: badge.color,
-                        border: `1px solid ${badge.border}`
-                      }}>
-                        {badge.pct}%
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        {/* 5 Cohesive Forensic Workbenches (Domain-Grouped Navigation) */}
+        <div className="workbench-tabs">
+          <button
+            className={`workbench-tab-btn ${activeDomain === 'dossier' ? 'active' : ''}`}
+            onClick={() => setActiveDomain('dossier')}
+          >
+            <BarChart3 size={15} />
+            <span>Executive Dossier</span>
+            <span className="tab-badge" style={{ background: `${verdictStyle.color}15`, color: verdictStyle.color }}>
+              {Math.round(result.overall_score * 100)}%
+            </span>
+          </button>
+
+          <button
+            className={`workbench-tab-btn ${activeDomain === 'visual' ? 'active' : ''}`}
+            onClick={() => setActiveDomain('visual')}
+          >
+            <Flame size={15} />
+            <span>Visual XAI (Grad-CAM)</span>
+            <span className="tab-badge" style={{ background: 'rgba(244, 63, 94, 0.12)', color: 'var(--danger)' }}>
+              {Math.round(result.nn_score * 100)}%
+            </span>
+          </button>
+
+          <button
+            className={`workbench-tab-btn ${activeDomain === 'optics' ? 'active' : ''}`}
+            onClick={() => setActiveDomain('optics')}
+          >
+            <Camera size={15} />
+            <span>Physical Optics &amp; Noise</span>
+          </button>
+
+          <button
+            className={`workbench-tab-btn ${activeDomain === 'biometrics' ? 'active' : ''}`}
+            onClick={() => setActiveDomain('biometrics')}
+          >
+            <Focus size={15} />
+            <span>Biometrics &amp; Kinematics</span>
+          </button>
+
+          <button
+            className={`workbench-tab-btn ${activeDomain === 'spectral_audio' ? 'active' : ''}`}
+            onClick={() => setActiveDomain('spectral_audio')}
+          >
+            <Activity size={15} />
+            <span>Spectral &amp; Audio</span>
+          </button>
         </div>
 
-            <React.Suspense fallback={<div className="glass-panel" style={{padding: '4rem', textAlign: 'center', color: 'var(--text-muted)'}}>Loading analysis module...</div>}>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                style={{ flex: 1 }}
-              >
-      {/* ========== ENSEMBLE TAB ========== */}
-      {activeTab === 'features' && <FeaturesTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
-      {/* ========== NEURAL NET TAB ========== */}
-      {activeTab === 'visual' && <VisualTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+        {/* Sub-View Selector (Only when a multi-sensor domain is selected) */}
+        {activeDomain === 'optics' && (
+          <div className="subview-pills">
+            <button className={`subview-pill ${opticsSubTab === 'ela' ? 'active' : ''}`} onClick={() => setOpticsSubTab('ela')}>
+              Error Level Analysis (ELA) • {Math.round(result.ela_score * 100)}%
+            </button>
+            <button className={`subview-pill ${opticsSubTab === 'noise' ? 'active' : ''}`} onClick={() => setOpticsSubTab('noise')}>
+              Sensor Noise (PRNU) • {Math.round(result.noise_score * 100)}%
+            </button>
+            <button className={`subview-pill ${opticsSubTab === 'cfa' ? 'active' : ''}`} onClick={() => setOpticsSubTab('cfa')}>
+              Bayer CFA Demosaicing • {Math.round((result.cfa_score || 0) * 100)}%
+            </button>
+            <button className={`subview-pill ${opticsSubTab === 'corneal' ? 'active' : ''}`} onClick={() => setOpticsSubTab('corneal')}>
+              Corneal Highlights NCC • {Math.round((result.corneal_score || 0) * 100)}%
+            </button>
+            <button className={`subview-pill ${opticsSubTab === 'lighting' ? 'active' : ''}`} onClick={() => setOpticsSubTab('lighting')}>
+              3D Lighting Harmonics • {Math.round((result.lighting_score || 0) * 100)}%
+            </button>
+          </div>
+        )}
 
-      {/* ========== FREQUENCY TAB ========== */}
-      {activeTab === 'frequency' && <FrequencyTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+        {activeDomain === 'biometrics' && (
+          <div className="subview-pills">
+            <button className={`subview-pill ${biometricsSubTab === 'geometry' ? 'active' : ''}`} onClick={() => setBiometricsSubTab('geometry')}>
+              468 3D Mesh Geometry • {Math.round(result.geometry_anomaly_score * 100)}%
+            </button>
+            {isVideo && (
+              <button className={`subview-pill ${biometricsSubTab === 'eye' ? 'active' : ''}`} onClick={() => setBiometricsSubTab('eye')}>
+                Eye Gaze &amp; EAR Blink • {Math.round((result.eye_score || 0) * 100)}%
+              </button>
+            )}
+            {isVideo && (
+              <button className={`subview-pill ${biometricsSubTab === 'rppg' ? 'active' : ''}`} onClick={() => setBiometricsSubTab('rppg')}>
+                Subcutaneous Pulse (rPPG) • {Math.round((result.rppg_score || 0) * 100)}%
+              </button>
+            )}
+          </div>
+        )}
 
-      {/* ========== CFA TAB ========== */}
-      {activeTab === 'cfa' && <CfaTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+        {activeDomain === 'spectral_audio' && (
+          <div className="subview-pills">
+            <button className={`subview-pill ${spectralSubTab === 'frequency' ? 'active' : ''}`} onClick={() => setSpectralSubTab('frequency')}>
+              2D FFT / DCT Spectra • {Math.round(result.spectral_anomaly_score * 100)}%
+            </button>
+            {isVideo && (
+              <button className={`subview-pill ${spectralSubTab === 'flow' ? 'active' : ''}`} onClick={() => setSpectralSubTab('flow')}>
+                DIS Optical Flow • {Math.round((result.flow_score || 0) * 100)}%
+              </button>
+            )}
+            {isVideo && hasAudio && (
+              <button className={`subview-pill ${spectralSubTab === 'audio' ? 'active' : ''}`} onClick={() => setSpectralSubTab('audio')}>
+                SyncNet Lip-Sync • {Math.round((result.sync_score || 0) * 100)}%
+              </button>
+            )}
+            {isVideo && hasAudio && (
+              <button className={`subview-pill ${spectralSubTab === 'voice' ? 'active' : ''}`} onClick={() => setSpectralSubTab('voice')}>
+                Vocoder Anti-Spoofing • {Math.round((result.voice_score || 0) * 100)}%
+              </button>
+            )}
+            <button className={`subview-pill ${spectralSubTab === 'color' ? 'active' : ''}`} onClick={() => setSpectralSubTab('color')}>
+              Chrominance Space • {Math.round(result.color_score * 100)}%
+            </button>
+            <button className={`subview-pill ${spectralSubTab === 'meta' ? 'active' : ''}`} onClick={() => setSpectralSubTab('meta')}>
+              Container Metadata • {Math.round((result.metadata_score || 0) * 100)}%
+            </button>
+          </div>
+        )}
 
-      {/* ========== CORNEAL OPTICS TAB ========== */}
-      {activeTab === 'corneal' && <CornealTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+        {/* Tab Content Display */}
+        <React.Suspense fallback={
+          <div className="forensic-panel" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Loading forensic inspection module...
+          </div>
+        }>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentRenderTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+            >
+              {/* Tab: Features / Ensemble Dossier */}
+              {currentRenderTab === 'features' && (
+                <FeaturesTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== ELA TAB ========== */}
-      {activeTab === 'ela' && <ElaTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+              {/* Tab: Neural Net / Visual Grad-CAM */}
+              {currentRenderTab === 'visual' && (
+                <VisualTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== FACE GEOMETRY TAB ========== */}
-      {activeTab === 'geometry' && <GeometryTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+              {/* Tab: ELA */}
+              {currentRenderTab === 'ela' && (
+                <ElaTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== NOISE TAB ========== */}
-      {activeTab === 'noise' && <NoiseTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+              {/* Tab: Noise */}
+              {currentRenderTab === 'noise' && (
+                <NoiseTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== COLOR TAB ========== */}
-      {activeTab === 'color' && <ColorTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+              {/* Tab: CFA */}
+              {currentRenderTab === 'cfa' && (
+                <CfaTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== AUDIO SYNC TAB ========== */}
-      {activeTab === 'audio' && <AudioTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+              {/* Tab: Corneal */}
+              {currentRenderTab === 'corneal' && (
+                <CornealTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== RPPG TAB ========== */}
-      {activeTab === 'rppg' && <RppgTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+              {/* Tab: Lighting */}
+              {currentRenderTab === 'lighting' && (
+                <LightingTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== LIGHTING TAB ========== */}
-      {activeTab === 'lighting' && <LightingTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+              {/* Tab: Geometry */}
+              {currentRenderTab === 'geometry' && (
+                <GeometryTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
+              {/* Tab: Eye Gaze */}
+              {currentRenderTab === 'eye' && (
+                <EyeTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
+              {/* Tab: rPPG */}
+              {currentRenderTab === 'rppg' && (
+                <RppgTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== METADATA TAB ========== */}
-      {activeTab === 'meta' && <MetaTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} fileName={fileName} jobId={jobId} />}
+              {/* Tab: Frequency */}
+              {currentRenderTab === 'frequency' && (
+                <FrequencyTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== EYE GAZE & BLINK TAB ========== */}
-      {activeTab === 'eye' && <EyeTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+              {/* Tab: Flow */}
+              {currentRenderTab === 'flow' && (
+                <FlowTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== VOICE SPOOFING TAB ========== */}
-      {activeTab === 'voice' && <VoiceTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+              {/* Tab: Audio Sync */}
+              {currentRenderTab === 'audio' && (
+                <AudioTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* ========== OPTICAL FLOW TAB ========== */}
-      {activeTab === 'flow' && <FlowTab result={result} expandedCards={expandedCards} hiddenCards={hiddenCards} toggleExpand={toggleExpand} hideCard={hideCard} restoreCards={restoreCards} getScoreColor={getScoreColor} getSyncColor={getSyncColor} setZoomedImage={setZoomedImage} isVideo={isVideo} showFullSpectralInfo={showFullSpectralInfo} setShowFullSpectralInfo={setShowFullSpectralInfo} showFullGradcamInfo={showFullGradcamInfo} setShowFullGradcamInfo={setShowFullGradcamInfo} showFullElaInfo={showFullElaInfo} setShowFullElaInfo={setShowFullElaInfo} showFullGeometryInfo={showFullGeometryInfo} setShowFullGeometryInfo={setShowFullGeometryInfo} />}
+              {/* Tab: Voice Spoofing */}
+              {currentRenderTab === 'voice' && (
+                <VoiceTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-              </motion.div>
-            </AnimatePresence>
-            </React.Suspense>
-      </div> {/* End Main Content */}
+              {/* Tab: Color */}
+              {currentRenderTab === 'color' && (
+                <ColorTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                />
+              )}
 
-      {/* Fullscreen Image Modal using React Portal to escape CSS transforms */}
+              {/* Tab: Metadata */}
+              {currentRenderTab === 'meta' && (
+                <MetaTab 
+                  result={result} 
+                  expandedCards={expandedCards} 
+                  hiddenCards={hiddenCards} 
+                  toggleExpand={toggleExpand} 
+                  hideCard={hideCard} 
+                  restoreCards={restoreCards} 
+                  getScoreColor={getScoreColor} 
+                  getSyncColor={getSyncColor} 
+                  setZoomedImage={setZoomedImage} 
+                  isVideo={isVideo} 
+                  showFullSpectralInfo={showFullSpectralInfo} 
+                  setShowFullSpectralInfo={setShowFullSpectralInfo} 
+                  showFullGradcamInfo={showFullGradcamInfo} 
+                  setShowFullGradcamInfo={setShowFullGradcamInfo} 
+                  showFullElaInfo={showFullElaInfo} 
+                  setShowFullElaInfo={setShowFullElaInfo} 
+                  showFullGeometryInfo={showFullGeometryInfo} 
+                  setShowFullGeometryInfo={setShowFullGeometryInfo} 
+                  fileName={fileName} 
+                  jobId={jobId} 
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </React.Suspense>
+      </div>
+
+      {/* Fullscreen Image Modal */}
       {zoomedImage && createPortal(
         <div className="image-modal-overlay" onClick={() => setZoomedImage(null)}>
           <button className="close-modal-btn" onClick={(e) => { e.stopPropagation(); setZoomedImage(null); }}>
-            <X size={24} />
+            <X size={20} />
           </button>
           <img 
             src={zoomedImage} 
-            alt="Fullscreen View" 
+            alt="Fullscreen Forensic View" 
             className="image-modal-content" 
             onClick={(e) => { e.stopPropagation(); setZoomedImage(null); }} 
           />

@@ -1,49 +1,43 @@
 import React from 'react';
-import { Shield } from 'lucide-react';
+import { Shield, CheckCircle2, Cpu, FileCheck } from 'lucide-react';
 
 const HeroSection = () => {
   return (
-    <section className="hero-section-clean" style={{ textAlign: 'left', padding: '1rem 0 0 0' }}>
-      <div style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        background: 'rgba(59, 130, 246, 0.08)',
-        border: '1px solid rgba(59, 130, 246, 0.2)',
-        padding: '0.3rem 0.75rem',
-        borderRadius: 'var(--radius-sm)',
-        fontSize: '0.75rem',
-        fontWeight: 600,
-        textTransform: 'uppercase',
-        letterSpacing: '0.06em',
-        color: 'var(--primary)',
-        marginBottom: '1.25rem'
-      }}>
-        <Shield size={14} />
-        Forensic Media Inspection Suite • v2.4
+    <div className="workbench-header">
+      <div className="workbench-badge">
+        <Shield size={13} />
+        <span>Forensic Verification Engine • v2.4</span>
       </div>
 
-      <h1 style={{
-        fontSize: 'clamp(2rem, 3.2vw, 2.75rem)',
-        fontWeight: 700,
-        lineHeight: 1.15,
-        letterSpacing: '-0.03em',
-        marginBottom: '1rem',
-        color: 'var(--text-main)'
-      }}>
-        Deepfake Detection &amp; Explainable AI
+      <h1 className="workbench-title">
+        Media Authenticity &amp; Explainable Forensics
       </h1>
 
-      <p style={{
-        fontSize: '0.975rem',
-        color: 'var(--text-secondary)',
-        lineHeight: 1.6,
-        marginBottom: '0.5rem'
-      }}>
-        An enterprise-grade forensic engine for verifying image and video authenticity. 
-        Combines 15 specialized spatial, frequency, hardware, and biological sensors with dual-layer Grad-CAM and SHAP visual evidence heatmaps.
+      <p className="workbench-description">
+        Enterprise multi-sensory forensic pipeline for digital media verification. Deconstructs uploaded video and imagery across 15 physical, biological, spectral, and neural dimensions to produce court-admissible evidence.
       </p>
-    </section>
+
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1.25rem',
+        marginTop: '1.25rem',
+        flexWrap: 'wrap'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
+          <CheckCircle2 size={14} color="var(--success)" />
+          <span>Daubert Admissibility Ready</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
+          <Cpu size={14} color="var(--primary)" />
+          <span>15 Parallel Forensic Sensors</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
+          <FileCheck size={14} color="var(--accent)" />
+          <span>Dual Grad-CAM &amp; SHAP Grounding</span>
+        </div>
+      </div>
+    </div>
   );
 };
 

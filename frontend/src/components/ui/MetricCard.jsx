@@ -3,11 +3,11 @@ import React from 'react';
 const MetricCard = ({ label, value, subValue, type = 'neutral' }) => {
   return (
     <div className={`metric-card ${type}`}>
-      <div className="metric-label">{label}</div>
-      <div className="metric-value" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={value}>{value}</div>
-      {subValue && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={subValue}>{subValue}</div>}
+      <div className="metric-label" title={label}>{label}</div>
+      <div className="metric-value mono-font tabular-num" title={String(value)}>{value}</div>
+      {subValue && <div className="metric-subvalue" title={subValue}>{subValue}</div>}
     </div>
   );
 };
 
-export default MetricCard;
+export default React.memo(MetricCard);

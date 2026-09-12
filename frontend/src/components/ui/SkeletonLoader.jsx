@@ -1,36 +1,46 @@
 import React from 'react';
 
 const SkeletonLoader = ({ className = '', style = {}, type = 'rect', children }) => {
-  const baseClass = "animate-pulse bg-[#1e293b] rounded-xl";
-  
   if (type === 'circle') {
-    return <div className={`animate-pulse bg-[#1e293b] rounded-full ${className}`} style={style} />;
+    return (
+      <div 
+        className={`skeleton-box skeleton-circle ${className}`} 
+        style={{ width: '40px', height: '40px', ...style }} 
+      />
+    );
   }
 
   if (type === 'text') {
     return (
-      <div className={`flex flex-col gap-2 ${className}`} style={style}>
-        <div className="h-4 bg-[#1e293b] rounded w-3/4 animate-pulse"></div>
-        <div className="h-4 bg-[#1e293b] rounded w-1/2 animate-pulse"></div>
+      <div className={`skeleton-text-group ${className}`} style={{ display: 'flex', flexDirection: 'column', gap: '6px', ...style }}>
+        <div className="skeleton-box" style={{ height: '14px', width: '75%' }} />
+        <div className="skeleton-box" style={{ height: '14px', width: '50%' }} />
       </div>
     );
   }
 
   if (type === 'card') {
     return (
-      <div className={`${baseClass} p-5 border border-[#334155] flex flex-col gap-4 ${className}`} style={style}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#334155] animate-pulse"></div>
-          <div className="h-5 bg-[#334155] rounded w-1/3 animate-pulse"></div>
+      <div 
+        className={`glass-panel ${className}`} 
+        style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', ...style }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="skeleton-box skeleton-circle" style={{ width: '32px', height: '32px' }} />
+          <div className="skeleton-box" style={{ height: '16px', width: '35%' }} />
         </div>
-        <div className="flex-1 min-h-[150px] bg-[#334155] rounded-lg animate-pulse opacity-50"></div>
+        <div className="skeleton-box" style={{ minHeight: '140px', width: '100%' }} />
         {children}
       </div>
     );
   }
 
   // Default Rect
-  return <div className={`${baseClass} ${className}`} style={style}>{children}</div>;
+  return (
+    <div className={`skeleton-box ${className}`} style={{ minHeight: '20px', ...style }}>
+      {children}
+    </div>
+  );
 };
 
-export default SkeletonLoader;
+export default React.memo(SkeletonLoader);

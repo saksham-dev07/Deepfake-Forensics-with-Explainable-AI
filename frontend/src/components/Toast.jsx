@@ -8,7 +8,7 @@ const Toast = ({ message, type = 'error', onClose, duration = 5000 }) => {
     if (duration > 0) {
       const timer = setTimeout(() => {
         setIsVisible(false);
-        setTimeout(onClose, 300); // Wait for fade out animation
+        setTimeout(onClose, 250);
       }, duration);
       return () => clearTimeout(timer);
     }
@@ -18,76 +18,92 @@ const Toast = ({ message, type = 'error', onClose, duration = 5000 }) => {
 
   const handleClose = () => {
     setIsVisible(false);
-    setTimeout(onClose, 300);
+    setTimeout(onClose, 250);
   };
 
-  const colors = {
+  const config = {
     error: {
-      bg: 'rgba(251, 113, 133, 0.1)',
-      border: 'rgba(251, 113, 133, 0.3)',
-      text: 'var(--danger)',
-      icon: <AlertCircle size={20} />
+      border: 'rgba(244, 63, 94, 0.4)',
+      accent: 'var(--danger)',
+      bg: 'rgba(244, 63, 94, 0.1)',
+      icon: <AlertCircle size={18} />
     },
     success: {
-      bg: 'rgba(52, 211, 153, 0.1)',
-      border: 'rgba(52, 211, 153, 0.3)',
-      text: 'var(--success)',
-      icon: <CheckCircle2 size={20} />
+      border: 'rgba(16, 185, 129, 0.4)',
+      accent: 'var(--success)',
+      bg: 'rgba(16, 185, 129, 0.1)',
+      icon: <CheckCircle2 size={18} />
     },
     info: {
-      bg: 'rgba(56, 189, 248, 0.1)',
-      border: 'rgba(56, 189, 248, 0.3)',
-      text: 'var(--info)',
-      icon: <Info size={20} />
+      border: 'rgba(59, 130, 246, 0.4)',
+      accent: 'var(--primary)',
+      bg: 'rgba(59, 130, 246, 0.1)',
+      icon: <Info size={18} />
     }
   };
 
-  const style = colors[type] || colors.info;
+  const current = config[type] || config.info;
 
   return (
     <div style={{
       position: 'fixed',
-      top: '20px',
-      right: '20px',
+      top: '1.5rem',
+      right: '1.5rem',
       zIndex: 9999,
       display: 'flex',
       alignItems: 'flex-start',
-      gap: '12px',
-      background: 'rgba(15, 23, 42, 0.95)',
-      backdropFilter: 'blur(10px)',
-      border: `1px solid ${style.border}`,
-      boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-      borderRadius: '8px',
-      padding: '16px',
-      maxWidth: '400px',
-      transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(-20px) scale(0.95)',
+      gap: '0.75rem',
+      background: 'var(--panel-bg)',
+      border: `1px solid ${current.border}`,
+      boxShadow: '0 8px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+      borderRadius: 'var(--radius-sm)',
+      padding: '0.85rem 1.1rem',
+      maxWidth: '420px',
+      transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(-15px) scale(0.96)',
       opacity: isVisible ? 1 : 0,
-      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      transition: 'all var(--transition-fast)'
     }}>
-      <div style={{ color: style.text, marginTop: '2px' }}>
-        {style.icon}
+      <div style={{
+        width: '28px',
+        height: '28px',
+        borderRadius: 'var(--radius-xs)',
+        background: current.bg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: current.accent,
+        flexShrink: 0,
+        marginTop: '0.1rem'
+      }}>
+        {current.icon}
       </div>
-      <div style={{ flex: 1, color: '#f1f5f9', fontSize: '0.9rem', lineHeight: '1.5' }}>
-        {message}
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: current.accent, fontFamily: 'var(--font-mono)', marginBottom: '0.2rem' }}>
+          {type === 'error' ? 'Forensic System Alert' : type === 'success' ? 'Verification Passed' : 'System Notice'}
+        </div>
+        <div style={{ color: 'var(--text-main)', fontSize: '0.825rem', lineHeight: 1.5 }}>
+          {message}
+        </div>
       </div>
-      <button 
+
+      <button
         onClick={handleClose}
         style={{
           background: 'transparent',
           border: 'none',
-          color: '#64748b',
+          color: 'var(--text-muted)',
           cursor: 'pointer',
-          padding: '4px',
+          padding: '0.2rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: '4px',
-          transition: 'color 0.2s',
+          transition: 'color var(--transition-fast)'
         }}
-        onMouseEnter={(e) => e.currentTarget.style.color = '#cbd5e1'}
-        onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
+        title="Dismiss Alert"
       >
-        <X size={16} />
+        <X size={15} />
       </button>
     </div>
   );

@@ -1,96 +1,139 @@
 import React from 'react';
-import { Volume2, AlertTriangle, ZoomIn } from 'lucide-react';
-
+import { Volume2, AlertTriangle, ZoomIn, Info } from 'lucide-react';
 import ScoreRing from '../ui/ScoreRing';
 import MetricCard from '../ui/MetricCard';
 import TestExplanation from '../ui/TestExplanation';
-
 import { API_BASE } from '../../constants/api';
 
 const VoiceTab = ({
-  result,
-  getSyncColor,
-  setZoomedImage,
+  result = {},
+  getSyncColor = () => 'neutral',
+  setZoomedImage = () => {},
 }) => {
+  const data = result.voice_analysis || {};
+  const anomalyScore = typeof data.voice_anomaly_score === 'number' ? data.voice_anomaly_score : 0;
+
+  const resolveImg = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    return `${API_BASE}/${path.replace(/^\/+/, '')}`;
+  };
+
+  const plotUrl = resolveImg(data.voice_plot_path);
+
   return (
-    <>
-        <div className="glass-panel analysis-panel" style={{ marginBottom: '2rem' }}>
-          <div className="panel-header">
-            <div className="panel-icon shap"><Volume2 size={20} color="var(--info)" /></div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.65rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Volume2 size={18} color="var(--info)" />
             <div>
-              <div className="panel-title">Audio Forensics: Voice Anti-Spoofing</div>
-              <div className="panel-subtitle">Detecting synthetic voice clones and vocoder artifacts</div>
+              <h3 style={{ margin: 0, fontSize: '0.925rem', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '0.02em' }}>
+                Voice Forensics &amp; Acoustic Anti-Spoofing
+              </h3>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                Detection of vocoder synthesis, phase discontinuities, and cloned voice artifacts
+              </div>
+            </div>
+          </div>
+          <span className="mono-font" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            Sensor: 2D-CNN Mel Spectrogram
+          </span>
+        </div>
+
+        {data.explanation && <TestExplanation testId="voice" explanation={data.explanation} />}
+
+        {/* Dual Panel Mel-Spectrogram Visual Exhibit */}
+        {plotUrl && (
+          <div style={{ background: 'var(--panel-subtle)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '1rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Raw Waveform &amp; Mel-Frequency Spectrogram (Magma dB)
+              </span>
+              <span className="mono-font" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                128-Mel Filterbanks | 22.05 kHz
+              </span>
+            </div>
+
+            <div 
+              className="zoomable-image-container"
+              onClick={() => setZoomedImage(plotUrl)}
+              style={{ maxHeight: '360px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#05070a', borderRadius: '4px' }}
+            >
+              <img 
+                src={plotUrl} 
+                alt="Voice Spoofing Plot" 
+                style={{ width: '100%', maxHeight: '360px', objectFit: 'contain' }}
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+              <div className="zoom-overlay"><ZoomIn size={28} /></div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.65rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              <Info size={13} style={{ flexShrink: 0 }} />
+              <span>Vocoders (HiFi-GAN, WaveGlow) leave faint harmonic repetition patterns above 8 kHz and phase inconsistencies.</span>
+            </div>
+          </div>
+        )}
+
+        {/* Score Ring & Acoustic Metrics */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '1.5rem', alignItems: 'center' }}>
+          <div style={{ background: 'var(--panel-subtle)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '180px' }}>
+            <ScoreRing 
+              score={anomalyScore} 
+              label="Audio Anomaly" 
+              invert={false} 
+              size={120} 
+            />
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.5rem', textAlign: 'center' }}>
+              {anomalyScore > 0.6 ? 'Acoustic Spoofing Detected' : 'Natural Acoustic Dynamics'}
             </div>
           </div>
 
-          <TestExplanation testId="voice" explanation={result.voice_analysis.explanation} />
-          
-          <div className="tab-content-wrapper">
-            {/* HERO VISUALS */}
-            {result.voice_analysis.voice_plot_path && (
-              <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2rem' }}>
-                <div className="zoomable-image-container" onClick={() => setZoomedImage(`${API_BASE}/${result.voice_analysis.voice_plot_path}`)}>
-<img 
-                  src={`${API_BASE}/${result.voice_analysis.voice_plot_path}`} 
-                  alt="Voice Spoofing Plot" 
-                  style={{ width: '100%', maxHeight: '400px', objectFit: 'contain' }} 
-                />
-                  <div className="zoom-overlay"><ZoomIn size={32} /></div>
-                </div>
-                <div className="image-caption" style={{ marginTop: '0.5rem' }}>Dual-Panel Raw Audio Waveform & Mel-Frequency Spectrogram (Magma dB)</div>
-              </div>
-            )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+            <MetricCard 
+              label="ZCR Variance" 
+              value={typeof data.zcr_variance === 'number' ? data.zcr_variance.toFixed(5) : '0.00000'} 
+              subValue="Zero-Crossing Rate Dynamics" 
+              type={getSyncColor(anomalyScore)} 
+            />
 
-            {/* METRICS & SCORE */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
-              <div style={{ flex: '0 0 auto' }}>
-                <ScoreRing 
-                  score={result.voice_analysis.voice_anomaly_score} 
-                  label="Audio Anomaly" 
-                  invert={false} 
-                  size={140} 
-                />
-              </div>
-              
-              <div style={{ flex: '1 1 300px' }}>
-                <h4 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: '0.85rem', marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.5rem' }}>
-                  Mel-Frequency Metrics
-                </h4>
-                <div className="metric-grid">
-                  <MetricCard 
-                    label="ZCR Variance" 
-                    value={result.voice_analysis.zcr_variance !== undefined ? result.voice_analysis.zcr_variance.toFixed(5) : '0.00000'} 
-                    subValue="Zero-Crossing Rate" 
-                    type={getSyncColor(result.voice_analysis.voice_anomaly_score)} 
-                  />
-                  <MetricCard 
-                    label="High-Freq Ratio" 
-                    value={result.voice_analysis.high_freq_ratio !== undefined ? result.voice_analysis.high_freq_ratio.toFixed(4) : '0.0000'} 
-                    subValue="Synthesized Pitch Shift" 
-                    type={getSyncColor(result.voice_analysis.voice_anomaly_score)} 
-                  />
-                  <MetricCard 
-                    label="85% Spectral Rolloff" 
-                    value={result.voice_analysis.spectral_rolloff_mean ? `${result.voice_analysis.spectral_rolloff_mean.toFixed(0)} Hz` : 'N/A'} 
-                    subValue="High-Frequency Energy Ceiling" 
-                    type={result.voice_analysis.spectral_rolloff_mean && result.voice_analysis.spectral_rolloff_mean < 3000 ? 'warning' : 'neutral'} 
-                  />
-                  {result.voice_analysis.warnings && result.voice_analysis.warnings.length > 0 && (
-                    <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                      <h4 style={{ color: 'var(--danger)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <AlertTriangle size={16} /> Spoofing Warnings
-                      </h4>
-                      <ul style={{ margin: 0, paddingLeft: '1.5rem', color: 'var(--text-primary)' }}>
-                        {result.voice_analysis.warnings.map((w, i) => <li key={i}>{w}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <MetricCard 
+              label="High-Freq Ratio" 
+              value={typeof data.high_freq_ratio === 'number' ? data.high_freq_ratio.toFixed(4) : '0.0000'} 
+              subValue="Upper-Band Harmonic Shift" 
+              type={getSyncColor(anomalyScore)} 
+            />
+
+            <MetricCard 
+              label="85% Spectral Rolloff" 
+              value={data.spectral_rolloff_mean ? `${data.spectral_rolloff_mean.toFixed(0)} Hz` : 'N/A'} 
+              subValue="High-Frequency Energy Ceiling" 
+              type={data.spectral_rolloff_mean && data.spectral_rolloff_mean < 3000 ? 'warning' : 'neutral'} 
+            />
+
+            <MetricCard 
+              label="Vocoder Artifact Index" 
+              value={anomalyScore > 0.5 ? 'ELEVATED' : 'NOMINAL'} 
+              subValue="Neural Vocoder Synthesis" 
+              type={anomalyScore > 0.5 ? 'danger' : 'success'} 
+            />
           </div>
         </div>
-    </>
+
+        {/* Forensic Warnings Banner */}
+        {data.warnings && data.warnings.length > 0 && (
+          <div style={{ marginTop: '1.25rem', padding: '0.85rem 1rem', background: 'rgba(244, 63, 94, 0.08)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(244, 63, 94, 0.25)' }}>
+            <div style={{ color: 'var(--danger)', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+              <AlertTriangle size={15} /> Acoustic Spoofing Warnings
+            </div>
+            <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+              {data.warnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

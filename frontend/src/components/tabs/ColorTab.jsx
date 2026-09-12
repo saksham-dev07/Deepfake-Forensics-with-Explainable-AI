@@ -1,88 +1,147 @@
 import React from 'react';
-import { Palette } from 'lucide-react';
-import { ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis } from 'recharts';
+import { Palette, Info, ZoomIn } from 'lucide-react';
+import { ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import TestExplanation from '../ui/TestExplanation';
-
 import { API_BASE } from '../../constants/api';
 
 const ColorTab = ({
-  result,
-  getScoreColor,
+  result = {},
+  getScoreColor = () => 'var(--primary)',
+  setZoomedImage = () => {},
 }) => {
-  return (
-    <>
-        <div className="glass-panel analysis-panel" style={{ marginBottom: '2rem' }}>
-          <div className="panel-header">
-            <div className="panel-icon ela"><Palette size={20} color="var(--info)" /></div>
-            <div>
-              <div className="panel-title">Chrominance (Color Space) Analysis</div>
-              <div className="panel-subtitle">Detection of GAN color bleeding and synthetic skin tones</div>
-            </div>
-          </div>
-          
-          <TestExplanation testId="color" explanation={result.color_analysis.explanation} />
+  const data = result.color_analysis || {};
+  const score = typeof result.color_score === 'number' 
+    ? result.color_score 
+    : (typeof data.color_score === 'number' 
+        ? data.color_score 
+        : (typeof data.anomaly_score === 'number' ? data.anomaly_score : 0));
 
-          <div className="analysis-grid">
-            <div className="image-container" style={{ flex: '1.5' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                {result.color_analysis?.cb_map_path ? (
-                  <div>
-                    <img src={`${API_BASE}/${result.color_analysis.cb_map_path}`} alt="Cb Channel" className="result-img" style={{ height: '180px', objectFit: 'contain', background: 'rgba(0,0,0,0.2)' }} />
-                    <div className="image-caption">YCbCr: Blue-Diff (Cb)</div>
-                  </div>
-                ) : null}
-                {result.color_analysis?.cr_map_path ? (
-                  <div>
-                    <img src={`${API_BASE}/${result.color_analysis.cr_map_path}`} alt="Cr Channel" className="result-img" style={{ height: '180px', objectFit: 'contain', background: 'rgba(0,0,0,0.2)' }} />
-                    <div className="image-caption">YCbCr: Red-Diff (Cr)</div>
-                  </div>
-                ) : null}
-                {result.color_analysis?.s_map_path ? (
-                  <div>
-                    <img src={`${API_BASE}/${result.color_analysis.s_map_path}`} alt="Saturation Channel" className="result-img" style={{ height: '180px', objectFit: 'contain', background: 'rgba(0,0,0,0.2)' }} />
-                    <div className="image-caption">HSV: Saturation Variance</div>
-                  </div>
-                ) : null}
-                {result.color_analysis?.a_map_path ? (
-                  <div>
-                    <img src={`${API_BASE}/${result.color_analysis.a_map_path}`} alt="a* Channel" className="result-img" style={{ height: '180px', objectFit: 'contain', background: 'rgba(0,0,0,0.2)' }} />
-                    <div className="image-caption">LAB: a* Channel (Blood flow)</div>
-                  </div>
-                ) : null}
+  const resolveImg = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    return `${API_BASE}/${path.replace(/^\/+/, '')}`;
+  };
+
+  const chartData = [
+    { name: 'Cb (Blue-Diff)', variance: data.cb_variance ?? 0 },
+    { name: 'Cr (Red-Diff)', variance: data.cr_variance ?? 0 },
+    { name: 'Saturation', variance: data.s_variance ?? 0 },
+    { name: 'LAB (a* Channel)', variance: data.a_variance ?? 0 }
+  ];
+
+  const channels = [
+    { key: 'cb_map_path', name: 'YCbCr: Cb (Blue Chrominance)', path: data.cb_map_path, desc: 'Isolates blue-difference variance across facial boundary' },
+    { key: 'cr_map_path', name: 'YCbCr: Cr (Red Chrominance)', path: data.cr_map_path, desc: 'Isolates red-difference flush and capillary distribution' },
+    { key: 's_map_path', name: 'HSV: Saturation Variance', path: data.s_map_path, desc: 'Reveals unnatural saturation discontinuities in skin' },
+    { key: 'a_map_path', name: 'LAB: a* Channel (Blood Perfusion)', path: data.a_map_path, desc: 'Perceptual green-red opponent channel for vital flow' }
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.65rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Palette size={18} color="var(--info)" />
+            <div>
+              <h3 style={{ margin: 0, fontSize: '0.925rem', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '0.02em' }}>
+                Chrominance &amp; Multi-Colorspace Analysis
+              </h3>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                Detection of GAN color bleeding, synthetic skin tone banding, and sub-surface scattering failure
               </div>
             </div>
-            
-            <div className="metrics-container" style={{ display: 'flex', flexDirection: 'column' }}>
-              <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Color Space Variances
-              </h4>
-              <div style={{ flex: 1, minHeight: '250px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                  <BarChart data={[
-                    { name: 'Cb (Blue-Diff)', variance: result.color_analysis?.cb_variance || 0 },
-                    { name: 'Cr (Red-Diff)', variance: result.color_analysis?.cr_variance || 0 },
-                    { name: 'Saturation', variance: result.color_analysis?.s_variance || 0 },
-                    { name: 'LAB (a*)', variance: result.color_analysis?.a_variance || 0 }
-                  ]} layout="vertical" margin={{ top: 0, right: 20, left: 50, bottom: 0 }}>
-                    <XAxis type="number" hide />
-                    <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
-                    <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} formatter={(val) => [val.toFixed(2), 'Variance']} />
-                    <Bar dataKey="variance" fill="var(--info)" radius={[0, 4, 4, 0]} barSize={24} />
+          </div>
+          <span className="mono-font" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            Sensor: YCbCr / HSV / CIE-LAB
+          </span>
+        </div>
+
+        {data.explanation && <TestExplanation testId="color" explanation={data.explanation} />}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem', marginTop: '1rem' }}>
+          {/* Chrominance Map Channels */}
+          <div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+              Decomposed Chrominance Projections
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+              {channels.map((ch) => {
+                const imgUrl = resolveImg(ch.path);
+                return (
+                  <div key={ch.key} style={{ background: 'var(--panel-subtle)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.35rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ch.name}
+                    </div>
+                    <div 
+                      className="zoomable-image-container"
+                      onClick={() => imgUrl && setZoomedImage(imgUrl)}
+                      style={{ height: '140px', background: '#05070a', borderRadius: '4px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      {imgUrl ? (
+                        <img src={imgUrl} alt={ch.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                      ) : (
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', textAlign: 'center', padding: '0.5rem' }}>
+                          Channel Map Rendered
+                        </div>
+                      )}
+                      <div className="zoom-overlay"><ZoomIn size={18} /></div>
+                    </div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.35rem', lineHeight: 1.3 }}>
+                      {ch.desc}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Variance Metrics and Bar Chart */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+              Channel Variance Distribution
+            </div>
+
+            <div style={{ background: 'var(--panel-subtle)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ height: 180, width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 15, left: 25, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-dim)', fontSize: 10 }} />
+                    <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} width={80} />
+                    <RechartsTooltip 
+                      cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                      contentStyle={{ backgroundColor: '#0d121c', border: '1px solid var(--glass-border)', borderRadius: '6px', fontSize: '0.75rem' }} 
+                      formatter={(val) => [typeof val === 'number' ? val.toFixed(4) : val, 'Variance']} 
+                    />
+                    <Bar dataKey="variance" fill="var(--info)" radius={[0, 3, 3, 0]} barSize={18} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-sm)', marginTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>Color Anomaly Score</span>
-                  <span style={{ fontSize: '1.25rem', fontWeight: 700, color: getScoreColor(result.color_score) }}>
-                    {(result.color_score * 100).toFixed(1)}%
-                  </span>
+
+              <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                    Color Anomaly Index
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    Spectral gamut mismatch rating
+                  </div>
+                </div>
+                <div className="tabular-num mono-font" style={{ fontSize: '1.4rem', fontWeight: 800, color: getScoreColor(score) }}>
+                  {(score * 100).toFixed(1)}%
                 </div>
               </div>
             </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.65rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              <Info size={13} style={{ flexShrink: 0 }} />
+              <span>Real skin tones reflect consistent melanin absorption across RGB and CIE-LAB axes. Synthetic faces exhibit chromatic shifts at boundary seams.</span>
+            </div>
           </div>
         </div>
-    </>
+      </div>
+    </div>
   );
 };
 

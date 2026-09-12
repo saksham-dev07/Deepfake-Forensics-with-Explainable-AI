@@ -46,7 +46,11 @@ export const useAnalysisPipeline = () => {
     } catch (err) {
       console.error(err);
       setStatus('idle');
-      setError(err.message || 'Error uploading file. Please ensure the backend server is running.');
+      const isNetworkErr = err.name === 'TypeError' || (err.message && err.message.toLowerCase().includes('fetch'));
+      const friendlyMsg = isNetworkErr
+        ? 'Forensic backend server is offline. Run the Python backend service, or click any Instant Forensic Demo to evaluate.'
+        : (err.message || 'Error uploading file. Please ensure the backend server is running.');
+      setError(friendlyMsg);
     }
   };
 
@@ -192,6 +196,16 @@ export const useAnalysisPipeline = () => {
     setError(null);
   };
 
+  const loadSampleResult = (sample) => {
+    if (!sample) return;
+    setFile({ name: sample.meta.fileName, size: sample.result.file_metadata.file_size_bytes });
+    setJobId(sample.meta.id);
+    setResult(sample.result);
+    setProgress(100);
+    setStatus('complete');
+    setError(null);
+  };
+
   return {
     file,
     status,
@@ -203,6 +217,7 @@ export const useAnalysisPipeline = () => {
     error,
     setError,
     handleFileUpload,
+    loadSampleResult,
     resetApp
   };
 };
