@@ -8,6 +8,7 @@ import 'katex/dist/katex.min.css';
 import TestDefinition from '../ui/TestDefinition';
 import VerdictBadge from '../ui/VerdictBadge';
 import { API_BASE } from '../../constants/api';
+import { resolveOriginalFaceUrl, handleFaceImgError } from '../../utils/mediaUrl';
 
 const LatexMath = ({ math, inline = false }) => {
   const html = useMemo(() => {
@@ -85,12 +86,8 @@ const VisualTab = ({
   }, [result.heatmaps]);
 
   const originalFaceUrl = useMemo(() => {
-    if (result.heatmaps && typeof result.heatmaps === 'object' && !Array.isArray(result.heatmaps) && result.heatmaps.original_face) {
-      return result.heatmaps.original_face;
-    }
-    if (result.face_crop_path) return `${API_BASE}/${result.face_crop_path}`;
-    return makeFallbackSvg('normal');
-  }, [result.heatmaps, result.face_crop_path]);
+    return resolveOriginalFaceUrl(result);
+  }, [result]);
 
   const currentHeatmapUrl = activeExhibit === 'coarse' ? coarseGradcamUrl : guidedGradcamUrl;
   const nnScore = typeof result.nn_score === 'number' ? result.nn_score : (typeof result.overall_score === 'number' ? result.overall_score : 0);
@@ -282,10 +279,7 @@ const VisualTab = ({
                 src={originalFaceUrl} 
                 alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = makeFallbackSvg('normal');
-                }}
+                onError={(e) => handleFaceImgError(e, makeFallbackSvg('normal'))}
               />
               <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', border: '1px solid var(--glass-border)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 A: ORIGINAL FACE (380×380)

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 
 import { API_BASE } from '../constants/api';
+import { resolveOriginalFaceUrl, handleFaceImgError } from '../utils/mediaUrl';
 
 const FeaturesTab = React.lazy(() => import('./tabs/FeaturesTab'));
 const VisualTab = React.lazy(() => import('./tabs/VisualTab'));
@@ -57,6 +58,7 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
 
   const isVideo = useMemo(() => fileName && fileName.toLowerCase().match(/\.(mp4|avi|mov|mkv|webm)$/), [fileName]);
   const hasAudio = result.file_metadata?.has_audio ?? false;
+  const originalFaceUrl = useMemo(() => resolveOriginalFaceUrl(result), [result]);
 
   const toggleExpand = useCallback((id) => setExpandedCards(prev => ({ ...prev, [id]: !prev[id] })), []);
   const hideCard = useCallback((id) => setHiddenCards(prev => ({ ...prev, [id]: true })), []);
@@ -233,6 +235,65 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {/* Primary Inspected Face Crop */}
+            <div 
+              style={{
+                position: 'relative',
+                width: '100%',
+                height: '140px',
+                borderRadius: 'var(--radius-xs)',
+                overflow: 'hidden',
+                background: '#04060b',
+                border: '1px solid var(--glass-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                marginBottom: '0.25rem'
+              }}
+              onClick={() => setZoomedImage(originalFaceUrl)}
+              title="Click to expand Original Face Crop"
+            >
+              <img 
+                src={originalFaceUrl} 
+                alt="Original Face Crop" 
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                onError={(e) => handleFaceImgError(e)}
+              />
+              <div style={{
+                position: 'absolute',
+                top: '6px',
+                left: '6px',
+                background: 'rgba(0,0,0,0.75)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid var(--glass-border)',
+                padding: '2px 6px',
+                borderRadius: '3px',
+                fontSize: '0.6rem',
+                color: 'var(--primary)',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 700,
+                letterSpacing: '0.04em'
+              }}>
+                TARGET FACE CROP
+              </div>
+              <div style={{
+                position: 'absolute',
+                bottom: '6px',
+                right: '6px',
+                background: 'rgba(0,0,0,0.75)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid var(--glass-border)',
+                padding: '2px 5px',
+                borderRadius: '3px',
+                fontSize: '0.58rem',
+                color: 'var(--text-muted)',
+                fontFamily: 'var(--font-mono)'
+              }}>
+                380 × 380 PX
+              </div>
+            </div>
+
             {/* File Name */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '0.45rem 0.65rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--glass-border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>

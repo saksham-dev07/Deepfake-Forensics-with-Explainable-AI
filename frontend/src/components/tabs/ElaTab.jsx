@@ -9,6 +9,7 @@ import MetricCard from '../ui/MetricCard';
 import TestExplanation from '../ui/TestExplanation';
 import VerdictBadge from '../ui/VerdictBadge';
 import { API_BASE } from '../../constants/api';
+import { resolveOriginalFaceUrl, handleFaceImgError } from '../../utils/mediaUrl';
 
 const LatexMath = ({ math, inline = false }) => {
   const html = useMemo(() => {
@@ -175,10 +176,8 @@ const ElaTab = ({
   }, [exhibits, activeExhibit]);
 
   const originalFaceUrl = useMemo(() => {
-    if (result.heatmaps?.original_face) return result.heatmaps.original_face;
-    if (result.face_crop_path) return `${API_BASE}/${result.face_crop_path}`;
-    return makeFallbackSvg('standard');
-  }, [result.heatmaps, result.face_crop_path, makeFallbackSvg]);
+    return resolveOriginalFaceUrl(result);
+  }, [result]);
 
   const handleStageMouseMove = useCallback((e) => {
     if (!stageContainerRef.current) return;
@@ -334,10 +333,7 @@ const ElaTab = ({
                 src={originalFaceUrl} 
                 alt="" 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                onError={(e) => {
-                  e.currentTarget.onerror = null;
-                  e.currentTarget.src = makeFallbackSvg('standard');
-                }}
+                onError={(e) => handleFaceImgError(e, makeFallbackSvg('standard'))}
               />
               <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', border: '1px solid var(--glass-border)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 A: ORIGINAL CAPTURE

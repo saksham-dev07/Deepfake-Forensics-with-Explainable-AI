@@ -8,6 +8,7 @@ import MetricCard from '../ui/MetricCard';
 import TestExplanation from '../ui/TestExplanation';
 import VerdictBadge from '../ui/VerdictBadge';
 import { API_BASE } from '../../constants/api';
+import { resolveOriginalFaceUrl, handleFaceImgError } from '../../utils/mediaUrl';
 
 const LatexMath = ({ math, inline = false }) => {
   const html = useMemo(() => {
@@ -179,10 +180,8 @@ const AudioTab = ({
   }, [exhibits, activeExhibit]);
 
   const originalFaceUrl = useMemo(() => {
-    if (result.heatmaps?.original_face) return result.heatmaps.original_face;
-    if (result.face_crop_path) return `${API_BASE}/${result.face_crop_path}`;
-    return makeFallbackSvg('sync_curve');
-  }, [result.heatmaps, result.face_crop_path, makeFallbackSvg]);
+    return resolveOriginalFaceUrl(result);
+  }, [result]);
 
   const handleStageMouseMove = useCallback((e) => {
     if (!stageContainerRef.current) return;
@@ -387,10 +386,7 @@ const AudioTab = ({
                 <img 
                   src={originalFaceUrl} 
                   alt="Camera Capture" 
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = makeFallbackSvg('sync_curve');
-                  }}
+                  onError={(e) => handleFaceImgError(e, makeFallbackSvg('sync_curve'))}
                   style={{ 
                     width: '100%', 
                     height: '100%', 

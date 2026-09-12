@@ -344,6 +344,10 @@ def run_analysis_pipeline(job_id: str, file_path: str):
         first_frame_cropped = crop_from_bbox(first_frame_rgb, first_bbox)
         first_frame_resized = cv2.resize(first_frame_cropped, (380, 380))
         
+        # Save cropped original face for frontend A/B wipe and biometric inspection
+        face_crop_path = os.path.join(frames_dir, "face_crop.jpg")
+        cv2.imwrite(face_crop_path, cv2.cvtColor(first_frame_resized, cv2.COLOR_RGB2BGR))
+        
         # Extract File Metadata
         file_size_bytes = os.path.getsize(file_path) if os.path.exists(file_path) else 0
         original_resolution = f"{first_frame.shape[1]} × {first_frame.shape[0]}"
@@ -800,9 +804,11 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             "cfa_analysis": cfa_results,
             "corneal_analysis": corneal_results,
             
-            # XAI
+            # XAI & Media Assets
             "shap_top_features": shap_features,
             "heatmaps": heatmaps,
+            "face_crop_path": face_crop_path.replace("\\", "/"),
+            "first_frame_path": frame_files[0].replace("\\", "/") if frame_files else None,
             
             # Add dynamic weights for frontend to display
             "weights": None,

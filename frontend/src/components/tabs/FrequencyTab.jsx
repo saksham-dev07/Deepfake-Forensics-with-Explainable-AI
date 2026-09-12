@@ -12,6 +12,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import VerdictBadge from '../ui/VerdictBadge';
 import { API_BASE } from '../../constants/api';
+import { resolveOriginalFaceUrl, handleFaceImgError } from '../../utils/mediaUrl';
 
 // --- TEXTBOOK-GRADE MATHEMATICAL TYPESETTING VIA KATEX ---
 const LatexMath = ({ math, inline = false }) => {
@@ -174,10 +175,8 @@ const FrequencyTab = ({
 
   // Original Reference Face for A/B wipe
   const originalFaceUrl = useMemo(() => {
-    if (result.heatmaps?.original_face) return resolveImg(result.heatmaps.original_face, 'face_normal');
-    if (result.face_crop_path) return resolveImg(result.face_crop_path, 'face_normal');
-    return makeSpectralFallbackSvg('face_normal', false);
-  }, [result.heatmaps, result.face_crop_path, resolveImg]);
+    return resolveOriginalFaceUrl(result);
+  }, [result]);
 
   // Azimuthal Radial Power Spectrum Curve P(f) [Durall et al., CVPR 2020]
   const azimuthalData = useMemo(() => {
@@ -581,10 +580,7 @@ const FrequencyTab = ({
                   src={originalFaceUrl} 
                   alt="" 
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = makeSpectralFallbackSvg('face_normal', isAnomaly);
-                  }}
+                  onError={(e) => handleFaceImgError(e, makeSpectralFallbackSvg('face_normal', isAnomaly))}
                 />
                 <div style={{ position: 'absolute', top: '10px', left: '10px', background: 'rgba(0,0,0,0.7)', border: '1px solid var(--glass-border)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                   A: ORIGINAL CAPTURE

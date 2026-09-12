@@ -485,10 +485,12 @@ def generate_pdf_report(result_data: dict, output_path: str):
         pdf.current_row_y = pdf.get_y()
 
     # Group 1: High Level
-    heatmaps = result_data.get('heatmaps', [])
-    if heatmaps or ela.get('ela_heatmap_path'):
-        gallery_section("Neural Attention & ELA")
+    face_crop = result_data.get('face_crop_path')
+    if face_crop or heatmaps or ela.get('ela_heatmap_path'):
+        gallery_section("Neural Attention & Face Crop")
         
+    if face_crop:
+        embed_image("Original Face Crop (Input)", face_crop)
     if heatmaps:
         embed_image("GradCAM Neural Attention Heatmap", heatmaps[0])
         if len(heatmaps) > 1:
