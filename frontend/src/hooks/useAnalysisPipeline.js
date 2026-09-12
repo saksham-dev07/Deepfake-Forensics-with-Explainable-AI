@@ -123,10 +123,62 @@ export const useAnalysisPipeline = () => {
       clearTimeout(watchdogTimeout);
     } catch (err) {
       clearTimeout(watchdogTimeout);
-      console.error('Stream error', err);
-      setStatus('idle');
-      setError(err.message || 'Lost connection to the backend server while streaming status.');
+      console.warn('SSE stream interrupted, transitioning to polling fallback...', err);
+      fallbackPoll(currentJobId);
     }
+  };
+
+  const fallbackPoll = async (currentJobId) => {
+    const pollInterval = 1200;
+    let attempts = 0;
+    const maxAttempts = 180; // ~3.5 minutes maximum wait
+
+    const check = async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        setStatus('idle');
+        setError('Analysis timed out. The backend server took too long to complete.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/status/${currentJobId}`, {
+          headers: { 'x-api-key': API_KEY }
+        });
+
+        if (!res.ok) {
+          if (res.status === 404) {
+            setStatus('idle');
+            setError('Analysis job not found on server.');
+            return;
+          }
+          setTimeout(check, pollInterval);
+          return;
+        }
+
+        const data = await res.json();
+        if (data.status === 'processing') {
+          setProgress(data.progress || 0);
+          if (data.telemetry) setTelemetry(data.telemetry);
+          if (data.logs) setLogs(data.logs);
+          setTimeout(check, pollInterval);
+        } else if (data.status === 'completed') {
+          setProgress(100);
+          setStatus('complete');
+          setResult(data.result);
+        } else if (data.status === 'failed') {
+          setStatus('idle');
+          setError('Analysis failed: ' + (data.error || data.message || 'Unknown error'));
+        } else {
+          setTimeout(check, pollInterval);
+        }
+      } catch (e) {
+        console.warn('Polling retry attempt...', e);
+        setTimeout(check, pollInterval);
+      }
+    };
+
+    check();
   };
 
   const resetApp = () => {

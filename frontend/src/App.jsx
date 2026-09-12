@@ -155,6 +155,7 @@ function App() {
                   file={file} 
                   telemetry={telemetry} 
                   logs={logs} 
+                  onCancel={resetApp}
                 />
               )}
 
