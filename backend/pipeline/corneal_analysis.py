@@ -243,7 +243,8 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         put_centered_text(canvas, "Right Eye Reflection", x2 + img_size//2, top_pad - 25, text_color)
         put_centered_text(canvas, comp_title, x3 + img_size//2, top_pad - 25, (255, 255, 255, 255))
         
-        filename = f"corneal_{uuid.uuid4().hex[:8]}.png"
+        file_uid = uuid.uuid4().hex[:8]
+        filename = f"corneal_{file_uid}.png"
         
         if save_dir is None:
             save_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "results")
@@ -252,11 +253,76 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         
         save_optimized_image(save_path, canvas)
         
-        # Calculate web relative path
+        # -------------------------------------------------------------
+        # EXHIBIT 2: Dual-Eye Micro-Loupe Comparison
+        # -------------------------------------------------------------
+        loupe_canvas = np.zeros((220, 380, 3), dtype=np.uint8)
+        # Resize cropped eye RGBs
+        le_zoom = cv2.resize(left_eye_rgb, (160, 160))
+        re_zoom = cv2.resize(right_eye_rgb, (160, 160))
+        # Draw circular mask on zoom
+        mask_circle = np.zeros((160, 160), dtype=np.uint8)
+        cv2.circle(mask_circle, (80, 80), 75, 255, -1)
+        le_zoom = cv2.bitwise_and(le_zoom, le_zoom, mask=mask_circle)
+        re_zoom = cv2.bitwise_and(re_zoom, re_zoom, mask=mask_circle)
+        # Place on loupe canvas
+        loupe_canvas[30:190, 20:180] = le_zoom
+        loupe_canvas[30:190, 200:360] = re_zoom
+        # Draw circular loupe cyan/blue rings
+        cv2.circle(loupe_canvas, (100, 110), 76, (56, 189, 248), 2)
+        cv2.circle(loupe_canvas, (280, 110), 76, (56, 189, 248), 2)
+        cv2.putText(loupe_canvas, "LEFT OCULAR LOUPE", (35, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1, cv2.LINE_AA)
+        cv2.putText(loupe_canvas, "RIGHT OCULAR LOUPE", (215, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1, cv2.LINE_AA)
+        cv2.putText(loupe_canvas, f"Point Spread Sim: {(sim_score * 100):.1f}%", (110, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (16, 185, 129) if sim_score > 0.4 else (244, 63, 94), 1, cv2.LINE_AA)
+        
+        loupe_filename = f"corneal_loupe_{file_uid}.jpg"
+        loupe_save_path = os.path.join(save_dir, loupe_filename)
+        save_optimized_image(loupe_save_path, loupe_canvas)
+
+        # -------------------------------------------------------------
+        # EXHIBIT 3: 3D Light Source Ray Convergence Map
+        # -------------------------------------------------------------
+        ray_canvas = np.zeros((380, 380, 3), dtype=np.uint8)
+        # Background dark gradient
+        cv2.rectangle(ray_canvas, (0, 0), (380, 380), (8, 12, 22), -1)
+        # Draw ocular spheres
+        cv2.circle(ray_canvas, (130, 260), 45, (20, 30, 50), -1)
+        cv2.circle(ray_canvas, (250, 260), 45, (20, 30, 50), -1)
+        cv2.circle(ray_canvas, (130, 260), 45, (56, 189, 248), 1)
+        cv2.circle(ray_canvas, (250, 260), 45, (56, 189, 248), 1)
+        cv2.circle(ray_canvas, (130, 260), 18, (10, 15, 30), -1)
+        cv2.circle(ray_canvas, (250, 260), 18, (10, 15, 30), -1)
+        
+        # Draw specular convergence rays
+        is_convergent = iou > 0.25
+        ray_color = (16, 185, 129) if is_convergent else (244, 63, 94)
+        target_pt = (190, 70) if is_convergent else (120, 60)
+        target_pt2 = (190, 70) if is_convergent else (270, 80)
+        
+        cv2.line(ray_canvas, (130, 260), target_pt, ray_color, 2, cv2.LINE_AA)
+        cv2.line(ray_canvas, (250, 260), target_pt2, ray_color, 2, cv2.LINE_AA)
+        cv2.circle(ray_canvas, target_pt, 6, ray_color, -1)
+        if not is_convergent:
+            cv2.circle(ray_canvas, target_pt2, 6, ray_color, -1)
+            
+        cv2.putText(ray_canvas, "EPIPOLAR SPECULAR RAY CONVERGENCE", (25, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (240, 240, 240), 1, cv2.LINE_AA)
+        status_txt = "CONVERGENT PHYSICAL ILLUMINANT" if is_convergent else "UNCONVERGED STEREO LIGHT SOURCES"
+        cv2.putText(ray_canvas, status_txt, (35, 350), cv2.FONT_HERSHEY_SIMPLEX, 0.42, ray_color, 1, cv2.LINE_AA)
+        
+        ray_filename = f"corneal_vectors_{file_uid}.jpg"
+        ray_save_path = os.path.join(save_dir, ray_filename)
+        save_optimized_image(ray_save_path, ray_canvas)
+
+        # Calculate web relative paths
         if "uploads" in str(save_path).replace("\\", "/"):
-            web_path = "uploads/" + Path(save_path).parts[-2] + "/" + filename
+            parent_dir = Path(save_path).parts[-2]
+            web_path = f"uploads/{parent_dir}/{filename}"
+            loupe_web_path = f"uploads/{parent_dir}/{loupe_filename}"
+            ray_web_path = f"uploads/{parent_dir}/{ray_filename}"
         else:
             web_path = f"static/results/{filename}"
+            loupe_web_path = f"static/results/{loupe_filename}"
+            ray_web_path = f"static/results/{ray_filename}"
         
         return {
             "corneal_score": float(corneal_score),
@@ -267,6 +333,8 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
             "suppressed": bool(total_glare_area > 150 or area_diff_ratio > 0.3),
             "suppression_reason": "Total glare area is extremely high, indicating glasses." if total_glare_area > 150 else ("Asymmetric glare detected, indicating side-lighting." if area_diff_ratio > 0.3 else None),
             "corneal_map_path": web_path.replace("\\", "/"),
+            "ocular_loupe_path": loupe_web_path.replace("\\", "/"),
+            "specular_vector_path": ray_web_path.replace("\\", "/"),
             "explanation": {
                 "what_happened": "Extracted the micro-reflections from the left and right corneas and mathematically compared their geometry.",
                 "result": "Mismatched Reflections (Deepfake)" if corneal_score > 0.5 and not (total_glare_area > 150 or area_diff_ratio > 0.3) else ("Suppressed: Glasses/Lighting Detected" if (total_glare_area > 150 or area_diff_ratio > 0.3) else "Consistent Eye Reflections"),

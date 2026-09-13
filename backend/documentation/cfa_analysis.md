@@ -182,13 +182,30 @@ $$S_{\text{final}} = \text{clamp}\left(S_{\text{cfa}} \times Q, 0.05, 0.95\right
 
 ## 6. Visualization & Diagnostic Artifact Generation
 
-The engine compiles an analytical diagnostic visualization saved to `{save_dir}/cfa_{uuid}.png`:
+The engine compiles three distinct analytical diagnostic visualizations saved to the output directory:
+
+### 6.1 Periodicity Map (`cfa_map_path`)
+Saved to `{save_dir}/cfa_{uuid}.png`:
 1. **Nearest-Neighbor Scaling**: The block variance map $\mathbf{V}_{\text{norm}} = \frac{\mathbf{V}}{\max(\mathbf{V})}$ is resized to $(W, H)$ via `cv2.INTER_NEAREST` to preserve distinct $8 \times 8$ block energy step boundaries without interpolation blurring.
 2. **Colormap**: Rendered with the `inferno` thermal palette:
    * **Black / Deep Indigo**: Zero demosaicing residual (synthetic or heavily compressed).
    * **Vibrant Orange / White**: Strong, consistent Bayer interpolation grid (authentic camera hardware).
 3. **Facial Inspection Bounding Box**: Overlaid as a cyan dashed rectangle (`patches.Rectangle`) at $[x, y, w, h]$.
 4. **Web Path Resolution**: Automatically inspects destination path; if within `"uploads"`, resolves to `"uploads/{job_id}/cfa_{uuid}.png"`.
+
+### 6.2 2D Fourier Magnitude Spectrum (`cfa_fourier_path`)
+Saved to `{save_dir}/cfa_fourier_{uuid}.png`:
+1. Computes the 2D Fast Fourier Transform (FFT) $\mathcal{F}\{R(x, y)\}$ of the high-frequency CFA residual map.
+2. Performs frequency centering via quadrant swap (`np.fft.fftshift`).
+3. Computes log-magnitude spectrum $M(u, v) = \log(1 + |\mathcal{F}_{\text{shift}}(u, v)|)$ and normalizes to $[0, 255]$.
+4. Applies the `COLORMAP_VIRIDIS` palette and renders a circular Nyquist reticle and cardinal frequency crosshairs with telemetry annotations.
+5. In authentic camera imagery, persistent harmonic peaks appear at the $(\pm \pi, \pm \pi)$ diagonal Nyquist corners; AI diffusion/GAN outputs produce an isotropic circular blur devoid of discrete Bayer peaks.
+
+### 6.3 Sub-Pixel Bayer Lattice Residual (`bayer_grid_path`)
+Saved to `{save_dir}/cfa_bayer_grid_{uuid}.png`:
+1. Decomposes the residual along the alternating $2 \times 2$ GRBG photosite lattice.
+2. Amplifies sub-pixel inter-channel interpolation errors and colormaps the residual using `COLORMAP_MAGMA`.
+3. Alpha-blends the thermal Bayer lattice directly over the input imagery ($\alpha = 0.55$) with a cyan inspection reticle over the detected face boundary.
 
 ---
 
@@ -219,6 +236,8 @@ def analyze_cfa_artifacts(
   "face_variance": 42.1852,
   "bg_variance": 44.8914,
   "cfa_map_path": "uploads/ab12cd34/cfa_e5f6g7h8.png",
+  "cfa_fourier_path": "uploads/ab12cd34/cfa_fourier_e5f6g7h8.png",
+  "bayer_grid_path": "uploads/ab12cd34/cfa_bayer_grid_e5f6g7h8.png",
   "explanation": {
     "what_happened": "Extracted the microscopic Color Filter Array (Bayer) grid pattern created by physical camera sensors.",
     "result": "Authentic Sensor Grid",

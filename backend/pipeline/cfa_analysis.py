@@ -5,6 +5,7 @@ import uuid
 import matplotlib.pyplot as plt
 from scipy.signal import convolve2d
 from pathlib import Path
+from pipeline.image_utils import save_optimized_image
 
 def analyze_cfa_artifacts(image_path, save_dir=None, face_results=None, quality_multiplier=1.0):
     """
@@ -133,7 +134,8 @@ def analyze_cfa_artifacts(image_path, save_dir=None, face_results=None, quality_
         plt.tight_layout(pad=0)
         
         # Save visualization
-        filename = f"cfa_{uuid.uuid4().hex[:8]}.png"
+        file_uid = uuid.uuid4().hex[:8]
+        filename = f"cfa_{file_uid}.png"
         
         if save_dir is None:
             save_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "results")
@@ -143,11 +145,44 @@ def analyze_cfa_artifacts(image_path, save_dir=None, face_results=None, quality_
         plt.savefig(save_path, bbox_inches='tight', pad_inches=0, dpi=100, facecolor='black')
         plt.close(fig)
         
-        # Calculate web relative path
-        if "uploads" in str(save_path):
-            web_path = "uploads/" + Path(save_path).parts[-2] + "/" + filename
+        # -------------------------------------------------------------
+        # EXHIBIT 2: 2D Fourier Nyquist Spectrum of CFA Demosaic Error
+        # -------------------------------------------------------------
+        dft = np.fft.fft2(cfa_residual)
+        dft_shift = np.fft.fftshift(dft)
+        mag_spec = 20 * np.log(np.abs(dft_shift) + 1e-5)
+        mag_norm = cv2.normalize(mag_spec, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        fourier_vis = cv2.applyColorMap(mag_norm, cv2.COLORMAP_VIRIDIS)
+        fh, fw = fourier_vis.shape[:2]
+        cv2.line(fourier_vis, (fw // 2, 0), (fw // 2, fh), (70, 70, 70), 1)
+        cv2.line(fourier_vis, (0, fh // 2), (fw, fh // 2), (70, 70, 70), 1)
+        cv2.circle(fourier_vis, (fw // 2, fh // 2), 4, (0, 255, 255), -1)
+        
+        fourier_filename = f"cfa_fourier_{file_uid}.jpg"
+        fourier_save_path = os.path.join(save_dir, fourier_filename)
+        save_optimized_image(fourier_save_path, fourier_vis)
+        
+        # -------------------------------------------------------------
+        # EXHIBIT 3: GRBG Sub-Pixel Bayer Lattice Residual Map
+        # -------------------------------------------------------------
+        res_norm = cv2.normalize(np.abs(cfa_residual), None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        res_colormap = cv2.applyColorMap(res_norm, cv2.COLORMAP_MAGMA)
+        blended_bayer = cv2.addWeighted(img, 0.45, res_colormap, 0.75, 0)
+        
+        grid_filename = f"cfa_bayer_grid_{file_uid}.jpg"
+        grid_save_path = os.path.join(save_dir, grid_filename)
+        save_optimized_image(grid_save_path, blended_bayer)
+        
+        # Calculate web relative paths
+        if "uploads" in str(save_path).replace("\\", "/"):
+            parent_dir = Path(save_path).parts[-2]
+            web_path = f"uploads/{parent_dir}/{filename}"
+            fourier_web_path = f"uploads/{parent_dir}/{fourier_filename}"
+            grid_web_path = f"uploads/{parent_dir}/{grid_filename}"
         else:
             web_path = f"static/results/{filename}"
+            fourier_web_path = f"static/results/{fourier_filename}"
+            grid_web_path = f"static/results/{grid_filename}"
         
         face_var = float(face_cfa_variance) if 'face_cfa_variance' in locals() else 0.0
         bg_var = float(bg_cfa_variance) if 'bg_cfa_variance' in locals() else 0.0
@@ -157,7 +192,9 @@ def analyze_cfa_artifacts(image_path, save_dir=None, face_results=None, quality_
             "cfa_score": score,
             "face_variance": face_var,
             "bg_variance": bg_var,
-            "cfa_map_path": web_path,
+            "cfa_map_path": web_path.replace("\\", "/"),
+            "cfa_fourier_path": fourier_web_path.replace("\\", "/"),
+            "bayer_grid_path": grid_web_path.replace("\\", "/"),
             "explanation": {
                 "what_happened": "Extracted the microscopic Color Filter Array (Bayer) grid pattern created by physical camera sensors.",
                 "result": "Grid Disrupted (Deepfake)" if score > 0.5 else "Authentic Sensor Grid",

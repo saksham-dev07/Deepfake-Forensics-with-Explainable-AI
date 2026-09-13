@@ -151,17 +151,17 @@ const NoiseTab = ({
       name: 'High-Pass Denoised Residual',
       domain: 'Wavelet Sub-Band Residual Energy',
       verdict: isAnomaly ? { status: 'WARN', reason: 'Abnormal variance attenuation' } : { status: 'PASS', reason: 'Natural high-pass distribution' },
-      img: resolveImg(noiseAnalysis.highpass_path, 'highpass'),
-      desc: 'Wavelet-based median filter subtraction exposing localized smoothing artifacts introduced by diffusion and autoencoder decoders.'
+      img: resolveImg(noiseAnalysis.srm_map_path || noiseAnalysis.highpass_path, 'highpass'),
+      desc: 'Spatial Rich Model (SRM) high-pass convolution exposing localized manipulation artifacts and GAN generator smoothing.'
     },
     {
       id: 'variance',
-      shortLabel: 'Noise Variance',
-      name: 'Local Noise Variance Surface',
-      domain: 'Spatial Heteroskedasticity',
+      shortLabel: 'Denoised NLM',
+      name: 'NLM Edge-Preserving Denoised Surface',
+      domain: 'Spatial Heteroskedasticity & Residual Floor',
       verdict: isAnomaly ? { status: 'ANOMALY', reason: 'Bimodal variance distribution' } : { status: 'PASS', reason: 'Consistent noise variance' },
-      img: resolveImg(noiseAnalysis.variance_map_path, 'variance'),
-      desc: 'Computes local 7×7 window noise variance across facial landmarks. Spliced regions exhibit lower variance than original camera backgrounds.'
+      img: resolveImg(noiseAnalysis.denoised_map_path || noiseAnalysis.variance_map_path, 'variance'),
+      desc: 'Non-Local Means (NLM) edge-preserving denoised reconstruction used to isolate pure microscopic camera sensor noise.'
     }
   ], [noiseAnalysis, result.heatmaps, isAnomaly, resolveImg]);
 

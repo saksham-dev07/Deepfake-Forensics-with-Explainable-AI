@@ -193,10 +193,18 @@ In the top-right corner of the image, the module synthesizes an ideal 3D specula
    $$I_{\text{probe}} = \sum_{i=0}^8 v_i Y_i(\mathbf{n})$$
 4. Tints the probe with a metallic blue-gold spectrum ($B = 0.90 I, G = 0.95 I, R = 1.00 I$) and adds a specular rim ring (`cv2.circle(..., 1, cv2.LINE_AA)`).
 
-### 5.2 Directional Vector Arrow Overlay
-* **Red Arrow**: Originates at the facial centroid pointing along $\theta_{\text{face}}$ (length $80\text{ px}$, thickness 3, shadowed).
-* **Blue Arrow**: Originates in the background margin pointing along $\theta_{\text{bg}}$ (length $80\text{ px}$, thickness 3, shadowed).
-* **HUD Labels**: Displays numerical angles in degrees at the bottom of the canvas.
+### 5.3 Virtual Chrome Sphere Probe (`chrome_probe_path`)
+Saved to `{prefix}_chrome_probe.jpg`:
+1. High-resolution ($512 \times 512\text{ px}$) standalone 3D chrome mirror sphere reflecting the reconstructed 2nd-order Spherical Harmonics ($l \le 2$) lighting environment.
+2. Evaluates the 9 SH basis functions over the sphere surface normals with metallic blue-gold tinting and high-exponent specular glint ($\mathbf{N} \cdot \mathbf{L}_{\text{face}})^{12}$.
+3. Overlays both face donor illumination vector (Amber `#f59e0b`) and background ambient vector (Cyan `#38bdf8`) with degree divergence readout and SH coefficient harmonic consistency status.
+
+### 5.4 Lambertian Shading Residual (`shading_residual_path`)
+Saved to `{prefix}_shading_residual.jpg`:
+1. Evaluates pixel-wise difference between observed facial radiance $I_{\text{obs}}(p)$ and theoretical Lambertian surface normal diffuse shading:
+   $$R(p) = |I_{\text{obs}}(p) - (k_d \cdot (\mathbf{N}(p) \cdot \mathbf{L}) + I_{\text{ambient}})|$$
+2. Colormapped via `COLORMAP_MAGMA` thermal scale and alpha-blended over the subject's face ($\alpha = 0.65$).
+3. Highlights specular albedo violations, unnatural diffusion blending artifacts, and flat 2D projection patches characteristic of deepfake compositing.
 
 ---
 
@@ -220,6 +228,8 @@ def analyze_lighting(
   "bg_light_angle": 48.1,
   "angle_difference": 5.6,
   "lighting_map_path": "uploads/job-id/lighting_lighting_map.jpg",
+  "chrome_probe_path": "uploads/job-id/lighting_chrome_probe.jpg",
+  "shading_residual_path": "uploads/job-id/lighting_shading_residual.jpg",
   "warnings": [],
   "explanation": {
     "what_happened": "Reconstructed a 3D Spherical Harmonic environment map of the face and compared its light source angle to the background's 2D lighting gradients.",

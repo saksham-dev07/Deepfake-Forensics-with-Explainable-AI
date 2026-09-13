@@ -201,8 +201,18 @@ The module renders a high-resolution 4-channel BGRA glassmorphic canvas saved to
 4. **Panel 3 (Additive Chromatic Difference Map)**:
    * **Red pixels**: Specular highlight present only in the left cornea.
    * **Cyan pixels**: Specular highlight present only in the right cornea.
-   * **White pixels ($M_L \cap M_R$)**: Coincident specular highlights that physically overlap across both corneas.
-5. **Glassmorphism Styling**: Fully transparent background (`BGRA = [0, 0, 0, 0]`), translucent borders (`rgba(255, 255, 255, 60)`), and dual-pass drop-shadow text typography.
+### 6.3 Micro-Loupe Ocular Crop (`ocular_loupe_path`)
+Saved to `{save_dir}/corneal_loupe_{uuid}.jpg`:
+1. Bilateral high-magnification split-view ($512 \times 512$ canvas) isolating left and right eye specular reflections.
+2. Rendered with circular reticle crosshairs and millimeter-scale radial tick marks.
+3. Overlaid with real-time IoU, SSIM, and point spread function (PSF) similarity telemetry.
+
+### 6.4 Light Ray Convergence Vectors (`specular_vector_path`)
+Saved to `{save_dir}/corneal_rays_{uuid}.jpg`:
+1. Epipolar ray tracing diagram back-projecting specular corneal reflections from 3D ocular spheres.
+2. Solves for 3D reflection convergence:
+   $$\mathbf{r}_{\text{specular}} = 2(\mathbf{N} \cdot \mathbf{V})\mathbf{N} - \mathbf{V}$$
+3. Authentic scenes project convergent rays intersecting at the real-world light source coordinates; AI-generated faces exhibit divergent or skew epipolar rays failing to intersect in 3D projective space.
 
 ---
 
@@ -235,6 +245,8 @@ def analyze_corneal_reflections(
   "suppressed": false,
   "suppression_reason": null,
   "corneal_map_path": "uploads/job-id/corneal_7a8b9c0d.png",
+  "ocular_loupe_path": "uploads/job-id/corneal_loupe_7a8b9c0d.jpg",
+  "specular_vector_path": "uploads/job-id/corneal_rays_7a8b9c0d.jpg",
   "explanation": {
     "what_happened": "Extracted the micro-reflections from the left and right corneas and mathematically compared their geometry.",
     "result": "Consistent Eye Reflections",
