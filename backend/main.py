@@ -1,4 +1,6 @@
 import sys
+from typing import Optional, Dict, Any
+from pydantic import BaseModel
 
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -145,7 +147,13 @@ async def analyze_video(request: Request, background_tasks: BackgroundTasks, fil
     except ImportError:
         print("Warning: python-magic not installed, skipping strict MIME validation.")
     
-    analysis_jobs[job_id] = {"status": "processing", "progress": 0, "result": None, "file_path": file_path}
+    analysis_jobs[job_id] = {
+        "status": "processing",
+        "progress": 0,
+        "result": None,
+        "file_path": file_path,
+        "filename": getattr(file, "filename", "Unknown File")
+    }
     
     # Run the heavy processing in the background
     background_tasks.add_task(run_analysis_pipeline, job_id, file_path)
@@ -269,12 +277,76 @@ async def stream_status(job_id: str, request: Request, api_key: str = Depends(ge
         }
     )
 
+class PDFGenerationRequest(BaseModel):
+    job_id: Optional[str] = None
+    filename: Optional[str] = "Forensic_Report"
+    result: Dict[str, Any]
+
 @app.get("/api/reports/{job_id}/pdf")
 async def download_report(job_id: str):
     pdf_path = os.path.join(REPORT_DIR, f"{job_id}.pdf")
-    if not os.path.exists(pdf_path):
-        return JSONResponse(status_code=404, content={"message": "Report not found"})
-    return FileResponse(pdf_path, media_type="application/pdf", filename=f"Forensic_Report_{job_id}.pdf")
+    
+    # 1. Existing PDF on disk
+    if os.path.exists(pdf_path):
+        return FileResponse(pdf_path, media_type="application/pdf", filename=f"Forensic_Report_{job_id}.pdf")
+        
+    # 2. On-demand fallback: Check active memory
+    if job_id in analysis_jobs:
+        job_data = analysis_jobs[job_id]
+        if job_data.get("status") == "processing":
+            return JSONResponse(status_code=202, content={"message": "Analysis is still in progress. Please wait for completion before downloading the report."})
+        result = job_data.get("result")
+        if result:
+            try:
+                from pipeline.pdf_reporter import generate_pdf_report
+                result_for_pdf = result.copy()
+                result_for_pdf["job_id"] = job_id
+                result_for_pdf["filename"] = job_data.get("filename", "Media Analysis")
+                generate_pdf_report(result_for_pdf, pdf_path)
+                if os.path.exists(pdf_path):
+                    return FileResponse(pdf_path, media_type="application/pdf", filename=f"Forensic_Report_{job_id}.pdf")
+            except Exception as e:
+                print(f"Error on-demand generating PDF for job {job_id}: {e}")
+
+    # 3. On-demand fallback: Check persisted JSON report
+    json_path = os.path.join(REPORT_DIR, f"{job_id}.json")
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as jf:
+                result_data = json.load(jf)
+            from pipeline.pdf_reporter import generate_pdf_report
+            generate_pdf_report(result_data, pdf_path)
+            if os.path.exists(pdf_path):
+                return FileResponse(pdf_path, media_type="application/pdf", filename=f"Forensic_Report_{job_id}.pdf")
+        except Exception as e:
+            print(f"Error generating PDF from cached JSON {json_path}: {e}")
+
+    return JSONResponse(
+        status_code=404, 
+        content={"message": "Report not found. The server instance may have restarted or the session expired. Please re-run the scan to generate a fresh report."}
+    )
+
+@app.post("/api/reports/generate")
+async def generate_report_endpoint(req: PDFGenerationRequest):
+    try:
+        from pipeline.pdf_reporter import generate_pdf_report
+        target_id = req.job_id or str(uuid4())
+        pdf_path = os.path.join(REPORT_DIR, f"{target_id}.pdf")
+        
+        result_copy = req.result.copy()
+        result_copy["job_id"] = target_id
+        result_copy["filename"] = req.filename or "Forensic_Report"
+        
+        generate_pdf_report(result_copy, pdf_path)
+        
+        if os.path.exists(pdf_path):
+            return FileResponse(pdf_path, media_type="application/pdf", filename=f"Forensic_Report_{target_id}.pdf")
+        else:
+            return JSONResponse(status_code=500, content={"message": "Failed to create PDF on server disk."})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"message": f"PDF Generation Error: {str(e)}"})
 
 def run_analysis_pipeline(job_id: str, file_path: str):
     # =============================================
@@ -834,14 +906,23 @@ def run_analysis_pipeline(job_id: str, file_path: str):
             }
         }
 
-        # Generate PDF Report
+        # Generate PDF Report & Persist Raw Report JSON
         try:
             pdf_path = os.path.join(REPORT_DIR, f"{job_id}.pdf")
+            json_path = os.path.join(REPORT_DIR, f"{job_id}.json")
             from pipeline.pdf_reporter import generate_pdf_report
             # Add some context to the result data
             result_data_for_pdf = result_data.copy()
             result_data_for_pdf['job_id'] = job_id
-            result_data_for_pdf['filename'] = analysis_jobs[job_id].get("filename", "Unknown File")
+            result_data_for_pdf['filename'] = analysis_jobs.get(job_id, {}).get("filename", "Media Analysis")
+
+            # Persist JSON report for on-demand regeneration
+            try:
+                with open(json_path, "w", encoding="utf-8") as jf:
+                    json.dump(result_data_for_pdf, jf, default=str)
+            except Exception as j_err:
+                print(f"Warning: Failed to save JSON report cache: {j_err}")
+
             generate_pdf_report(result_data_for_pdf, pdf_path)
             result_data['report_pdf_url'] = f"/api/reports/{job_id}/pdf"
             

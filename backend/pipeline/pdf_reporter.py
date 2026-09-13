@@ -4,15 +4,37 @@ import os
 import uuid
 
 def sanitize_text(text):
+    if text is None:
+        return ""
     text = str(text)
     replacements = {
         '\u2014': '-', '\u2013': '-', '\u2018': "'", '\u2019': "'",
         '\u201c': '"', '\u201d': '"', '\u2026': '...', '\u00d7': 'x',
-        '\u2713': 'Yes', '\u2717': 'No', '\u2192': '->', '\u2190': '<-'
+        '\u2713': 'Yes', '\u2717': 'No', '\u2192': '->', '\u2190': '<-',
+        '\u2022': '*', '\u25cf': '*', '\u25cb': 'o', '\u00b7': '.',
+        '\u00b1': '+/-', '\u2264': '<=', '\u2265': '>=', '\u2248': '~',
+        '\u03bc': 'u', '\u03c3': 's', '\u03c0': 'pi', '\u221e': 'inf',
+        '\u20ac': 'EUR', '\u00a3': 'GBP', '\u00a5': 'JPY', '\u20b9': 'INR'
     }
     for k, v in replacements.items():
         text = text.replace(k, v)
     return text.encode('latin-1', errors='replace').decode('latin-1')
+
+def fmt_num(val, fmt=".2f", default="N/A"):
+    if val is None or val == "" or val == "N/A":
+        return default
+    try:
+        return f"{float(val):{fmt}}"
+    except (ValueError, TypeError):
+        return str(val)
+
+def fmt_pct(val, fmt=".1f", default="0.0%"):
+    if val is None or val == "" or val == "N/A":
+        return default
+    try:
+        return f"{float(val) * 100:{fmt}}%"
+    except (ValueError, TypeError):
+        return str(val)
 
 class ForensicPDF(FPDF):
     def __init__(self):
@@ -25,6 +47,16 @@ class ForensicPDF(FPDF):
         self.gray_text = (100, 100, 100)
         self.danger_color = (220, 38, 38)
         self.success_color = (22, 163, 74)
+
+    def cell(self, w, h=0, txt='', border=0, ln=0, align='', fill=False, link=''):
+        if isinstance(txt, str):
+            txt = sanitize_text(txt)
+        return super().cell(w, h=h, txt=txt, border=border, ln=ln, align=align, fill=fill, link=link)
+
+    def multi_cell(self, w, h, txt='', border=0, align='J', fill=False):
+        if isinstance(txt, str):
+            txt = sanitize_text(txt)
+        return super().multi_cell(w, h, txt=txt, border=border, align=align, fill=fill)
 
     def header(self):
         # Don't draw header on the first page
@@ -205,71 +237,71 @@ def generate_pdf_report(result_data: dict, output_path: str):
 
     # --- SENSOR BREAKDOWN ---
     pdf.chapter_title("1", "AI META-CLASSIFIER SENSOR BREAKDOWN")
-    pdf.draw_table_row("Neural Network (EfficientNet-B4) Confidence", f"{result_data.get('nn_score', 0) * 100:.2f}%", pdf.gray_bg, True)
-    pdf.draw_table_row("Frequency Domain Anomaly", f"{result_data.get('spectral_anomaly_score', 0) * 100:.2f}%", None, True)
-    pdf.draw_table_row("Error Level Analysis (ELA) Compression", f"{result_data.get('ela_score', 0) * 100:.2f}%", pdf.gray_bg, True)
-    pdf.draw_table_row("Biological Geometry Anomaly", f"{result_data.get('geometry_anomaly_score', 0) * 100:.2f}%", None, True)
-    pdf.draw_table_row("Sensor Noise Fingerprint (PRNU)", f"{result_data.get('noise_score', 0) * 100:.2f}%", pdf.gray_bg, True)
-    pdf.draw_table_row("Chrominance Color Space Anomaly", f"{result_data.get('color_score', 0) * 100:.2f}%", None, True)
+    pdf.draw_table_row("Neural Network (EfficientNet-B4) Confidence", fmt_pct(result_data.get('nn_score'), '.2f'), pdf.gray_bg, True)
+    pdf.draw_table_row("Frequency Domain Anomaly", fmt_pct(result_data.get('spectral_anomaly_score'), '.2f'), None, True)
+    pdf.draw_table_row("Error Level Analysis (ELA) Compression", fmt_pct(result_data.get('ela_score'), '.2f'), pdf.gray_bg, True)
+    pdf.draw_table_row("Biological Geometry Anomaly", fmt_pct(result_data.get('geometry_anomaly_score'), '.2f'), None, True)
+    pdf.draw_table_row("Sensor Noise Fingerprint (PRNU)", fmt_pct(result_data.get('noise_score'), '.2f'), pdf.gray_bg, True)
+    pdf.draw_table_row("Chrominance Color Space Anomaly", fmt_pct(result_data.get('color_score'), '.2f'), None, True)
     if 'sync_score' in result_data:
-        pdf.draw_table_row("Audio-Visual Desynchronization", f"{result_data.get('sync_score', 0) * 100:.2f}%", pdf.gray_bg, True)
-    if 'eye_score' in result_data and result_data['eye_score'] > 0:
-        pdf.draw_table_row("Eye & Gaze Anomaly", f"{result_data.get('eye_score', 0) * 100:.2f}%", None, True)
-    if 'voice_score' in result_data and result_data['voice_score'] > 0:
-        pdf.draw_table_row("Voice Spoofing Analysis", f"{result_data.get('voice_score', 0) * 100:.2f}%", pdf.gray_bg, True)
-    if 'flow_score' in result_data and result_data['flow_score'] > 0:
-        pdf.draw_table_row("Temporal Optical Flow Jitter", f"{result_data.get('flow_score', 0) * 100:.2f}%", None, True)
+        pdf.draw_table_row("Audio-Visual Desynchronization", fmt_pct(result_data.get('sync_score'), '.2f'), pdf.gray_bg, True)
+    if result_data.get('eye_score') is not None and float(result_data.get('eye_score') or 0) > 0:
+        pdf.draw_table_row("Eye & Gaze Anomaly", fmt_pct(result_data.get('eye_score'), '.2f'), None, True)
+    if result_data.get('voice_score') is not None and float(result_data.get('voice_score') or 0) > 0:
+        pdf.draw_table_row("Voice Spoofing Analysis", fmt_pct(result_data.get('voice_score'), '.2f'), pdf.gray_bg, True)
+    if result_data.get('flow_score') is not None and float(result_data.get('flow_score') or 0) > 0:
+        pdf.draw_table_row("Temporal Optical Flow Jitter", fmt_pct(result_data.get('flow_score'), '.2f'), None, True)
     if 'metadata_score' in result_data:
-        pdf.draw_table_row("Metadata & EXIF Integrity", f"{result_data.get('metadata_score', 0) * 100:.2f}%", pdf.gray_bg, True)
-    if 'lighting_score' in result_data and result_data['lighting_score'] > 0:
-        pdf.draw_table_row("3D Lighting Consistency", f"{result_data.get('lighting_score', 0) * 100:.2f}%", None, True)
-    if 'cfa_score' in result_data and result_data['cfa_score'] > 0:
-        pdf.draw_table_row("CFA Artifacts Analysis", f"{result_data.get('cfa_score', 0) * 100:.2f}%", pdf.gray_bg, True)
-    if 'corneal_score' in result_data and result_data['corneal_score'] > 0:
-        pdf.draw_table_row("Corneal Reflection Consistency", f"{result_data.get('corneal_score', 0) * 100:.2f}%", None, True)
-    if 'rppg_score' in result_data and result_data['rppg_score'] > 0:
-        pdf.draw_table_row("Remote Photoplethysmography (rPPG)", f"{result_data.get('rppg_score', 0) * 100:.2f}%", pdf.gray_bg, True)
+        pdf.draw_table_row("Metadata & EXIF Integrity", fmt_pct(result_data.get('metadata_score'), '.2f'), pdf.gray_bg, True)
+    if result_data.get('lighting_score') is not None and float(result_data.get('lighting_score') or 0) > 0:
+        pdf.draw_table_row("3D Lighting Consistency", fmt_pct(result_data.get('lighting_score'), '.2f'), None, True)
+    if result_data.get('cfa_score') is not None and float(result_data.get('cfa_score') or 0) > 0:
+        pdf.draw_table_row("CFA Artifacts Analysis", fmt_pct(result_data.get('cfa_score'), '.2f'), pdf.gray_bg, True)
+    if result_data.get('corneal_score') is not None and float(result_data.get('corneal_score') or 0) > 0:
+        pdf.draw_table_row("Corneal Reflection Consistency", fmt_pct(result_data.get('corneal_score'), '.2f'), None, True)
+    if result_data.get('rppg_score') is not None and float(result_data.get('rppg_score') or 0) > 0:
+        pdf.draw_table_row("Remote Photoplethysmography (rPPG)", fmt_pct(result_data.get('rppg_score'), '.2f'), pdf.gray_bg, True)
     
     pdf.set_font("Arial", 'B', 12)
     pdf.set_fill_color(230, 230, 230)
     pdf.cell(120, 10, "  FINAL AI CONFIDENCE SCORE", 'B', 0, 'L', fill=True)
     pdf.set_text_color(*verdict_color)
-    pdf.cell(0, 10, f"{score * 100:.2f}%", 'B', 1, 'R', fill=True)
+    pdf.cell(0, 10, fmt_pct(score, '.2f'), 'B', 1, 'R', fill=True)
     pdf.set_text_color(0, 0, 0)
     
     # Visual gauge bar
     pdf.set_fill_color(230, 230, 230)
     pdf.rect(10, pdf.get_y() + 2, 190, 4, 'F')
     pdf.set_fill_color(*verdict_color)
-    pdf.rect(10, pdf.get_y() + 2, max(190 * score, 2), 4, 'F')
+    pdf.rect(10, pdf.get_y() + 2, max(min(190 * score, 190), 2), 4, 'F')
     
     pdf.ln(10)
 
     # --- ADVANCED MODULES ---
     pdf.chapter_title("2", "FREQUENCY & COMPRESSION ANALYSIS")
-    freq = result_data.get('frequency_analysis', {})
-    pdf.draw_table_row("Spectral Anomaly Score", f"{freq.get('spectral_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
-    pdf.draw_table_row("High-Frequency Energy Ratio", f"{freq.get('high_freq_energy_ratio', 0) * 100:.4f}%")
+    freq = result_data.get('frequency_analysis', {}) or {}
+    pdf.draw_table_row("Spectral Anomaly Score", fmt_pct(freq.get('spectral_anomaly_score'), '.1f'), pdf.gray_bg)
+    pdf.draw_table_row("High-Frequency Energy Ratio", fmt_pct(freq.get('high_freq_energy_ratio'), '.4f'))
     if 'dct_hf_ratio' in freq:
-        pdf.draw_table_row("DCT HF Energy Ratio", f"{freq.get('dct_hf_ratio', 0) * 100:.4f}%", pdf.gray_bg)
+        pdf.draw_table_row("DCT HF Energy Ratio", fmt_pct(freq.get('dct_hf_ratio'), '.4f'), pdf.gray_bg)
     if 'channel_variance' in freq:
-        pdf.draw_table_row("Cross-Channel Variance", f"{freq.get('channel_variance', 0):.4f}")
+        pdf.draw_table_row("Cross-Channel Variance", fmt_num(freq.get('channel_variance'), '.4f'))
     if 'pca_variance_ratio' in freq:
-        pdf.draw_table_row("PCA (PC3) Variance Ratio", f"{freq.get('pca_variance_ratio', 0) * 100:.4f}%", pdf.gray_bg)
+        pdf.draw_table_row("PCA (PC3) Variance Ratio", fmt_pct(freq.get('pca_variance_ratio'), '.4f'), pdf.gray_bg)
     if 'swn_anomaly_ratio' in freq:
-        pdf.draw_table_row("SWN Anomaly Ratio", f"{freq.get('swn_anomaly_ratio', 0) * 100:.2f}%")
+        pdf.draw_table_row("SWN Anomaly Ratio", fmt_pct(freq.get('swn_anomaly_ratio'), '.2f'))
     if 'hpf_variance' in freq:
-        pdf.draw_table_row("HPF Variance", f"{freq.get('hpf_variance', 0):.1f}", pdf.gray_bg)
+        pdf.draw_table_row("HPF Variance", fmt_num(freq.get('hpf_variance'), '.1f'), pdf.gray_bg)
     if 'cepstrum_var' in freq:
-        pdf.draw_table_row("Cepstrum Variance", f"{freq.get('cepstrum_var', 0):.6f}")
+        pdf.draw_table_row("Cepstrum Variance", fmt_num(freq.get('cepstrum_var'), '.6f'))
     if 'dwt_var' in freq:
-        pdf.draw_table_row("DWT Diagonal Variance", f"{freq.get('dwt_var', 0):.2f}", pdf.gray_bg)
+        pdf.draw_table_row("DWT Diagonal Variance", fmt_num(freq.get('dwt_var'), '.2f'), pdf.gray_bg)
 
-    ela = result_data.get('ela_analysis', {})
+    ela = result_data.get('ela_analysis', {}) or {}
     if 'ela_smooth_anomaly' in ela:
-        pdf.draw_table_row("Edge-Aware Smooth Region Anomaly", f"{ela.get('ela_smooth_anomaly', 0) * 100:.2f}%", pdf.gray_bg)
+        pdf.draw_table_row("Edge-Aware Smooth Region Anomaly", fmt_pct(ela.get('ela_smooth_anomaly'), '.2f'), pdf.gray_bg)
     if 'ela_base_variance' in ela:
-        pdf.draw_table_row("Base ELA Variance", f"{ela.get('ela_base_variance', 0) * 100:.2f}%")
+        pdf.draw_table_row("Base ELA Variance", fmt_pct(ela.get('ela_base_variance'), '.2f'))
     pdf.ln(2)
     pdf.set_font("Arial", 'I', 9)
     pdf.multi_cell(0, 5, "Analysis: " + sanitize_text(ela.get('ela_interpretation', 'N/A')))
@@ -277,17 +309,17 @@ def generate_pdf_report(result_data: dict, output_path: str):
 
     # --- GEOMETRY ---
     pdf.chapter_title("3", "BIOLOGICAL & FACIAL GEOMETRY")
-    face = result_data.get('face_geometry', {})
+    face = result_data.get('face_geometry', {}) or {}
     if face.get('face_detected'):
-        pdf.draw_table_row("Geometry Anomaly Score", f"{(face.get('geometry_anomaly_score', 0)) * 100:.1f}%", pdf.gray_bg)
+        pdf.draw_table_row("Geometry Anomaly Score", fmt_pct(face.get('geometry_anomaly_score'), '.1f'), pdf.gray_bg)
         if 'temporal_jitter_score' in face:
-            pdf.draw_table_row("Temporal Geometric Jitter", f"{(face.get('temporal_jitter_score', 0)) * 100:.1f}%")
+            pdf.draw_table_row("Temporal Geometric Jitter", fmt_pct(face.get('temporal_jitter_score'), '.1f'))
         if 'golden_ratio' in face:
-            pdf.draw_table_row("Biological Golden Ratio", f"{face.get('golden_ratio', 0):.3f}", pdf.gray_bg)
+            pdf.draw_table_row("Biological Golden Ratio", fmt_num(face.get('golden_ratio'), '.3f'), pdf.gray_bg)
         if 'interocular_ratio' in face:
-            pdf.draw_table_row("Interocular Proportion", f"{face.get('interocular_ratio', 0):.3f}")
+            pdf.draw_table_row("Interocular Proportion", fmt_num(face.get('interocular_ratio'), '.3f'))
         if 'symmetry_score' in face:
-            pdf.draw_table_row("Facial Symmetry Deviation", f"{face.get('symmetry_score', 0) * 100:.1f}%", pdf.gray_bg)
+            pdf.draw_table_row("Facial Symmetry Deviation", fmt_pct(face.get('symmetry_score'), '.1f'), pdf.gray_bg)
         pdf.ln(2)
         pdf.set_font("Arial", 'I', 9)
         pdf.multi_cell(0, 5, "Analysis: " + sanitize_text(face.get('face_geometry_interpretation', '')))
@@ -295,27 +327,27 @@ def generate_pdf_report(result_data: dict, output_path: str):
         pdf.set_font("Arial", 'I', 10)
         pdf.cell(0, 8, "No face detected in the analyzed frame.", 0, 1)
 
-    eye = result_data.get('eye_analysis', {})
+    eye = result_data.get('eye_analysis', {}) or {}
     if eye:
         pdf.ln(5)
-        pdf.draw_table_row("Eye & Gaze Anomaly Score", f"{eye.get('eye_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+        pdf.draw_table_row("Eye & Gaze Anomaly Score", fmt_pct(eye.get('eye_anomaly_score'), '.1f'), pdf.gray_bg)
         if 'blink_rate_per_min' in eye:
-            pdf.draw_table_row("Blink Rate (BPM)", f"{eye.get('blink_rate_per_min', 0):.1f}")
+            pdf.draw_table_row("Blink Rate (BPM)", fmt_num(eye.get('blink_rate_per_min'), '.1f'))
         if 'gaze_asymmetry' in eye:
-            pdf.draw_table_row("Gaze Asymmetry", f"{eye.get('gaze_asymmetry', 0):.3f}", pdf.gray_bg)
+            pdf.draw_table_row("Gaze Asymmetry", fmt_num(eye.get('gaze_asymmetry'), '.3f'), pdf.gray_bg)
         if eye.get('warnings'):
             pdf.ln(2)
             pdf.set_font("Arial", 'I', 9)
             pdf.multi_cell(0, 5, "Warnings: " + sanitize_text("; ".join(eye.get('warnings'))))
     
-    flow = result_data.get('flow_analysis', {})
+    flow = result_data.get('flow_analysis', {}) or {}
     if flow:
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 11)
         pdf.cell(0, 8, "Temporal Consistency (Optical Flow)", 0, 1)
-        pdf.draw_table_row("Optical Flow Jitter Score", f"{flow.get('flow_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+        pdf.draw_table_row("Optical Flow Jitter Score", fmt_pct(flow.get('flow_anomaly_score'), '.1f'), pdf.gray_bg)
         if 'mean_motion_variance' in flow:
-            pdf.draw_table_row("Mean Motion Variance", f"{flow.get('mean_motion_variance', 0):.3f}")
+            pdf.draw_table_row("Mean Motion Variance", fmt_num(flow.get('mean_motion_variance'), '.3f'))
         if flow.get('warnings'):
             pdf.ln(2)
             pdf.set_font("Arial", 'I', 9)
@@ -323,61 +355,61 @@ def generate_pdf_report(result_data: dict, output_path: str):
     
     # --- NOISE & COLOR ---
     pdf.chapter_title("4", "SENSOR NOISE & COLOR SPACE")
-    noise = result_data.get('noise_analysis', {})
-    pdf.draw_table_row("PRNU Noise Anomaly Score", f"{noise.get('noise_score', 0) * 100:.1f}%", pdf.gray_bg)
+    noise = result_data.get('noise_analysis', {}) or {}
+    pdf.draw_table_row("PRNU Noise Anomaly Score", fmt_pct(noise.get('noise_score'), '.1f'), pdf.gray_bg)
     if 'prnu_variance' in noise:
-        pdf.draw_table_row("PRNU Variance", f"{noise.get('prnu_variance', 0):.4f}")
+        pdf.draw_table_row("PRNU Variance", fmt_num(noise.get('prnu_variance'), '.4f'))
         
-    color = result_data.get('color_analysis', {})
+    color = result_data.get('color_analysis', {}) or {}
     if color:
-        pdf.draw_table_row("Chrominance Anomaly Score", f"{color.get('color_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+        pdf.draw_table_row("Chrominance Anomaly Score", fmt_pct(color.get('color_anomaly_score'), '.1f'), pdf.gray_bg)
         if 'cb_variance' in color:
-            pdf.draw_table_row("Cb Channel Variance", f"{color.get('cb_variance', 0):.2f}")
+            pdf.draw_table_row("Cb Channel Variance", fmt_num(color.get('cb_variance'), '.2f'))
         if 'cr_variance' in color:
-            pdf.draw_table_row("Cr Channel Variance", f"{color.get('cr_variance', 0):.2f}", pdf.gray_bg)
+            pdf.draw_table_row("Cr Channel Variance", fmt_num(color.get('cr_variance'), '.2f'), pdf.gray_bg)
         if 's_variance' in color:
-            pdf.draw_table_row("HSV Saturation Variance", f"{color.get('s_variance', 0):.2f}")
+            pdf.draw_table_row("HSV Saturation Variance", fmt_num(color.get('s_variance'), '.2f'))
         if 'a_variance' in color:
-            pdf.draw_table_row("LAB a* Channel Variance", f"{color.get('a_variance', 0):.2f}", pdf.gray_bg)
+            pdf.draw_table_row("LAB a* Channel Variance", fmt_num(color.get('a_variance'), '.2f'), pdf.gray_bg)
 
     # --- ADVANCED PHYSICS (LIGHTING, CFA, CORNEAL) ---
-    lighting = result_data.get('lighting_analysis', {})
-    cfa = result_data.get('cfa_analysis', {})
-    corneal = result_data.get('corneal_analysis', {})
+    lighting = result_data.get('lighting_analysis', {}) or {}
+    cfa = result_data.get('cfa_analysis', {}) or {}
+    corneal = result_data.get('corneal_analysis', {}) or {}
     
     if lighting or cfa or corneal:
         pdf.chapter_title("5", "PHYSICAL OPTICS & SENSOR ARTIFACTS")
         if lighting:
-            pdf.draw_table_row("Lighting Anomaly Score", f"{lighting.get('lighting_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+            pdf.draw_table_row("Lighting Anomaly Score", fmt_pct(lighting.get('lighting_anomaly_score'), '.1f'), pdf.gray_bg)
         if cfa:
-            pdf.draw_table_row("CFA Anomaly Score", f"{cfa.get('cfa_score', 0) * 100:.1f}%")
+            pdf.draw_table_row("CFA Anomaly Score", fmt_pct(cfa.get('cfa_score'), '.1f'))
         if corneal:
-            pdf.draw_table_row("Corneal Reflection Anomaly", f"{corneal.get('corneal_score', 0) * 100:.1f}%", pdf.gray_bg)
+            pdf.draw_table_row("Corneal Reflection Anomaly", fmt_pct(corneal.get('corneal_score'), '.1f'), pdf.gray_bg)
         pdf.ln(5)
 
     # --- AUDIO SYNC & PHYSIOLOGY ---
-    sync = result_data.get('sync_analysis', {})
-    voice = result_data.get('voice_analysis', {})
-    rppg = result_data.get('rppg_analysis', {})
+    sync = result_data.get('sync_analysis', {}) or {}
+    voice = result_data.get('voice_analysis', {}) or {}
+    rppg = result_data.get('rppg_analysis', {}) or {}
     if sync or voice or rppg:
         pdf.chapter_title("6", "AUDIO FORENSICS & PHYSIOLOGY")
         if sync:
-            pdf.draw_table_row("Pearson Correlation", f"{sync.get('correlation', 'N/A')}", pdf.gray_bg)
+            pdf.draw_table_row("Pearson Correlation", fmt_num(sync.get('correlation'), '.3f'), pdf.gray_bg)
             if 'lse_c' in sync:
-                pdf.draw_table_row("LSE-C (Expert Confidence)", f"{sync.get('lse_c'):.2f}")
+                pdf.draw_table_row("LSE-C (Expert Confidence)", fmt_num(sync.get('lse_c'), '.2f'))
             if 'lse_d' in sync:
-                pdf.draw_table_row("LSE-D (Expert Distance)", f"{sync.get('lse_d'):.2f}", pdf.gray_bg)
+                pdf.draw_table_row("LSE-D (Expert Distance)", fmt_num(sync.get('lse_d'), '.2f'), pdf.gray_bg)
             pdf.ln(2)
             pdf.set_font("Arial", 'I', 9)
             pdf.multi_cell(0, 5, "Sync Analysis: Mathematical correlation between visual Mouth Aspect Ratio (MAR) and Audio MFCC. Low confidence indicates phonetic dubbing.")
         
         if voice:
             pdf.ln(5)
-            pdf.draw_table_row("Voice Spoofing Score", f"{voice.get('voice_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+            pdf.draw_table_row("Voice Spoofing Score", fmt_pct(voice.get('voice_anomaly_score'), '.1f'), pdf.gray_bg)
             if 'high_freq_ratio' in voice:
-                pdf.draw_table_row("High Freq Ratio", f"{voice.get('high_freq_ratio', 0):.4f}")
+                pdf.draw_table_row("High Freq Ratio", fmt_num(voice.get('high_freq_ratio'), '.4f'))
             if 'zcr_variance' in voice:
-                pdf.draw_table_row("Zero-Crossing Variance", f"{voice.get('zcr_variance', 0):.5f}", pdf.gray_bg)
+                pdf.draw_table_row("Zero-Crossing Variance", fmt_num(voice.get('zcr_variance'), '.5f'), pdf.gray_bg)
             if voice.get('warnings'):
                 pdf.ln(2)
                 pdf.set_font("Arial", 'I', 9)
@@ -385,21 +417,21 @@ def generate_pdf_report(result_data: dict, output_path: str):
                 
         if rppg:
             pdf.ln(5)
-            pdf.draw_table_row("rPPG Heart Rate Anomaly", f"{rppg.get('rppg_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+            pdf.draw_table_row("rPPG Heart Rate Anomaly", fmt_pct(rppg.get('rppg_anomaly_score'), '.1f'), pdf.gray_bg)
             if 'snr' in rppg:
-                pdf.draw_table_row("Signal-to-Noise Ratio (SNR)", f"{rppg.get('snr', 0):.2f} dB")
+                pdf.draw_table_row("Signal-to-Noise Ratio (SNR)", f"{fmt_num(rppg.get('snr'), '.2f')} dB")
             if 'bpm' in rppg:
-                pdf.draw_table_row("Estimated BPM", f"{rppg.get('bpm', 0):.1f}", pdf.gray_bg)
+                pdf.draw_table_row("Estimated BPM", fmt_num(rppg.get('bpm'), '.1f'), pdf.gray_bg)
 
     # --- METADATA ---
-    metadata = result_data.get('metadata_analysis', {})
+    metadata = result_data.get('metadata_analysis', {}) or {}
     if metadata:
         pdf.chapter_title("7", "METADATA & EXIF INTEGRITY")
-        pdf.draw_table_row("Metadata Anomaly Score", f"{metadata.get('metadata_anomaly_score', 0) * 100:.1f}%", pdf.gray_bg)
+        pdf.draw_table_row("Metadata Anomaly Score", fmt_pct(metadata.get('metadata_anomaly_score'), '.1f'), pdf.gray_bg)
         if 'missing_tags' in metadata and len(metadata['missing_tags']) > 0:
             pdf.draw_table_row("Missing Standard Tags", f"{len(metadata['missing_tags'])}")
-        if 'software_signature' in metadata:
-            pdf.draw_table_row("Software Signature", f"{metadata['software_signature'][:30]}", pdf.gray_bg)
+        if 'software_signature' in metadata and metadata['software_signature']:
+            pdf.draw_table_row("Software Signature", f"{str(metadata['software_signature'])[:30]}", pdf.gray_bg)
 
     # --- VISUAL EVIDENCE ---
     pdf.add_page()
@@ -413,9 +445,26 @@ def generate_pdf_report(result_data: dict, output_path: str):
 
     def embed_image(title, img_path):
         nonlocal exhibit_counter, col_index, max_row_h
-        if img_path and os.path.exists(img_path):
+        if not img_path or not isinstance(img_path, str):
+            return
+
+        resolved_path = img_path
+        if not os.path.exists(resolved_path):
+            candidates = [
+                img_path.lstrip("/\\"),
+                os.path.join("uploads", os.path.basename(img_path)),
+                os.path.join("backend", img_path.lstrip("/\\")),
+                os.path.join("backend", "uploads", os.path.basename(img_path)),
+                os.path.join("..", img_path.lstrip("/\\"))
+            ]
+            for cand in candidates:
+                if os.path.exists(cand):
+                    resolved_path = cand
+                    break
+
+        if resolved_path and os.path.exists(resolved_path):
             try:
-                img = cv2.imread(img_path)
+                img = cv2.imread(resolved_path)
                 if img is not None:
                     h, w, _ = img.shape
                     aspect_ratio = h / w
@@ -438,7 +487,7 @@ def generate_pdf_report(result_data: dict, output_path: str):
                     pdf.set_draw_color(200, 200, 200)
                     pdf.rect(x_pos - 1, y_pos - 1, target_w + 2, target_h + 2)
                     
-                    pdf.image(img_path, x=x_pos, y=y_pos, w=target_w)
+                    pdf.image(resolved_path, x=x_pos, y=y_pos, w=target_w)
                     
                     # Caption
                     pdf.set_xy(x_pos, y_pos + target_h + 2)
@@ -486,6 +535,7 @@ def generate_pdf_report(result_data: dict, output_path: str):
 
     # Group 1: High Level
     face_crop = result_data.get('face_crop_path')
+    heatmaps = result_data.get('heatmaps', []) or []
     if face_crop or heatmaps or ela.get('ela_heatmap_path'):
         gallery_section("Neural Attention & Face Crop")
         

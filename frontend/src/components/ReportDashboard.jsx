@@ -5,7 +5,7 @@ import {
   Flame, Activity, Search, Frame, Camera, Palette, BarChart3, 
   Volume2, FileText, Download, RotateCcw, AlertTriangle, CheckCircle2, 
   ShieldAlert, Info, Lightbulb, Focus, ScanSearch,
-  FileVideo, Cpu, Sparkles, Check, Copy, Layers, HeartPulse, HardDrive, Monitor, X
+  FileVideo, Cpu, Sparkles, Check, Copy, Layers, HeartPulse, HardDrive, Monitor, X, Loader2
 } from 'lucide-react';
 
 import { API_BASE } from '../constants/api';
@@ -55,6 +55,7 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
   const [expandedCards, setExpandedCards] = useState({});
   const [copiedFilename, setCopiedFilename] = useState(false);
   const [copiedJobId, setCopiedJobId] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const isVideo = useMemo(() => fileName && fileName.toLowerCase().match(/\.(mp4|avi|mov|mkv|webm)$/), [fileName]);
   const hasAudio = result.file_metadata?.has_audio ?? false;
@@ -75,9 +76,59 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
     }
   };
 
-  const downloadReport = useCallback(() => {
-    window.location.href = `${API_BASE}/api/reports/${jobId}/pdf`;
-  }, [jobId]);
+  const downloadReport = useCallback(async () => {
+    if (isExportingPdf) return;
+    setIsExportingPdf(true);
+    try {
+      // Tier 1: Try fetching the existing report from the server
+      const directUrl = `${API_BASE}/api/reports/${jobId}/pdf`;
+      const response = await fetch(directUrl);
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `Forensic_Report_${jobId || 'audit'}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(blobUrl);
+        return;
+      }
+
+      // Tier 2: If server has restarted or report was not pre-generated, synthesize on-demand via POST
+      const genResponse = await fetch(`${API_BASE}/api/reports/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_id: jobId,
+          filename: fileName || 'Forensic_Report',
+          result: result
+        })
+      });
+
+      if (genResponse.ok) {
+        const blob = await genResponse.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `Forensic_Report_${jobId || 'audit'}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(blobUrl);
+      } else {
+        const errJson = await genResponse.json().catch(() => ({}));
+        alert(errJson.message || 'Unable to generate PDF report. Please re-run the scan.');
+      }
+    } catch (err) {
+      console.warn('PDF download failed, attempting window navigation fallback:', err);
+      window.location.href = `${API_BASE}/api/reports/${jobId}/pdf`;
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }, [jobId, result, fileName, isExportingPdf]);
 
   const getSyncColor = useCallback((score) => {
     if (score > 0.6) return 'danger';
@@ -460,10 +511,19 @@ const ReportDashboard = ({ result, resetApp, jobId, fileName }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexShrink: 0 }}>
             <button 
               onClick={downloadReport}
+              disabled={isExportingPdf}
               className="btn btn-primary"
-              style={{ fontSize: '0.8rem', padding: '0.6rem 1rem' }}
+              style={{ fontSize: '0.8rem', padding: '0.6rem 1rem', opacity: isExportingPdf ? 0.75 : 1 }}
             >
-              <Download size={14} /> Export PDF Dossier
+              {isExportingPdf ? (
+                <>
+                  <Loader2 size={14} className="spin-animation" /> Synthesizing PDF...
+                </>
+              ) : (
+                <>
+                  <Download size={14} /> Export PDF Dossier
+                </>
+              )}
             </button>
             <button 
               onClick={resetApp}

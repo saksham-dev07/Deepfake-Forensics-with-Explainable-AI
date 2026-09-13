@@ -55,23 +55,34 @@ In digital forensics and legal proceedings, algorithmic raw JSON payloads are in
 
 ## 2. Text Sanitization & Character Encoding Architecture
 
-The `fpdf` library strictly adheres to the ISO 8859-1 (Latin-1) character set. Standard Unicode symbols (smart quotes, em-dashes, arrows, mathematical glyphs) produce fatal encoding exceptions if unhandled.
+The `fpdf` library strictly adheres to the ISO 8859-1 (Latin-1) character set. Standard Unicode symbols (smart quotes, em-dashes, arrows, mathematical glyphs, bullets, Greek letters) produce fatal encoding exceptions if unhandled.
 
 ```python
 def sanitize_text(text):
+    if text is None:
+        return ""
     text = str(text)
     replacements = {
         '\u2014': '-', '\u2013': '-', '\u2018': "'", '\u2019': "'",
         '\u201c': '"', '\u201d': '"', '\u2026': '...', '\u00d7': 'x',
-        '\u2713': 'Yes', '\u2717': 'No', '\u2192': '->', '\u2190': '<-'
+        '\u2713': 'Yes', '\u2717': 'No', '\u2192': '->', '\u2190': '<-',
+        '\u2022': '*', '\u25cf': '*', '\u25cb': 'o', '\u00b7': '.',
+        '\u00b1': '+/-', '\u2264': '<=', '\u2265': '>=', '\u2248': '~',
+        '\u03bc': 'u', '\u03c3': 's', '\u03c0': 'pi', '\u221e': 'inf',
+        '\u20ac': 'EUR', '\u00a3': 'GBP', '\u00a5': 'JPY', '\u20b9': 'INR'
     }
     for k, v in replacements.items():
         text = text.replace(k, v)
     return text.encode('latin-1', errors='replace').decode('latin-1')
 ```
 
-* **Targeted Replacements**: Replaces common typographic characters with ASCII equivalents prior to rendering.
-* **Lossy Fallback**: Appends `.encode('latin-1', errors='replace').decode('latin-1')`, converting unmapped characters to `?` rather than terminating execution.
+### Class-Level Method Overrides (`ForensicPDF`)
+To eliminate the risk of unhandled Unicode in dynamically generated titles or third-party detector warnings, `ForensicPDF` overrides both `cell()` and `multi_cell()` at the class level. Every text fragment rendered into the PDF is automatically sanitized through the gateway before reaching FPDF's byte-encoding layer.
+
+### Safe Numerical Formatters
+To prevent `TypeError: unsupported format string passed to NoneType` when sub-engines encounter edge-case inputs (e.g., audio-visual sync on silent files, or rPPG on static portraits), all tabular outputs route through defensive numerical formatters:
+* `fmt_num(val, fmt=".2f", default="N/A")`: Returns formatted floats or falls back gracefully to `"N/A"`.
+* `fmt_pct(val, fmt=".1f", default="0.0%")`: Multiplies by 100, formats, and attaches `%`, preventing unhandled exceptions.
 
 ---
 
@@ -205,3 +216,16 @@ def generate_pdf_report(
 
 ### Return Value:
 * Returns the verified absolute or relative path to the generated PDF document.
+
+---
+
+## 8. Resilient On-Demand Report Generation & Fallbacks
+
+On ephemeral infrastructure (e.g. container platforms and Hugging Face Spaces free tier), worker memory recycles and temporary directories are wiped upon inactivity. To ensure zero 404 `"Report not found"` errors:
+
+1. **Dual Serialization**: Every completed pipeline execution writes both `reports/{job_id}.pdf` and `reports/{job_id}.json`.
+2. **On-Demand Regeneration Gateway**: When `GET /api/reports/{job_id}/pdf` is requested:
+   * If `reports/{job_id}.pdf` exists, it is served immediately.
+   * If absent from disk, the server inspects active in-memory state (`analysis_jobs[job_id]`). If results exist, `generate_pdf_report()` executes dynamically on-the-fly and serves the resulting PDF.
+   * If missing from memory, the server checks for `reports/{job_id}.json` on disk to reconstruct the PDF.
+3. **Stateless Synthesis Endpoint**: `POST /api/reports/generate` accepts a client-provided analysis result payload and synthesizes an official PDF dossier immediately, enabling client-side dashboards (or sample demo presets) to download reports without preexisting server files.
