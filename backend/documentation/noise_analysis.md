@@ -147,6 +147,8 @@ $$\text{noise\_score} = \begin{cases}
 | **`noise_denoised.jpg`** | Non-Local Means (NLM) | Grayscale | Structural edge-preserved clean base image $\hat{I}_{\text{NLM}}$ |
 | **`noise_map.jpg`** | Normalized PRNU Residual | `JET` | Color-mapped noise residual blended over original image ($40\%/80\%$) |
 | **`noise_srm_map.jpg`**| 2nd-Order SRM Derivative | `MAGMA` | Log-compressed high-pass residual highlighting blending seams |
+### High-Efficiency Bandwidth Optimization:
+All noise diagnostic maps are written through `save_optimized_image` ([`image_utils.py`](../pipeline/image_utils.py)), ensuring dimensions exceeding 1080p are scaled down with `cv2.INTER_AREA` and saved at $Q=80$ compression to minimize bandwidth and transfer overhead.
 
 ---
 

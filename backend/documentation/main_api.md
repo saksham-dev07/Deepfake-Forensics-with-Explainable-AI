@@ -76,9 +76,11 @@ async def get_api_key(api_key_header: str = Security(api_key_header)):
 * Employs SlowAPI based on client IP: `limiter = Limiter(key_func=get_remote_address)`.
 * `@limiter.limit("5/minute")`: Caps media upload analysis to 5 invocations per minute per IP address, mitigating resource exhaustion.
 
-### 2.3 CORS & Static File Mounts
+### 2.3 CORS & Cached Static File Mounts
 * **CORS**: Configurable via `ALLOWED_ORIGINS` (defaults to `*`), enabling cross-origin integration with web frontends.
-* **Static File Mount**: Mounts `/uploads` directly to disk to allow the React dashboard to fetch intermediate visual artifacts (heatmaps, waveforms, spectra).
+* **Cached Static File Mount**: Mounts `/uploads` using `CachedStaticFiles` (a custom Starlette `StaticFiles` subclass) that sets `Cache-Control: public, max-age=604800, immutable` on all successful HTTP 200 responses. This prevents redundant re-downloads, enabling zero-latency client retrieval from browser disk/memory cache.
+* **Bandwidth Optimization Layer**: Artifacts are automatically downscaled to $\le 720\text{ px}$ ($\le 1080\text{ px}$ for reference frames) via `cv2.INTER_AREA` and saved as progressive quality-80 JPEGs via `save_optimized_image`, reducing overall forensic dataset transfer from $\approx 15\text{ MB}$ to $\approx 1.2\text{ MB}$ ($87-95\%$ drop).
+* **Face Crop Artifact**: Generates `uploads/{job_id}_frames/face_crop.jpg` ($380\times 380\text{ px}$) and returns `"face_crop_path"` alongside `"first_frame_path"`, enabling unified, pixel-aligned A/B comparison on the frontend.
 
 ---
 

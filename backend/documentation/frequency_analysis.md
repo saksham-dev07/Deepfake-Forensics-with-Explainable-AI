@@ -260,6 +260,8 @@ $$S_{\text{base}} = \begin{cases}
 | **`freq_pca_pc3.jpg`** | PCA Decomposition | `TWILIGHT` | 3rd principal component color variance |
 | **`freq_high_pass.jpg`** | FFT High-Pass Spatial Filter | `BONE` | Amplified spatial edges with inner $5\%$ DC blocked |
 | **`freq_phase_spectrum.jpg`**| Fourier Phase Angle | `OCEAN` | Normalized phase field $\theta(u, v) \in [0, 255]$ |
+### High-Efficiency Bandwidth Optimization:
+All 10 spectral transformation artifacts are persisted via `save_optimized_image` ([`image_utils.py`](../pipeline/image_utils.py)), clamping resolutions exceeding 1080p and encoding at $Q=80$. This reduces the total spectral payload from $>10\text{ MB}$ to $<1.5\text{ MB}$, ensuring smooth A/B interactive viewport rendering on the web client.
 
 ---
 

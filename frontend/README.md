@@ -13,7 +13,16 @@ This is the high-performance **React 18 + Vite** client application for the **De
   - `FeaturesGrid.jsx`: Detailed interactive breakdown of the 15 sensory dimensions and workflow steps.
   - `HowItWorks.jsx`: Complete 6-stage forensic inspection pipeline specification.
   - `ModelsOverview.jsx`: Neural architecture explorer with interactive Recharts loss and accuracy curves.
-  - `ReportDashboard.jsx`: Single authoritative Forensic Dossier Header with case reference tracking, one-sentence plain-English findings, export PDF / scan CTAs, a streamlined Inspected Media sidebar, interactive Diagnostic Sensor Matrix, and live tab badges.
+  - `ReportDashboard.jsx`: Single authoritative Forensic Dossier Header with case reference tracking, one-sentence plain-English findings, export PDF / scan CTAs, a streamlined Inspected Media sidebar with **Target Face Crop Preview Card**, interactive Diagnostic Sensor Matrix, and live tab badges.
+- **Interactive A/B Forensics Split Workbench**:
+  - **Dynamic Layer Badges**: Viewport headers dynamically reflect active exhibits (e.g., `B: HSV SATURATION ELA`, `B: PRNU SILICON NOISE`) the instant they are promoted.
+  - **In-Flight Visual Feedback**: Smooth opacity fade transitions and a dedicated `.viewport-loader` pulsing spinner overlay provide unmistakable visual confirmation while matrices are streaming.
+  - **Proactive Background Prefetching**: Client-side prefetch hooks (`new Image().src = ex.img`) preload all exhibit thumbnails and high-res layers on tab mount, eliminating network delays when toggling between analytical maps.
+  - **Segmented Forensic Chip Controls**: Styled `.chip-btn` and `.chip-btn.active` indicators with glowing cyan/blue focus states for rapid stage mode toggling (`A/B Wipe` vs `Direct Map`) and gain scaling.
+- **Universal Media URL & Face Crop Resolver (`mediaUrl.js`)**:
+  - `resolveOriginalFaceUrl(result)`: Multi-tier fallback hierarchy prioritizing direct backend `face_crop_path`, preset `heatmaps.original_face`, session-relative path derivations, and raw video frames.
+  - `handleFaceImgError`: Graceful image error handler that automatically cascades from face crops to raw frames before falling back to procedural SVG graphics.
+  - Guaranteed pixel-perfect 380×380 alignment between Slide [A] (original face) and Slide [B] (forensic heatmaps).
 - **Real-Time SSE Telemetry (`useAnalysisPipeline.js`)**: Subscribes to Server-Sent Events (`/api/status/{job_id}/stream`) with 2KB buffer bypass, receiving real-time progress ($0-100\%$), forensic execution logs, and live GPU/CPU telemetry without polling overhead.
 - **Dual-Layer Explainable AI (XAI) Visualizer**: Renders both coarse **Grad-CAM** overlays (hooking the 1792-channel convolutional head) and microscopic **Guided Grad-CAM** maps (1st–99th percentile HDR contrast stretched in scientific Inferno colormaps).
 - **True SHAP Explanations**: Visualizes mathematical directional attributions from `shap.KernelExplainer` ($\rightarrow \text{FAKE}$ / $\rightarrow \text{AUTHENTIC}$) with impact percentages.

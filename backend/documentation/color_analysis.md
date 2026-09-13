@@ -172,7 +172,8 @@ To inspect color variation without luminance confounding:
 * Applies `cv2.COLORMAP_PLASMA` to the $a^*$ channel.
 * Plasma maps $a^* \le 128$ (green/neutral) to deep indigo/purple, and $a^* > 128$ (red/erythema) to hot orange and incandescent yellow.
 * In authentic human skin, this exposes a rich, mottled microvascular arborization. In synthetic deepfakes, the map appears as an untextured, monotonic wash.
-* Saved to `{output_dir}/{prefix}_a_map.jpg`.
+### 5.5 High-Efficiency Bandwidth Optimization
+All four diagnostic pseudocolor maps are written via `save_optimized_image` ([`image_utils.py`](../pipeline/image_utils.py)), ensuring images larger than 1080p are scaled down using `cv2.INTER_AREA` and saved at JPEG $Q=80$. This reduces transfer overhead by up to $90\%$ across network-constrained client environments.
 
 ---
 

@@ -78,3 +78,6 @@ desktop.ini
 
 # Ignore IDE specific agent configurations
 .gemini/
+.agents/
+AGENTS.md
+GEMINI.md

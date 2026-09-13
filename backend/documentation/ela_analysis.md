@@ -185,6 +185,8 @@ In addition to continuous numerical scores, the engine generates discrete forens
 | **`ela_heatmap.jpg`** | `COLORMAP_JET` | $20\times$ | $0.5 \cdot \mathbf{I} + 0.5 \cdot \mathbf{H}$ | High-level heat overlay highlighting hot zones |
 | **`ela_ghosting.jpg`** | `COLORMAP_INFERNO` | Multi-Q Variance | $0.4 \cdot \mathbf{I} + 0.8 \cdot \mathbf{G}$ | Multi-generation resave ghosts & quality shifts |
 | **`ela_hsv.jpg`** | `COLORMAP_TURBO` | $15\times$ | $0.4 \cdot \mathbf{I} + 0.8 \cdot \mathbf{S}$ | $4:2:0$ chroma subsampling anomalies in saturation |
+### High-Efficiency Bandwidth Optimization:
+All visual exhibits are saved via `save_optimized_image` ([`image_utils.py`](../pipeline/image_utils.py)), clamping maximum dimensions to 1080p via area interpolation (`cv2.INTER_AREA`) and applying optimized JPEG compression ($Q=80$). This prevents client viewport stalls when streaming over high-latency networks.
 
 ---
 
