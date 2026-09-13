@@ -50,6 +50,14 @@ const CornealTab = ({
   const [isImgLoading, setIsImgLoading] = useState(false);
   const stageContainerRef = useRef(null);
 
+  const specularFilterStyle = useMemo(() => {
+    if (thresholdLevel === 210) return 'none';
+    const delta = (thresholdLevel - 210) / 40.0;
+    const contrast = (1.0 + delta * 0.40).toFixed(2);
+    const brightness = (1.0 - delta * 0.18).toFixed(2);
+    return `contrast(${contrast}) brightness(${brightness})`;
+  }, [thresholdLevel]);
+
   const corneal = useMemo(() => result.corneal_analysis || {}, [result.corneal_analysis]);
   const score = corneal.corneal_score !== undefined ? corneal.corneal_score : (result.corneal_score || 0);
   const isAnomaly = score > 0.5;
@@ -353,7 +361,10 @@ const CornealTab = ({
                 );
               })}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.25rem' }}>
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.25rem' }}
+                title="Specular Highlight Cutoff Threshold (τ): Tunes the minimum luminance (180–250) required to isolate corneal Purkinje reflection highlights."
+              >
                 <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>&tau;:</span>
                 <input 
                   type="range" 
@@ -412,7 +423,8 @@ const CornealTab = ({
                 objectFit: 'contain',
                 display: 'block',
                 opacity: isImgLoading ? 0.35 : 1,
-                transition: 'opacity 0.2s ease'
+                filter: specularFilterStyle,
+                transition: 'opacity 0.2s ease, filter 0.15s ease'
               }} 
             />
             <div style={{
@@ -628,7 +640,7 @@ const CornealTab = ({
             <MetricCard 
               label="Highlight IoU" 
               value={`${(iouVal * 100).toFixed(1)}%`} 
-              subValue="Intersection over Union" 
+              subValue={`Cutoff τ = ${thresholdLevel} LSB`} 
               type={iouVal < 0.75 ? 'danger' : 'success'} 
             />
             <MetricCard 

@@ -150,7 +150,7 @@ const FrequencyTab = ({
   const [colormapLut, setColormapLut] = useState('raw'); // 'raw' | 'inferno' | 'highpass' | 'invert'
   const [rightTab, setRightTab] = useState('azimuthal'); // 'azimuthal' | 'tuner' | 'theory'
   const [bandpassCutoff, setBandpassCutoff] = useState(0.5);
-  const [bandpassType, setBandpassType] = useState('highpass'); // 'highpass' | 'lowpass' | 'all'
+  const [bandpassType, setBandpassType] = useState('all'); // 'all' | 'highpass' | 'lowpass'
   const [hudCoords, setHudCoords] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isImgLoading, setIsImgLoading] = useState(false);
@@ -343,32 +343,41 @@ const FrequencyTab = ({
     }
   }, [selectedTransformId, activeTransform?.img]);
 
-  // Colormap filter style helper
-  const getColormapFilter = useCallback((mode) => {
-    switch (mode) {
-      case 'inferno':
-        return 'contrast(1.6) saturate(2.2) hue-rotate(190deg)';
-      case 'highpass':
-        return 'contrast(2.2) invert(0.9) grayscale(1)';
-      case 'invert':
-        return 'invert(1)';
-      default:
-        return 'none';
+  // Combined Stage Viewport Filter: Validated CSS filter string
+  const combinedStageFilter = useMemo(() => {
+    // If raw mode is selected, strictly bypass all CSS transformations to show the 100% pure raw artifact
+    if (colormapLut === 'raw') {
+      if (bandpassType === 'all') return 'none';
+      if (bandpassType === 'lowpass') {
+        const blurPx = Math.max(1, (1 - bandpassCutoff) * 6);
+        return `blur(${blurPx.toFixed(1)}px)`;
+      }
+      if (bandpassType === 'highpass') {
+        const contrastVal = 1 + (bandpassCutoff * 1.5);
+        return `contrast(${contrastVal.toFixed(1)}) grayscale(0.5)`;
+      }
+      return 'none';
     }
-  }, []);
 
-  // Live Bandpass CSS Filter simulation
-  const bandpassFilterStyle = useMemo(() => {
+    const filters = [];
+    if (colormapLut === 'inferno') {
+      filters.push('contrast(1.6) saturate(2.2) hue-rotate(190deg)');
+    } else if (colormapLut === 'highpass') {
+      filters.push('contrast(2.2) invert(0.9) grayscale(1)');
+    } else if (colormapLut === 'invert') {
+      filters.push('invert(1)');
+    }
+
     if (bandpassType === 'lowpass') {
       const blurPx = Math.max(1, (1 - bandpassCutoff) * 6);
-      return `blur(${blurPx.toFixed(1)}px)`;
-    }
-    if (bandpassType === 'highpass') {
+      filters.push(`blur(${blurPx.toFixed(1)}px)`);
+    } else if (bandpassType === 'highpass') {
       const contrastVal = 1 + (bandpassCutoff * 1.5);
-      return `contrast(${contrastVal.toFixed(1)}) grayscale(0.5)`;
+      filters.push(`contrast(${contrastVal.toFixed(1)}) grayscale(0.5)`);
     }
-    return 'none';
-  }, [bandpassType, bandpassCutoff]);
+
+    return filters.length > 0 ? filters.join(' ') : 'none';
+  }, [colormapLut, bandpassType, bandpassCutoff]);
 
   // Interactive Stage Mouse Movement HUD Tracker
   const handleStageMouseMove = useCallback((e) => {
@@ -565,7 +574,12 @@ const FrequencyTab = ({
                 <button
                   key={lut.id}
                   type="button"
-                  onClick={() => setColormapLut(lut.id)}
+                  onClick={() => {
+                    setColormapLut(lut.id);
+                    if (lut.id === 'raw') {
+                      setBandpassType('all');
+                    }
+                  }}
                   style={{
                     background: colormapLut === lut.id ? 'rgba(59,130,246,0.2)' : 'transparent',
                     border: `1px solid ${colormapLut === lut.id ? 'var(--primary)' : 'transparent'}`,
@@ -624,7 +638,7 @@ const FrequencyTab = ({
                 alignItems: 'center', 
                 justifyContent: 'center',
                 clipPath: stageMode === 'wipe' ? `polygon(${wipePercent}% 0, 100% 0, 100% 100%, ${wipePercent}% 100%)` : 'none',
-                filter: `${getColormapFilter(colormapLut)} ${bandpassFilterStyle}`
+                filter: combinedStageFilter
               }}
             >
               <img 
