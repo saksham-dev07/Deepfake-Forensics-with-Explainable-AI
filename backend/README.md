@@ -208,6 +208,7 @@ Detailed mathematical derivations, transfer functions, and code architectures fo
 | **`POST`**| `/api/analyze` | `x-api-key` | `5/minute` | Uploads media file, validates payload, begins background analysis |
 | **`GET`** | `/api/status/{job_id}` | `x-api-key` | None | Polls analysis status, progress ($0-100\%$), logs, and result |
 | **`GET`** | `/api/status/{job_id}/stream` | `x-api-key` | None | Server-Sent Events (SSE) stream yielding live telemetry |
+| **`GET`** | `/api/reports` | None | None | Lists all generated PDF dossiers and disk consumption statistics |
 | **`GET`** | `/api/reports/{job_id}/pdf` | None | None | Downloads the court-admissible PDF dossier (with on-demand regeneration) |
 | **`POST`**| `/api/reports/generate` | None | None | On-demand, stateless PDF synthesis from client analysis payload |
 

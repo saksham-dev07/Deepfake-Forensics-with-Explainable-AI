@@ -348,6 +348,39 @@ async def generate_report_endpoint(req: PDFGenerationRequest):
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"message": f"PDF Generation Error: {str(e)}"})
 
+@app.get("/api/reports")
+async def list_reports():
+    """Administrative Audit API: Lists all stored PDF reports and active storage consumption."""
+    import datetime
+    reports = []
+    total_bytes = 0
+    if os.path.exists(REPORT_DIR):
+        for fname in sorted(os.listdir(REPORT_DIR)):
+            if fname.endswith(".pdf"):
+                fpath = os.path.join(REPORT_DIR, fname)
+                size_bytes = os.path.getsize(fpath)
+                total_bytes += size_bytes
+                mtime = os.path.getmtime(fpath)
+                created_at = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S UTC")
+                job_id = fname[:-4]
+                reports.append({
+                    "job_id": job_id,
+                    "filename": fname,
+                    "size_bytes": size_bytes,
+                    "size_kb": round(size_bytes / 1024, 2),
+                    "size_mb": round(size_bytes / (1024 * 1024), 2),
+                    "download_url": f"/api/reports/{job_id}/pdf",
+                    "created_at": created_at
+                })
+    return {
+        "status": "success",
+        "storage_directory": os.path.abspath(REPORT_DIR),
+        "total_reports": len(reports),
+        "total_storage_consumed_mb": round(total_bytes / (1024 * 1024), 2),
+        "total_storage_consumed_bytes": total_bytes,
+        "reports": reports
+    }
+
 def run_analysis_pipeline(job_id: str, file_path: str):
     # =============================================
     # LAZY IMPORTS: Only load heavy libraries when an analysis job actually starts.
