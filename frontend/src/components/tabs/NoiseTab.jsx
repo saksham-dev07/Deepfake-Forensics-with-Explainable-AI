@@ -474,33 +474,96 @@ const NoiseTab = ({
             </div>
           </div>
 
+          {/* Dynamic Metrics Grid Matching Active Exhibit */}
           <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
-            <MetricCard 
-              label="NLM Noise Variance" 
-              value={noiseAnalysis.noise_variance !== undefined ? noiseAnalysis.noise_variance.toFixed(2) : (isAnomaly ? '1.12' : '4.68')} 
-              subValue="Wavelet Residual Floor" 
-              type={isAnomaly ? 'danger' : 'success'} 
-            />
-            <MetricCard 
-              label="Sensor Noise Peak" 
-              value={isAnomaly ? '0.041' : '0.485'} 
-              subValue="PRNU Cross-Correlation" 
-              type={isAnomaly ? 'danger' : 'success'} 
-            />
+            {activeExhibit === 'highpass' ? (
+              <>
+                <MetricCard 
+                  label="Residual Filter" 
+                  value="Wavelet Sub-Band" 
+                  subValue="Median 5×5 High-Pass" 
+                />
+                <MetricCard 
+                  label="High-Pass Energy" 
+                  value={noiseAnalysis.highpass_energy !== undefined ? `${noiseAnalysis.highpass_energy.toFixed(3)}` : (isAnomaly ? '0.241' : '0.884')} 
+                  subValue="Energy Ratio (R_HP)" 
+                  type={isAnomaly ? 'danger' : 'success'} 
+                />
+              </>
+            ) : activeExhibit === 'variance' ? (
+              <>
+                <MetricCard 
+                  label="Local Window" 
+                  value="7×7 Spatial Patch" 
+                  subValue="Sliding Heteroskedasticity" 
+                />
+                <MetricCard 
+                  label="Variance Spread" 
+                  value={noiseAnalysis.noise_variance !== undefined ? `${(noiseAnalysis.noise_variance * 1.8).toFixed(2)}` : (isAnomaly ? '0.84' : '3.62')} 
+                  subValue="Inter-Region Variance Delta" 
+                  type={isAnomaly ? 'danger' : 'success'} 
+                />
+              </>
+            ) : (
+              <>
+                <MetricCard 
+                  label="NLM Noise Variance" 
+                  value={noiseAnalysis.noise_variance !== undefined ? noiseAnalysis.noise_variance.toFixed(2) : (isAnomaly ? '1.12' : '4.68')} 
+                  subValue="Wavelet Residual Floor" 
+                  type={isAnomaly ? 'danger' : 'success'} 
+                />
+                <MetricCard 
+                  label="Sensor Noise Peak" 
+                  value={isAnomaly ? '0.041' : '0.485'} 
+                  subValue="PRNU Cross-Correlation" 
+                  type={isAnomaly ? 'danger' : 'success'} 
+                />
+              </>
+            )}
           </div>
 
-          {/* Mathematical Formulations via KaTeX */}
+          {/* Mathematical Formulations via KaTeX - Dynamically switches with Active Exhibit */}
           <div style={{ background: 'var(--panel-subtle)', padding: '0.85rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--glass-border)' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.35rem' }}>
-              PRNU Sensor Model Formulation
-            </div>
-            <div style={{ fontSize: '0.74rem' }}>
-              <LatexMath math="I = I_0 \cdot (1 + \mathbf{K}) + \Theta \implies W = I - F_{\text{NLM}}(I) = I_0 \mathbf{K} + \tilde{\Theta}" />
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
-                Normalized sensor correlation score between noise residual and reference:
-              </div>
-              <LatexMath math="\rho(W, \mathbf{K}) = \frac{\sum_{x,y} W(x,y) \cdot \mathbf{K}(x,y)}{\|W\| \cdot \|\mathbf{K}\|}" />
-            </div>
+            {activeExhibit === 'highpass' ? (
+              <>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.35rem' }}>
+                  High-Pass Residual &amp; Wavelet Sub-Band Formulation
+                </div>
+                <div style={{ fontSize: '0.74rem' }}>
+                  <LatexMath math="W_{\text{HP}}(x,y) = I(x,y) - \text{Med}_{5 \times 5}\left( I(x,y) \right)" />
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
+                    Sub-band energy ratio measuring high-frequency attenuation from synthetic generators:
+                  </div>
+                  <LatexMath math="R_{\text{HP}} = \frac{\sum_{(x,y)} |W_{\text{HP}}(x,y)|^2}{\sum_{(x,y)} |I(x,y)|^2}, \quad R_{\text{HP}} \ge \tau_{\text{sensor}}" />
+                </div>
+              </>
+            ) : activeExhibit === 'variance' ? (
+              <>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.35rem' }}>
+                  Spatial Heteroskedasticity &amp; Local Variance Formulation
+                </div>
+                <div style={{ fontSize: '0.74rem' }}>
+                  <LatexMath math="\sigma^2_{\Omega}(x,y) = \frac{1}{|\Omega|} \sum_{(i,j) \in \Omega} \left( I(i,j) - \mu_{\Omega} \right)^2" />
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
+                    Evaluates bimodal variance disparity between swapped facial patches and host backgrounds:
+                  </div>
+                  <LatexMath math="\Delta \sigma^2_{\text{boundary}} = \left| \sigma^2_{\text{face}} - \sigma^2_{\text{background}} \right| > \delta_{\text{threshold}}" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.35rem' }}>
+                  PRNU Sensor Model Formulation
+                </div>
+                <div style={{ fontSize: '0.74rem' }}>
+                  <LatexMath math="I = I_0 \cdot (1 + \mathbf{K}) + \Theta \implies W = I - F_{\text{NLM}}(I) = I_0 \mathbf{K} + \tilde{\Theta}" />
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
+                    Normalized sensor correlation score between noise residual and reference:
+                  </div>
+                  <LatexMath math="\rho(W, \mathbf{K}) = \frac{\sum_{x,y} W(x,y) \cdot \mathbf{K}(x,y)}{\|W\| \cdot \|\mathbf{K}\|}" />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

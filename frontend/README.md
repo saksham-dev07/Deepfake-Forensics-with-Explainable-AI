@@ -16,6 +16,20 @@ This is the high-performance **React 18 + Vite** client application for the **De
   - `ReportDashboard.jsx`: Single authoritative Forensic Dossier Header with case reference tracking, one-sentence plain-English findings, export PDF / scan CTAs, a streamlined Inspected Media sidebar with **Target Face Crop Preview Card**, interactive Diagnostic Sensor Matrix, and live tab badges.
 - **Interactive A/B Forensics Split Workbench**:
   - **Direct Viewport Swipe Handle (`WipeDivider.jsx`)**: The vertical split divider and central circular handle (`⇄`) are fully draggable across the master viewport using standard W3C Pointer Events with active pointer capture (`setPointerCapture`) and `touch-action: none`. Investigators can swipe directly across the image canvas on desktop mouse or touch devices, in addition to using the precision bottom range slider.
+  - **Dynamic Exhibit-Adaptive Mathematical Engine (Across All 14 Analytical Tabs)**: The right-hand mathematical formulation panel (rendered via KaTeX LaTeX) and forensic metric cards dynamically adapt to the currently promoted exhibit in the master stage:
+    - *`ElaTab.jsx`*: Standard ELA ($Q=95$), JPEG Ghosting Map ($D(q)$ error curve and local minimum $q^*$), and HSV Saturation ELA ($S(x,y)$ chrominance field).
+    - *`NoiseTab.jsx`*: Sensor PRNU noise model ($\rho(W, \mathbf{K})$), Wavelet High-Pass residual floor ($W_{\text{HP}}$, $R_{\text{HP}}$ energy ratio), and local window heteroskedasticity ($\sigma^2_{\Omega}(x,y)$).
+    - *`VisualTab.jsx`*: Standard Grad-CAM ($L_{\text{Grad-CAM}}^c$) and Guided Grad-CAM ($L_{\text{Guided Grad-CAM}}^c = \text{GuidedBackprop}(I) \odot L_{\text{Grad-CAM}}^c$).
+    - *`GeometryTab.jsx`*: 3D Procrustes distance ($D_{\text{Procrustes}}$), Perspective-n-Point 3D head pose ($R, \mathbf{t}$ Euler projection), Anthropometric ratio z-scores ($D_{\text{anthro}}$), and Sagittal plane symmetry ($\mathcal{A}_{\text{sym}}$).
+    - *`CfaTab.jsx`*: 3×3 Laplacian demosaicing error ($\epsilon_{\text{CFA}}$), 2D Fourier Nyquist harmonics ($P_{\text{Nyquist}}$), and Bayer sub-pixel lattice covariance ($\text{Cov}(I_G, I_R)$).
+    - *`ColorTab.jsx`*: YCbCr $C_b$ blue chrominance variance, YCbCr $C_r$ hemoglobin flush variance, HSV saturation step gradient ($\nabla S$), and CIE-LAB $\Delta E^*_{ab}$.
+    - *`LightingTab.jsx`*: 3D illumination direction divergence ($\Delta \theta$), 9D Spherical Harmonics ($E(\vec{n})$), and Lambertian albedo shading residual ($R_{\text{Lambert}}$).
+    - *`CornealTab.jsx`*: Bilateral specular mask IoU ($\text{IoU}(M_L, M_R)$), 3D epipolar convergence ($\vec{x}_R^T \mathbf{F} \vec{x}_L \approx 0$), and ocular loupe Normalized Cross-Correlation ($\text{NCC}$).
+    - *`EyeTab.jsx`*: Soukupová & Čech Eye Aspect Ratio ($\text{EAR}$), 6-point palpebral fissure velocity ($v_{\text{lid}}(t)$), and binocular stereo gaze divergence ($\theta_{\text{gaze}}$).
+    - *`FlowTab.jsx`*: Farnebäck quadratic flow ($\vec{d}$), temporal velocity jitter ($\text{Jitter}$), and boundary shear strain ($\gamma_{xy}$).
+    - *`RppgTab.jsx`*: Cardiac Fourier spectral density & SNR, hemodynamic Perfusion Index ($\text{PI}$), and CHROM orthogonal pulse projection ($S_{\text{CHROM}}$).
+    - *`VoiceTab.jsx`*: 128-Mel spectrogram ($S(t, m)$), high-frequency spectral rolloff ($R_{\text{high}}$), and zero-crossing rate dynamics ($\text{ZCR}$).
+    - *`AudioTab.jsx`*: SyncNet lip-audio latency distance ($d(v,a)$ & $\text{LSE-C}$), 3D-CNN spatiotemporal visemes, and MFCC acoustic filterbanks.
   - **Dynamic Layer Badges**: Viewport headers dynamically reflect active exhibits (e.g., `B: HSV SATURATION ELA`, `B: PRNU SILICON NOISE`) the instant they are promoted.
   - **In-Flight Visual Feedback**: Smooth opacity fade transitions and a dedicated `.viewport-loader` pulsing spinner overlay provide unmistakable visual confirmation while matrices are streaming.
   - **Proactive Background Prefetching**: Client-side prefetch hooks (`new Image().src = ex.img`) preload all exhibit thumbnails and high-res layers on tab mount, eliminating network delays when toggling between analytical maps.

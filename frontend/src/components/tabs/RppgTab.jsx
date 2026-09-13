@@ -580,11 +580,13 @@ const RppgTab = ({
             </p>
           </div>
 
-          {/* KaTeX Mathematical Derivations */}
+          {/* KaTeX Mathematical Derivations - Dynamically switches with Active Exhibit */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-              <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.04em' }}>
-                MATHEMATICAL FORMULATION (rPPG CHROM)
+              <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--success)', letterSpacing: '0.04em' }}>
+                {activeExhibit === 'rppg_spectrum' ? 'MATHEMATICAL FORMULATION (CARDIAC FFT & SNR)' :
+                 activeExhibit === 'perfusion_map' ? 'MATHEMATICAL FORMULATION (PERFUSION INDEX)' :
+                 'MATHEMATICAL FORMULATION (CHROM DECOMPOSITION)'}
               </span>
               <button
                 type="button"
@@ -597,19 +599,44 @@ const RppgTab = ({
               </button>
             </div>
 
-            <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
-              <LatexMath 
-                math="S_{\text{CHROM}} = X_s - \alpha Y_s, \quad \text{where } \alpha = \frac{\sigma(X_s)}{\sigma(Y_s)}" 
-              />
-            </div>
-
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              The Chrominance-based (CHROM) method eliminates specular surface reflections by projecting normalized RGB signals onto orthogonal chrominance vectors:
-              <div style={{ margin: '0.35rem 0' }}>
-                <LatexMath math="\begin{pmatrix} X_s \\ Y_s \end{pmatrix} = \begin{pmatrix} 3 & -2 & 0 \\ 1.5 & 1 & -1.5 \end{pmatrix} \begin{pmatrix} R_n \\ G_n \\ B_n \end{pmatrix}" />
-              </div>
-              Fourier spectral density of <LatexMath inline math="S_{\text{CHROM}}" /> must exhibit a significant harmonic peak in the cardiac band <LatexMath inline math="f \in [0.75, 2.5]\text{ Hz}" />. Neural deepfakes generate static or temporally disconnected skin tones devoid of systemic micro-capillary pulse.
-            </div>
+            {activeExhibit === 'rppg_spectrum' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\text{SNR} = 10 \log_{10} \left( \frac{\int_{f_{\text{hr}}-\delta}^{f_{\text{hr}}+\delta} P(f) df}{\int_{0.75}^{2.5} P(f) df - \int_{f_{\text{hr}}-\delta}^{f_{\text{hr}}+\delta} P(f) df} \right)" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Signal-to-Noise Ratio (SNR) isolating cardiac fundamental frequency harmonics <LatexMath inline math="f \in [0.75, 2.5]\text{ Hz}" /> (45–150 BPM). Genuine biological human skin displays strong periodic vascular pulse signals.
+                </div>
+              </>
+            ) : activeExhibit === 'perfusion_map' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\text{PI}(x,y) = \frac{\text{AC}(x,y)}{\text{DC}(x,y)} \times 100\%, \quad \text{AC} = \max_t I(x,y,t) - \min_t I(x,y,t)" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Spatial Perfusion Index mapping pulsatile AC micro-flush against baseline DC tissue reflection across facial capillary beds. Neural synthetic faces display uniformly flat, avascular textures.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="S_{\text{CHROM}} = X_s - \alpha Y_s, \quad \alpha = \frac{\sigma(X_s)}{\sigma(Y_s)}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  The Chrominance-based (CHROM) method eliminates specular surface reflections by projecting normalized RGB signals onto orthogonal chrominance vectors:
+                  <div style={{ margin: '0.35rem 0' }}>
+                    <LatexMath math="\begin{pmatrix} X_s \\ Y_s \end{pmatrix} = \begin{pmatrix} 3 & -2 & 0 \\ 1.5 & 1 & -1.5 \end{pmatrix} \begin{pmatrix} R_n \\ G_n \\ B_n \end{pmatrix}" />
+                  </div>
+                  Fourier spectral density must exhibit a significant harmonic peak in the cardiac band.
+                </div>
+              </>
+            )}
           </div>
 
           {/* Daubert Admissibility & Judicial Standard */}

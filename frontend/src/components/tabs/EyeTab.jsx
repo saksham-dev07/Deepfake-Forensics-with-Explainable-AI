@@ -682,10 +682,13 @@ const EyeTab = ({
           </div>
 
           {/* KaTeX Mathematical Derivations */}
+          {/* KaTeX Mathematical Derivations - Dynamically switches with Active Exhibit */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
               <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.04em' }}>
-                MATHEMATICAL FORMULATION (EAR)
+                {activeExhibit === 'landmark_6p' ? 'MATHEMATICAL FORMULATION (PALPEBRAL KINEMATICS)' :
+                 activeExhibit === 'gaze_stereo' ? 'MATHEMATICAL FORMULATION (STEREO GAZE CONVERGENCE)' :
+                 'MATHEMATICAL FORMULATION (EYE ASPECT RATIO)'}
               </span>
               <button
                 type="button"
@@ -698,19 +701,44 @@ const EyeTab = ({
               </button>
             </div>
 
-            <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
-              <LatexMath 
-                math="\text{EAR} = \frac{\|p_2 - p_6\|_2 + \|p_3 - p_5\|_2}{2 \|p_1 - p_4\|_2}" 
-              />
-            </div>
-
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              The Soukupová &amp; Čech Eye Aspect Ratio measures the ratio of vertical eye aperture to horizontal palpebral width. A genuine spontaneous blink satisfies:
-              <div style={{ margin: '0.35rem 0' }}>
-                <LatexMath math="t_{\text{blink}} = \{ t \mid \text{EAR}(t) < \tau_{\text{closure}} \}, \quad \Delta t \in [100\text{ms}, 400\text{ms}]" />
-              </div>
-              Deepfakes generated with static training frames frequently present abnormally low blink rates (&lt;5 BPM) or partial closures that fail natural muscular velocity curves.
-            </div>
+            {activeExhibit === 'landmark_6p' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="v_{\text{lid}}(t) = \frac{d}{dt} \left( \|p_2(t) - p_6(t)\|_2 + \|p_3(t) - p_5(t)\|_2 \right)" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  6-point palpebral landmark velocity tracking eyelid kinetics. Synthetic video generators struggle with non-linear eyelid acceleration during rapid closure and re-opening phases.
+                </div>
+              </>
+            ) : activeExhibit === 'gaze_stereo' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\theta_{\text{gaze}} = \arccos\left(\frac{\vec{g}_L \cdot \vec{g}_R}{\|\vec{g}_L\| \|\vec{g}_R\|}\right), \quad \Delta \theta > \tau_{\text{strabismus}}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Binocular gaze divergence derived from 3D pupillary axis vectors. Independent neural eye rendering produces unnatural strabismus where optical axes fail to converge onto a shared physical focal plane.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\text{EAR} = \frac{\|p_2 - p_6\|_2 + \|p_3 - p_5\|_2}{2 \|p_1 - p_4\|_2}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  The Soukupová &amp; Čech Eye Aspect Ratio measures the ratio of vertical eye aperture to horizontal palpebral width. A genuine spontaneous blink satisfies:
+                  <div style={{ margin: '0.35rem 0' }}>
+                    <LatexMath math="t_{\text{blink}} = \{ t \mid \text{EAR}(t) < \tau_{\text{closure}} \}, \quad \Delta t \in [100\text{ms}, 400\text{ms}]" />
+                  </div>
+                  Deepfakes generated with static training frames frequently present abnormally low blink rates (&lt;5 BPM) or partial closures that fail natural muscular velocity curves.
+                </div>
+              </>
+            )}
           </div>
 
           {/* Daubert Admissibility & Judicial Standard */}

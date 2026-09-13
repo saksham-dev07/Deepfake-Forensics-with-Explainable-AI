@@ -580,11 +580,13 @@ const VoiceTab = ({
             </p>
           </div>
 
-          {/* KaTeX Mathematical Derivations */}
+          {/* KaTeX Mathematical Derivations - Dynamically switches with Active Exhibit */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
               <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.04em' }}>
-                MATHEMATICAL FORMULATION (VOCODER ANTI-SPOOF)
+                {activeExhibit === 'high_freq_phase' ? 'MATHEMATICAL FORMULATION (HIGH-FREQUENCY ROLLOFF)' :
+                 activeExhibit === 'zcr_profile' ? 'MATHEMATICAL FORMULATION (ZERO-CROSSING RATE)' :
+                 'MATHEMATICAL FORMULATION (MEL SPECTROGRAM)'}
               </span>
               <button
                 type="button"
@@ -597,19 +599,40 @@ const VoiceTab = ({
               </button>
             </div>
 
-            <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
-              <LatexMath 
-                math="\text{ZCR} = \frac{1}{2N} \sum_{n=1}^{N} |\operatorname{sgn}(x[n]) - \operatorname{sgn}(x[n-1])|, \quad R_{\text{high}} = \frac{\int_{8000}^{f_s/2} |X(f)|^2 df}{\int_{0}^{f_s/2} |X(f)|^2 df}" 
-              />
-            </div>
-
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              Neural audio synthesis architectures (HiFi-GAN, WaveGlow, Diffusion-TTS) generate speech via transposed convolutions and post-filtering, leaving distinct comb-filtering in upper frequency bins &gt;8 kHz.
-              <div style={{ margin: '0.35rem 0' }}>
-                <LatexMath math="\sum_{k=0}^{K_{0.85}} |X[k]| = 0.85 \sum_{k=0}^{N/2} |X[k]|" />
-              </div>
-              Discrepancies in the 85% spectral rolloff and abnormal zero-crossing variances during consonant transitions reveal artificial voice cloning signatures.
-            </div>
+            {activeExhibit === 'high_freq_phase' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="R_{\text{high}} = \frac{\int_{8000}^{f_s/2} |X(f)|^2 df}{\int_{0}^{f_s/2} |X(f)|^2 df}, \quad \sum_{k=0}^{K_{0.85}} |X[k]| = 0.85 \sum_{k=0}^{N/2} |X[k]|" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Measures spectral energy distribution and 85% spectral rolloff above 8 kHz. Artificial neural vocoders (HiFi-GAN, WaveGlow) exhibit sharp anti-aliasing cutoffs or synthetic comb-filtering in upper acoustic bands.
+                </div>
+              </>
+            ) : activeExhibit === 'zcr_profile' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\text{ZCR} = \frac{1}{2N} \sum_{n=1}^{N} |\operatorname{sgn}(x[n]) - \operatorname{sgn}(x[n-1])|, \quad \sigma^2_{\text{ZCR}} < \tau_{\text{synth}}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Frame-by-frame zero-crossing rate quantifying phonetic unvoiced-to-voiced transitions. AI voice cloning produces sudden variance collapse during plosive pauses and fricatives.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="m = 2595 \log_{10}\left(1 + \frac{f}{700}\right), \quad S(t, m) = \log\left( \sum_{k} |X(t, k)|^2 H_m[k] \right)" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Log-magnitude Mel-scale spectrogram decomposing acoustic timbre across 128 triangular filterbanks <LatexMath inline math="H_m[k]" /> to detect neural vocoder re-synthesis artifacts.
+                </div>
+              </>
+            )}
           </div>
 
           {/* Daubert Admissibility & Judicial Standard */}

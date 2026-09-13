@@ -652,11 +652,13 @@ const CfaTab = ({
             </p>
           </div>
 
-          {/* KaTeX Mathematical Derivations */}
+          {/* KaTeX Mathematical Derivations - Dynamically switches with Active Exhibit */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
               <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--success)', letterSpacing: '0.04em' }}>
-                MATHEMATICAL FORMULATION (BAYER CFA)
+                {activeExhibit === 'cfa_fourier' ? 'MATHEMATICAL FORMULATION (FOURIER NYQUIST)' :
+                 activeExhibit === 'bayer_grid' ? 'MATHEMATICAL FORMULATION (SUB-PIXEL LATTICE)' :
+                 'MATHEMATICAL FORMULATION (BAYER CFA)'}
               </span>
               <button
                 type="button"
@@ -669,19 +671,52 @@ const CfaTab = ({
               </button>
             </div>
 
-            <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
-              <LatexMath 
-                math="\epsilon_{\text{CFA}}(i,j) = |I(i,j) - \hat{I}_{\text{demosaic}}(i,j)|" 
-              />
-            </div>
-
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              Digital image sensors sample one color per pixel via a Color Filter Array (Bayer 2×2). Missing color planes are reconstructed by edge-adaptive interpolation (e.g. Hamilton-Adams):
-              <div style={{ margin: '0.35rem 0' }}>
-                <LatexMath math="\hat{I}_G(i,j) = \frac{I_G(i-1,j) + I_G(i+1,j) + I_G(i,j-1) + I_G(i,j+1)}{4} + \alpha \Delta^2 I_R(i,j)" />
-              </div>
-              Residual error <LatexMath inline math="\epsilon_{\text{CFA}}" /> exhibits strong periodicity at spatial Nyquist frequency <LatexMath inline math="(\omega_x = \pi, \omega_y = \pi)" />. Diffusion and GAN synthesis generate direct RGB tensors without physical optical CFA filtering.
-            </div>
+            {activeExhibit === 'cfa_fourier' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\mathcal{F}\{\epsilon_{\text{CFA}}\}(u, v) = \sum_{x=0}^{M-1} \sum_{y=0}^{N-1} \epsilon_{\text{CFA}}(x,y) e^{-j 2\pi \left( \frac{ux}{M} + \frac{vy}{N} \right)}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  The Fourier transform of the demosaicing residual concentrates periodic energy at the spatial Nyquist frequency:
+                  <div style={{ margin: '0.35rem 0' }}>
+                    <LatexMath math="P_{\text{Nyquist}} = \frac{\left| \mathcal{F}\left( \frac{M}{2}, \frac{N}{2} \right) \right|^2}{\frac{1}{MN} \sum_{u,v} |\mathcal{F}(u,v)|^2} > \tau_{\text{Bayer}}" />
+                  </div>
+                  Absence of discrete delta spikes at the diagonal boundaries confirms direct neural tensor synthesis without optical demosaicing.
+                </div>
+              </>
+            ) : activeExhibit === 'bayer_grid' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\text{Cov}(I_G, I_R) = \frac{1}{|\Omega_4|} \sum_{(x,y) \in \Omega_4} (I_G(x,y) - \bar{I}_G)(I_R(x,y) - \bar{I}_R)" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Evaluates 2×2 Bayer sub-pixel quad expectations across physical sensor photo-sites (GRBG):
+                  <div style={{ margin: '0.35rem 0' }}>
+                    <LatexMath math="\mathcal{L}_{\text{Bayer}} = \mathbb{E}\left[ \left( I_{\text{sensor}}(2i, 2j) - \hat{I}_{G1} \right)^2 \right] \approx 0" />
+                  </div>
+                  Synthetic neural generators produce smooth RGB channels with zero physical sub-pixel photo-site lattice structure.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\epsilon_{\text{CFA}}(i,j) = |I(i,j) - \hat{I}_{\text{demosaic}}(i,j)|" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Digital image sensors sample one color per pixel via a Color Filter Array (Bayer 2×2). Missing color planes are reconstructed by edge-adaptive interpolation (e.g. Hamilton-Adams):
+                  <div style={{ margin: '0.35rem 0' }}>
+                    <LatexMath math="\hat{I}_G(i,j) = \frac{I_G(i-1,j) + I_G(i+1,j) + I_G(i,j-1) + I_G(i,j+1)}{4} + \alpha \Delta^2 I_R(i,j)" />
+                  </div>
+                  Residual error <LatexMath inline math="\epsilon_{\text{CFA}}" /> exhibits strong periodicity at spatial Nyquist frequency <LatexMath inline math="(\omega_x = \pi, \omega_y = \pi)" />. Diffusion and GAN synthesis generate direct RGB tensors without physical optical CFA filtering.
+                </div>
+              </>
+            )}
           </div>
 
           {/* Daubert Admissibility & Judicial Standard */}

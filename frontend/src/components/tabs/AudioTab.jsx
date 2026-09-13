@@ -587,11 +587,13 @@ const AudioTab = ({
             </p>
           </div>
 
-          {/* KaTeX Mathematical Derivations */}
+          {/* KaTeX Mathematical Derivations - Dynamically switches with Active Exhibit */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
               <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--warning)', letterSpacing: '0.04em' }}>
-                MATHEMATICAL FORMULATION (SYNCNET)
+                {activeExhibit === 'lip_3d' ? 'MATHEMATICAL FORMULATION (3D-CNN VISEME EMBEDDING)' :
+                 activeExhibit === 'mfcc_heatmap' ? 'MATHEMATICAL FORMULATION (MFCC ACOUSTIC FILTERBANKS)' :
+                 'MATHEMATICAL FORMULATION (SYNCNET LSE-C / LSE-D)'}
               </span>
               <button
                 type="button"
@@ -604,19 +606,40 @@ const AudioTab = ({
               </button>
             </div>
 
-            <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
-              <LatexMath 
-                math="d(v, a) = \| \mathbf{f}_v(t) - \mathbf{f}_a(t + \tau) \|_2" 
-              />
-            </div>
-
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              SyncNet maps 5-frame video lip crops <LatexMath inline math="\mathbf{f}_v" /> and MFCC audio segments <LatexMath inline math="\mathbf{f}_a" /> into a shared 1024-dimensional embedding space. Confidence is measured by:
-              <div style={{ margin: '0.35rem 0' }}>
-                <LatexMath math="\text{LSE-C} = \frac{\max_{\tau} (1 / d(v, a))}{\frac{1}{2K+1} \sum_{\tau=-K}^{K} (1 / d(v, a))}" />
-              </div>
-              When voice tracks are dubbed or lip motions are manipulated, the minimum distance valley broadens or drifts beyond standard human phoneme-viseme latency thresholds.
-            </div>
+            {activeExhibit === 'lip_3d' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\mathbf{f}_v(t) = \text{Conv3D}\left( \mathbf{I}_{\text{lips}}(t-2 : t+2) \right) \in \mathbb{R}^{1024}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Spatiotemporal 3D convolution over consecutive lip frames capturing oral viseme opening velocity. AI dubbing produces unnatural mouth aperture blur and latency mismatches.
+                </div>
+              </>
+            ) : activeExhibit === 'mfcc_heatmap' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="c_n = \sum_{m=1}^{M} S_m \cos\left( \frac{\pi n (m - 0.5)}{M} \right), \quad n \in [1, 13]" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  13-dimensional Mel-Frequency Cepstral Coefficients (MFCC) extracted via Discrete Cosine Transform (DCT) of filterbank log-energies to identify acoustic speech cloning anomalies.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="d(v, a) = \| \mathbf{f}_v(t) - \mathbf{f}_a(t + \tau) \|_2, \quad \text{LSE-C} = \frac{\max_{\tau} (1 / d(v, a))}{\frac{1}{2K+1} \sum_{\tau=-K}^{K} (1 / d(v, a))}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  SyncNet maps 5-frame video lip crops <LatexMath inline math="\mathbf{f}_v" /> and audio segments <LatexMath inline math="\mathbf{f}_a" /> into a shared 1024-D embedding space. Manipulated speech produces a shallow or displaced valley.
+                </div>
+              </>
+            )}
           </div>
 
           {/* Daubert Admissibility & Judicial Standard */}

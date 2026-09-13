@@ -663,10 +663,13 @@ const CornealTab = ({
           </div>
 
           {/* KaTeX Mathematical Derivations */}
+          {/* KaTeX Mathematical Derivations - Dynamically switches with Active Exhibit */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
               <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.04em' }}>
-                MATHEMATICAL FORMULATION (NCC)
+                {activeExhibit === 'corneal_mask' ? 'MATHEMATICAL FORMULATION (SPECULAR IOU)' :
+                 activeExhibit === 'specular_vectors' ? 'MATHEMATICAL FORMULATION (EPIPOLAR CONVERGENCE)' :
+                 'MATHEMATICAL FORMULATION (OCULAR NCC)'}
               </span>
               <button
                 type="button"
@@ -679,19 +682,40 @@ const CornealTab = ({
               </button>
             </div>
 
-            <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
-              <LatexMath 
-                math="\text{NCC}(R_L, R_R) = \frac{\sum_{i,j} (R_L(i,j) - \bar{R}_L)(R_R(i,j) - \bar{R}_R)}{\sqrt{\sum_{i,j} (R_L(i,j) - \bar{R}_L)^2 \sum_{i,j} (R_R(i,j) - \bar{R}_R)^2}}" 
-              />
-            </div>
-
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              Under Lambertian-specular reflection geometry, a distant light source produces virtual highlights on spherical corneas whose shape and relative centroid distance satisfy epipolar constraints:
-              <div style={{ margin: '0.35rem 0' }}>
-                <LatexMath math="\Delta \vec{c} = \|\vec{c}_L - \mathbf{H}_{LR} \vec{c}_R\| < \epsilon_{\text{threshold}}" />
-              </div>
-              Generative inpainting and blend seams consistently introduce independent ocular highlight artifacts that violate this bilateral constraint.
-            </div>
+            {activeExhibit === 'corneal_mask' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\text{IoU}(M_L, M_R) = \frac{\left| M_L \cap \mathcal{T}(M_R) \right|}{\left| M_L \cup \mathcal{T}(M_R) \right|}, \quad \text{IoU} < \tau_{\text{sym}} \implies \text{ANOMALY}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Measures morphological shape congruence between left and right corneal specular highlight masks <LatexMath inline math="M_L, M_R" /> under rigid bilateral transformation <LatexMath inline math="\mathcal{T}" />.
+                </div>
+              </>
+            ) : activeExhibit === 'specular_vectors' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\Delta \vec{c} = \|\vec{c}_L - \mathbf{H}_{LR} \vec{c}_R\| < \epsilon_{\text{threshold}}, \quad \vec{x}_R^T \mathbf{F} \vec{x}_L \approx 0" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Epipolar geometry constraint for stereo ocular highlights. Virtual reflections from distant physical illuminants must lie strictly on corresponding epipolar lines across both eye planes.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\text{NCC}(R_L, R_R) = \frac{\sum_{i,j} (R_L(i,j) - \bar{R}_L)(R_R(i,j) - \bar{R}_R)}{\sqrt{\sum_{i,j} (R_L(i,j) - \bar{R}_L)^2 \sum_{i,j} (R_R(i,j) - \bar{R}_R)^2}}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Normalized 2D Cross-Correlation evaluating high-magnification ocular reflection patches. Generative face swaps synthesize eyes independently, destroying fine-grained pixel cross-correlation.
+                </div>
+              </>
+            )}
           </div>
 
           {/* Daubert Admissibility & Judicial Standard */}

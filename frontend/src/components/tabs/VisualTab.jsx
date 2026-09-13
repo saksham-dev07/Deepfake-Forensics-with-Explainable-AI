@@ -462,18 +462,35 @@ const VisualTab = ({
             </p>
           </div>
 
-          {/* Mathematical Formulations via KaTeX */}
+          {/* Mathematical Formulations via KaTeX - Dynamically switches with Active Exhibit */}
           <div style={{ marginTop: 'auto', background: 'var(--panel-subtle)', padding: '0.85rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--glass-border)' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.4rem' }}>
-              Grad-CAM Mathematical Formulation
-            </div>
-            <div style={{ fontSize: '0.74rem' }}>
-              <LatexMath math="L_{\text{Grad-CAM}}^c = \text{ReLU}\left(\sum_k \alpha_k^c A^k\right)" />
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
-                where gradient neuron importance weights are computed via:
-              </div>
-              <LatexMath math="\alpha_k^c = \frac{1}{Z} \sum_{i=1}^u \sum_{j=1}^v \frac{\partial Y^c}{\partial A_{ij}^k}" />
-            </div>
+            {activeExhibit === 'guided' ? (
+              <>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.4rem' }}>
+                  Guided Grad-CAM Mathematical Formulation
+                </div>
+                <div style={{ fontSize: '0.74rem' }}>
+                  <LatexMath math="L_{\text{Guided Grad-CAM}}^c = \text{GuidedBackprop}(I) \odot L_{\text{Grad-CAM}}^c" />
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
+                    Element-wise Hadamard product gating negative gradients through rectified backpropagation:
+                  </div>
+                  <LatexMath math="R_i^l = \mathbb{I}\left( R_i^{l+1} > 0 \right) \cdot \mathbb{I}\left( a_i^l > 0 \right) \cdot R_i^{l+1}" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.4rem' }}>
+                  Grad-CAM Mathematical Formulation
+                </div>
+                <div style={{ fontSize: '0.74rem' }}>
+                  <LatexMath math="L_{\text{Grad-CAM}}^c = \text{ReLU}\left(\sum_k \alpha_k^c A^k\right)" />
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
+                    where gradient neuron importance weights are computed via:
+                  </div>
+                  <LatexMath math="\alpha_k^c = \frac{1}{Z} \sum_{i=1}^u \sum_{j=1}^v \frac{\partial Y^c}{\partial A_{ij}^k}" />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

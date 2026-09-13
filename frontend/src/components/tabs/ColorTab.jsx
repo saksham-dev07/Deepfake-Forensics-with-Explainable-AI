@@ -678,11 +678,14 @@ const ColorTab = ({
             />
           </div>
 
-          {/* KaTeX Mathematical Derivations */}
+          {/* KaTeX Mathematical Derivations - Dynamically switches with Active Exhibit */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
               <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.04em' }}>
-                MATHEMATICAL FORMULATION (YCBCR &amp; CIE-LAB)
+                {activeExhibit === 'cr_channel' ? 'MATHEMATICAL FORMULATION (YCBCR CR)' :
+                 activeExhibit === 's_channel' ? 'MATHEMATICAL FORMULATION (HSV SATURATION)' :
+                 activeExhibit === 'a_channel' ? 'MATHEMATICAL FORMULATION (CIE-LAB A*)' :
+                 'MATHEMATICAL FORMULATION (YCBCR CB)'}
               </span>
               <button
                 type="button"
@@ -695,19 +698,51 @@ const ColorTab = ({
               </button>
             </div>
 
-            <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
-              <LatexMath 
-                math="C_b = -0.1687R - 0.3313G + 0.5B + 128, \quad C_r = 0.5R - 0.4187G - 0.0813B + 128" 
-              />
-            </div>
-
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              Natural human skin displays consistent melanin and hemoglobin absorption across RGB, YCbCr, and CIE-LAB axes. Perceptual color differences are computed using:
-              <div style={{ margin: '0.35rem 0' }}>
-                <LatexMath math="\Delta E^*_{ab} = \sqrt{(\Delta L^*)^2 + (\Delta a^*)^2 + (\Delta b^*)^2}" />
-              </div>
-              Generative models struggle to maintain continuous chrominance gradients along facial borders, resulting in sharp variance spikes in the <LatexMath inline math="C_b" /> and <LatexMath inline math="C_r" /> channels.
-            </div>
+            {activeExhibit === 'cr_channel' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="C_r = 0.5R - 0.4187G - 0.0813B + 128, \quad \sigma^2(C_r) = \frac{1}{|\Omega|} \sum_{(x,y)} (C_r - \bar{C}_r)^2" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Isolates red-difference chrominance sensitive to sub-surface vascular hemoglobin perfusion. Real human faces exhibit smooth diffuse red flush around cheeks and lips; synthetic models generate flat or sharply delineated boundaries.
+                </div>
+              </>
+            ) : activeExhibit === 's_channel' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="S(x, y) = \frac{\max(R, G, B) - \min(R, G, B)}{\max(R, G, B) + \epsilon}, \quad \nabla S = \left( \frac{\partial S}{\partial x}, \frac{\partial S}{\partial y} \right)" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Decouples color purity from illumination luminance. Synthetic image generators create abnormal saturation banding where manipulated facial patches meet unmanipulated ambient backgrounds.
+                </div>
+              </>
+            ) : activeExhibit === 'a_channel' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="a^* = 500 \left[ f\left(\frac{X}{X_n}\right) - f\left(\frac{Y}{Y_n}\right) \right], \quad \Delta E^*_{ab} = \sqrt{(\Delta L^*)^2 + (\Delta a^*)^2 + (\Delta b^*)^2}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Perceptually uniform green-red axis measuring sub-surface epidermal light scattering. Synthetic skin textures fail to reproduce biological Rayleigh and Mie scattering across the dermal layer.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="C_b = -0.1687R - 0.3313G + 0.5B + 128, \quad \sigma^2(C_b) = \frac{1}{|\Omega|} \sum_{(x,y)} (C_b - \bar{C}_b)^2" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Natural human skin displays consistent melanin and hemoglobin absorption across RGB, YCbCr, and CIE-LAB axes. Generative models struggle to maintain continuous chrominance gradients along facial borders, resulting in sharp variance spikes in the <LatexMath inline math="C_b" /> channel.
+                </div>
+              </>
+            )}
           </div>
 
           {/* Daubert Admissibility & Judicial Standard */}

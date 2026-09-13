@@ -661,10 +661,13 @@ const LightingTab = ({
           </div>
 
           {/* KaTeX Mathematical Derivations */}
+          {/* KaTeX Mathematical Derivations - Dynamically switches with Active Exhibit */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
               <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--warning)', letterSpacing: '0.04em' }}>
-                MATHEMATICAL FORMULATION (3D SH)
+                {activeExhibit === 'shading_residual' ? 'MATHEMATICAL FORMULATION (LAMBERTIAN RESIDUAL)' :
+                 activeExhibit === 'chrome_probe' ? 'MATHEMATICAL FORMULATION (3D SPHERICAL HARMONICS)' :
+                 'MATHEMATICAL FORMULATION (ILLUMINANT VECTORS)'}
               </span>
               <button
                 type="button"
@@ -677,19 +680,40 @@ const LightingTab = ({
               </button>
             </div>
 
-            <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
-              <LatexMath 
-                math="E(\vec{n}) \approx \sum_{l=0}^{2} \sum_{m=-l}^{l} \hat{k}_l Y_{lm}(\vec{n}) L_{lm}, \quad \Delta \theta = \arccos\left(\frac{\vec{L}_{\text{face}} \cdot \vec{L}_{\text{bg}}}{\|\vec{L}_{\text{face}}\| \|\vec{L}_{\text{bg}}\|}\right)" 
-              />
-            </div>
-
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              Under Ramamoorthi-Hanrahan irradiance representation, 9 spherical harmonic basis functions account for &gt;99% of reflected diffuse irradiance for any smooth convex Lambertian surface.
-              <div style={{ margin: '0.35rem 0' }}>
-                <LatexMath math="\mathbf{L} = (\mathbf{Y}^T \mathbf{Y})^{-1} \mathbf{Y}^T \mathbf{I}" />
-              </div>
-              When donor faces are pasted onto recipient bodies, light vector divergence <LatexMath inline math="\Delta \theta > 45^\circ" /> reveals conflicting illumination physics between composite elements.
-            </div>
+            {activeExhibit === 'shading_residual' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="R_{\text{Lambert}}(x,y) = \left| I(x,y) - \rho(x,y) \max\left(0, \, \vec{n}(x,y) \cdot \vec{L}\right) \right|" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Residual error between observed pixel radiance <LatexMath inline math="I(x,y)" /> and diffuse reflection from 3D surface normals <LatexMath inline math="\vec{n}" />. Synthetic face patches produce non-Lambertian residual ridges along blended composite borders.
+                </div>
+              </>
+            ) : activeExhibit === 'chrome_probe' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="E(\vec{n}) \approx \sum_{l=0}^{2} \sum_{m=-l}^{l} \hat{k}_l Y_{lm}(\vec{n}) L_{lm}, \quad \mathbf{L} = (\mathbf{Y}^T \mathbf{Y})^{-1} \mathbf{Y}^T \mathbf{I}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Ramamoorthi-Hanrahan 9-coefficient spherical harmonic projection onto virtual mirror sphere probes. Coefficient divergence exposes mismatched ambient illumination environments between face and body.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\Delta \theta = \arccos\left(\frac{\vec{L}_{\text{face}} \cdot \vec{L}_{\text{bg}}}{\|\vec{L}_{\text{face}}\| \|\vec{L}_{\text{bg}}\|}\right), \quad \Delta \theta > 45^\circ \implies \text{MISMATCH}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Estimates dominant 3D directional light vectors across face and background regions. Spliced face swaps almost universally retain illumination angles from donor footage that contradict the scene background.
+                </div>
+              </>
+            )}
           </div>
 
           {/* Daubert Admissibility & Judicial Standard */}

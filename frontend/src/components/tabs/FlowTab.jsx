@@ -663,11 +663,13 @@ const FlowTab = ({
             </p>
           </div>
 
-          {/* KaTeX Mathematical Derivations */}
+          {/* KaTeX Mathematical Derivations - Dynamically switches with Active Exhibit */}
           <div className="glass-panel" style={{ padding: '0.85rem', border: '1px solid var(--glass-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
               <span className="mono-font" style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.04em' }}>
-                MATHEMATICAL FORMULATION (FARNEBÄCK FLOW)
+                {activeExhibit === 'flow_plot' ? 'MATHEMATICAL FORMULATION (TEMPORAL JITTER)' :
+                 activeExhibit === 'shear_map' ? 'MATHEMATICAL FORMULATION (BOUNDARY SHEAR STRAIN)' :
+                 'MATHEMATICAL FORMULATION (FARNEBÄCK OPTICAL FLOW)'}
               </span>
               <button
                 type="button"
@@ -680,19 +682,40 @@ const FlowTab = ({
               </button>
             </div>
 
-            <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
-              <LatexMath 
-                math="\vec{d} = - \frac{1}{2} (\mathbf{A}_1 + \mathbf{A}_2)^{-1} (\vec{b}_2 - \vec{b}_1)" 
-              />
-            </div>
-
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-              The Farnebäck algorithm approximates local neighborhoods of two successive frames by quadratic polynomials <LatexMath inline math="f(\vec{x}) \approx \vec{x}^T \mathbf{A} \vec{x} + \vec{b}^T \vec{x} + c" />. Motion jitter across temporal frames is quantified by:
-              <div style={{ margin: '0.35rem 0' }}>
-                <LatexMath math="\text{Jitter} = \operatorname{Var}_t \left( \operatorname{Var}_{(x,y)} (\|\vec{v}(x,y,t)\|) \right)" />
-              </div>
-              In deepfake videos, frame-by-frame GAN synthesis produces high temporal jitter and localized boundary shear where synthetic facial patches join natural backgrounds.
-            </div>
+            {activeExhibit === 'flow_plot' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\text{Jitter} = \operatorname{Var}_t \left( \operatorname{Var}_{(x,y)} (\|\vec{v}(x,y,t)\|) \right), \quad \text{Jitter} > \tau_{\text{motion}}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Measures the variance-of-variances in inter-frame optical velocity magnitudes. Deepfake video generation exhibits high temporal variance spikes due to frame-by-frame autoencoder synthesis flickering.
+                </div>
+              </>
+            ) : activeExhibit === 'shear_map' ? (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\gamma_{xy} = \frac{\partial u}{\partial y} + \frac{\partial v}{\partial x}, \quad \nabla \cdot \vec{v} = \frac{\partial u}{\partial x} + \frac{\partial v}{\partial y}" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  Evaluates kinematic boundary shear strain along the facial perimeter. Swapped facial boundaries display sharp non-rigid discontinuities that violate physical tissue deformation physics.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ background: '#03060f', padding: '0.55rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '0.65rem' }}>
+                  <LatexMath 
+                    math="\vec{d} = - \frac{1}{2} (\mathbf{A}_1 + \mathbf{A}_2)^{-1} (\vec{b}_2 - \vec{b}_1)" 
+                  />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                  The Farnebäck algorithm approximates local neighborhoods of two successive frames by quadratic polynomials <LatexMath inline math="f(\vec{x}) \approx \vec{x}^T \mathbf{A} \vec{x} + \vec{b}^T \vec{x} + c" />. Motion jitter across temporal frames is quantified by inter-frame velocity vectors.
+                </div>
+              </>
+            )}
           </div>
 
           {/* Daubert Admissibility & Judicial Standard */}

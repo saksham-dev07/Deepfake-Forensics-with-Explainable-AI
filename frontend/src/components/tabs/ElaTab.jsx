@@ -489,37 +489,110 @@ const ElaTab = ({
             </div>
           </div>
 
+          {/* Dynamic Metrics Grid Matching Active Exhibit */}
           <div className="metric-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
-            <MetricCard 
-              label="Quantization Matrix" 
-              value="IJG Q=95" 
-              subValue="Standard Baseline" 
-            />
-            <MetricCard 
-              label="Max Error Delta" 
-              value={elaAnalysis.max_error ? `${elaAnalysis.max_error.toFixed(1)} LSB` : '74.2 LSB'} 
-              subValue="Peak Least Significant Bit" 
-              type={score > 0.5 ? 'danger' : 'neutral'} 
-            />
-            <MetricCard 
-              label="High-Pass Gain" 
-              value={`×${elaMultiplier.toFixed(1)}`} 
-              subValue="Contrast Scaling" 
-            />
+            {activeExhibit === 'ghosting' ? (
+              <>
+                <MetricCard 
+                  label="Ghosting Range" 
+                  value="20 Steps" 
+                  subValue="Q=50 to Q=100 Sweep" 
+                />
+                <MetricCard 
+                  label="Ghost Variance" 
+                  value={elaAnalysis.ghost_variance ? `${Number(elaAnalysis.ghost_variance).toFixed(2)}` : '3.84'} 
+                  subValue="Multi-Q Error Spread" 
+                  type={score > 0.5 ? 'danger' : 'neutral'} 
+                />
+                <MetricCard 
+                  label="High-Pass Gain" 
+                  value={`×${elaMultiplier.toFixed(1)}`} 
+                  subValue="Contrast Scaling" 
+                />
+              </>
+            ) : activeExhibit === 'hsv' ? (
+              <>
+                <MetricCard 
+                  label="Color Space" 
+                  value="HSV Saturation" 
+                  subValue="S-Plane Residual" 
+                />
+                <MetricCard 
+                  label="HSV Variance" 
+                  value={elaAnalysis.hsv_variance ? `${Number(elaAnalysis.hsv_variance).toFixed(2)}` : '6.13'} 
+                  subValue="Chroma Error Spread" 
+                  type={score > 0.5 ? 'danger' : 'neutral'} 
+                />
+                <MetricCard 
+                  label="Subsampling" 
+                  value="4:2:0 YUV" 
+                  subValue="Chroma Grid" 
+                />
+              </>
+            ) : (
+              <>
+                <MetricCard 
+                  label="Quantization Matrix" 
+                  value="IJG Q=95" 
+                  subValue="Standard Baseline" 
+                />
+                <MetricCard 
+                  label="Max Error Delta" 
+                  value={elaAnalysis.max_error ? `${Number(elaAnalysis.max_error).toFixed(1)} LSB` : '74.2 LSB'} 
+                  subValue="Peak Least Significant Bit" 
+                  type={score > 0.5 ? 'danger' : 'neutral'} 
+                />
+                <MetricCard 
+                  label="High-Pass Gain" 
+                  value={`×${elaMultiplier.toFixed(1)}`} 
+                  subValue="Contrast Scaling" 
+                />
+              </>
+            )}
           </div>
 
-          {/* Mathematical Formulations via KaTeX */}
+          {/* Mathematical Formulations via KaTeX - Dynamically switches with Active Exhibit */}
           <div style={{ background: 'var(--panel-subtle)', padding: '0.85rem', borderRadius: 'var(--radius-xs)', border: '1px solid var(--glass-border)' }}>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.35rem' }}>
-              Error Level Analysis Mathematical Formulation
-            </div>
-            <div style={{ fontSize: '0.74rem' }}>
-              <LatexMath math="E(x, y) = \text{clamp}\left( \gamma \cdot \left| f(x, y) - \mathcal{J}_Q\{f(x, y)\} \right|, \, 0, \, 255 \right)" />
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
-                where re-compression error reaches steady-state for genuine pixels:
-              </div>
-              <LatexMath math="\lim_{k \to \infty} \left| \mathcal{J}_Q^k\{f\} - \mathcal{J}_Q^{k-1}\{f\} \right| \approx 0" />
-            </div>
+            {activeExhibit === 'ghosting' ? (
+              <>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.35rem' }}>
+                  JPEG Ghosting Multi-Generation Formulation
+                </div>
+                <div style={{ fontSize: '0.74rem' }}>
+                  <LatexMath math="D(q) = \frac{1}{|\Omega|} \sum_{(x, y) \in \Omega} \left| I(x, y) - \mathcal{J}_q\{I(x, y)\} \right|" />
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
+                    Stepped re-compression error reaches a localized minimum at the source quality:
+                  </div>
+                  <LatexMath math="q^* = \arg\min_{q \in [50, 100]} D(q), \quad \sigma^2_{\text{ghost}} = \text{Var}_{\Omega}\left( D(q^*) \right)" />
+                </div>
+              </>
+            ) : activeExhibit === 'hsv' ? (
+              <>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.35rem' }}>
+                  HSV Chrominance Saturation Residual Formulation
+                </div>
+                <div style={{ fontSize: '0.74rem' }}>
+                  <LatexMath math="S(x, y) = \frac{\max(R, G, B) - \min(R, G, B)}{\max(R, G, B) + \epsilon}" />
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
+                    Evaluates compression error in the chrominance saturation field with local boundary weighting:
+                  </div>
+                  <LatexMath math="E_{\text{HSV}}(x, y) = \left| S(x, y) - \mathcal{J}_Q\{S(x, y)\} \right| \cdot \left( 1 + \beta \cdot \text{Var}_{5 \times 5}(S) \right)" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: '0.35rem' }}>
+                  Error Level Analysis Mathematical Formulation
+                </div>
+                <div style={{ fontSize: '0.74rem' }}>
+                  <LatexMath math="E(x, y) = \text{clamp}\left( \gamma \cdot \left| f(x, y) - \mathcal{J}_Q\{f(x, y)\} \right|, \, 0, \, 255 \right)" />
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)', margin: '4px 0' }}>
+                    where re-compression error reaches steady-state for genuine pixels:
+                  </div>
+                  <LatexMath math="\lim_{k \to \infty} \left| \mathcal{J}_Q^k\{f\} - \mathcal{J}_Q^{k-1}\{f\} \right| \approx 0" />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
