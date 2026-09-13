@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { 
-  Palette, ZoomIn, Info, ArrowRightLeft, Sliders, Maximize2, AlertTriangle, Check, Copy, Layers
+  Palette, ZoomIn, Info, ArrowRightLeft, Sliders, Maximize2, AlertTriangle, Check, Copy, Layers, Loader2
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from 'recharts';
 import katex from 'katex';
@@ -45,6 +45,7 @@ const ColorTab = ({
   const [wipePercent, setWipePercent] = useState(50);
   const [copiedMath, setCopiedMath] = useState(false);
   const [hudCoords, setHudCoords] = useState(null);
+  const [isImgLoading, setIsImgLoading] = useState(false);
   const stageContainerRef = useRef(null);
 
   const data = useMemo(() => result.color_analysis || {}, [result.color_analysis]);
@@ -223,6 +224,29 @@ const ColorTab = ({
     return resolveOriginalFaceUrl(result);
   }, [result]);
 
+  // Preload exhibit images
+  useEffect(() => {
+    exhibits.forEach(ex => {
+      if (ex.img && !ex.img.startsWith('data:')) {
+        const img = new Image();
+        img.src = ex.img;
+      }
+    });
+    if (originalFaceUrl && !originalFaceUrl.startsWith('data:')) {
+      const img = new Image();
+      img.src = originalFaceUrl;
+    }
+  }, [exhibits, originalFaceUrl]);
+
+  // Loading state trigger
+  useEffect(() => {
+    if (activeObj?.img && !activeObj.img.startsWith('data:')) {
+      setIsImgLoading(true);
+    } else {
+      setIsImgLoading(false);
+    }
+  }, [activeExhibit, activeObj?.img]);
+
   const handleStageMouseMove = useCallback((e) => {
     if (!stageContainerRef.current) return;
     const rect = stageContainerRef.current.getBoundingClientRect();
@@ -375,9 +399,12 @@ const ColorTab = ({
             >
               {/* Bottom Image: Active Color Exhibit */}
               <img 
+                key={activeObj.id}
                 src={activeObj.img} 
-                alt="" 
+                alt={activeObj.name} 
+                onLoad={() => setIsImgLoading(false)}
                 onError={(e) => {
+                  setIsImgLoading(false);
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = makeFallbackSvg(activeObj.id);
                 }}
@@ -387,9 +414,40 @@ const ColorTab = ({
                   left: 0, 
                   width: '100%', 
                   height: '100%', 
-                  objectFit: 'contain'
+                  objectFit: 'contain',
+                  opacity: isImgLoading ? 0.35 : 1,
+                  transition: 'opacity 0.2s ease'
                 }} 
               />
+              <div style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                background: 'rgba(0,0,0,0.8)',
+                border: '1px solid rgba(59,130,246,0.4)',
+                padding: '0.15rem 0.55rem',
+                borderRadius: '3px',
+                fontSize: '0.62rem',
+                color: 'var(--primary)',
+                fontFamily: 'var(--font-mono)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                zIndex: 5
+              }}>
+                {isImgLoading && <Loader2 size={10} className="animate-spin" />}
+                <span>EXHIBIT [B]: {activeObj.name.toUpperCase()}</span>
+              </div>
+
+              {/* In-flight Loading Overlay */}
+              {isImgLoading && (
+                <div className="viewport-loader" style={{ pointerEvents: 'none' }}>
+                  <div className="viewport-loader-spinner" />
+                  <span className="mono-font" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                    FETCHING {activeObj.shortLabel.toUpperCase()} MAP...
+                  </span>
+                </div>
+              )}
 
               {/* Top Layer: Original Camera Capture (for A/B Wipe) */}
               {stageMode === 'wipe' && (

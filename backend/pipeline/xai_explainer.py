@@ -5,6 +5,7 @@ import os
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from pipeline.image_utils import save_optimized_image
 
 class XAIExplainer:
     def __init__(self, model):
@@ -43,7 +44,7 @@ class XAIExplainer:
         visualization = show_cam_on_image(rgb_img, grayscale_cam, use_rgb=True)
         
         # Save visualization
-        cv2.imwrite(save_path, cv2.cvtColor(visualization, cv2.COLOR_RGB2BGR))
+        save_optimized_image(save_path, cv2.cvtColor(visualization, cv2.COLOR_RGB2BGR))
         
         # Generate Guided Grad-CAM
         guided_path = None
@@ -70,7 +71,7 @@ class XAIExplainer:
             guided_colored = cv2.applyColorMap(grad_uint8, cv2.COLORMAP_INFERNO)
             
             guided_path = save_path.replace(".jpg", "_guided.jpg")
-            cv2.imwrite(guided_path, guided_colored)
+            save_optimized_image(guided_path, guided_colored)
         except Exception as e:
             print("Failed to generate Guided Grad-CAM:", e)
             

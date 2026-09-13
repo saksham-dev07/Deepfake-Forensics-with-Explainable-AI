@@ -16,6 +16,7 @@ import numpy as np
 import cv2
 import os
 import tempfile
+from pipeline.image_utils import save_optimized_image
 
 
 def compute_ela(image_rgb, quality=90, scale=15, save_path=None):
@@ -84,7 +85,7 @@ def compute_ela(image_rgb, quality=90, scale=15, save_path=None):
         ela_score = 0.0
     
     if save_path:
-        cv2.imwrite(save_path, cv2.cvtColor(ela_rgb, cv2.COLOR_RGB2BGR))
+        save_optimized_image(save_path, cv2.cvtColor(ela_rgb, cv2.COLOR_RGB2BGR))
     
     # Cleanup temp file
     try:
@@ -122,7 +123,7 @@ def compute_ela_heatmap(image_rgb, quality=90, save_path=None):
     blended = cv2.addWeighted(image_bgr, 0.5, heatmap, 0.5, 0)
     
     if save_path:
-        cv2.imwrite(save_path, blended)
+        save_optimized_image(save_path, blended)
     
     try:
         os.remove(temp_path)
@@ -164,7 +165,7 @@ def compute_jpeg_ghosting(image_rgb, save_path=None):
     ghost_variance = float(np.var(ghost_smooth) / 255.0)
     
     if save_path:
-        cv2.imwrite(save_path, blended)
+        save_optimized_image(save_path, blended)
         
     return blended, ghost_variance
 
@@ -197,7 +198,7 @@ def compute_hsv_ela(image_rgb, quality=90, save_path=None):
     s_variance = float(np.var(s_amp) / 255.0)
     
     if save_path:
-        cv2.imwrite(save_path, blended)
+        save_optimized_image(save_path, blended)
         
     return blended, s_variance
 def analyze_ela(image_rgb, output_dir, prefix="ela", quality_multiplier=1.0):

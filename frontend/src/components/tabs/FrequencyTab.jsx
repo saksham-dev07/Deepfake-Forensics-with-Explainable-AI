@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { 
   Activity, Camera, BarChart3, Info, Lightbulb, ChevronUp, ChevronDown, 
   ZoomIn, Eye, Sparkles, Sliders, Layers, RefreshCw, Cpu, Compass,
-  Split, Maximize2, Download, Copy, Check, Crosshair, ArrowRightLeft
+  Split, Maximize2, Download, Copy, Check, Crosshair, ArrowRightLeft, Loader2
 } from 'lucide-react';
 import { 
   ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, 
@@ -152,6 +152,7 @@ const FrequencyTab = ({
   const [bandpassType, setBandpassType] = useState('highpass'); // 'highpass' | 'lowpass' | 'all'
   const [hudCoords, setHudCoords] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [isImgLoading, setIsImgLoading] = useState(false);
 
   const stageContainerRef = useRef(null);
 
@@ -317,6 +318,29 @@ const FrequencyTab = ({
   const activeTransform = useMemo(() => {
     return transforms.find(t => t.id === selectedTransformId) || transforms[0];
   }, [transforms, selectedTransformId]);
+
+  // Preload transform images
+  useEffect(() => {
+    transforms.forEach(t => {
+      if (t.img && !t.img.startsWith('data:')) {
+        const img = new Image();
+        img.src = t.img;
+      }
+    });
+    if (originalFaceUrl && !originalFaceUrl.startsWith('data:')) {
+      const img = new Image();
+      img.src = originalFaceUrl;
+    }
+  }, [transforms, originalFaceUrl]);
+
+  // Loading state trigger
+  useEffect(() => {
+    if (activeTransform?.img && !activeTransform.img.startsWith('data:')) {
+      setIsImgLoading(true);
+    } else {
+      setIsImgLoading(false);
+    }
+  }, [selectedTransformId, activeTransform?.img]);
 
   // Colormap filter style helper
   const getColormapFilter = useCallback((mode) => {
@@ -603,20 +627,40 @@ const FrequencyTab = ({
               }}
             >
               <img 
+                key={activeTransform.id}
                 src={activeTransform.img} 
-                alt="" 
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                alt={activeTransform.name} 
+                onLoad={() => setIsImgLoading(false)}
                 onError={(e) => {
+                  setIsImgLoading(false);
                   e.currentTarget.onerror = null;
-                  e.currentTarget.src = makeSpectralFallbackSvg(activeTransform.id, isAnomaly);
+                  e.currentTarget.src = makeSpectralFallbackSvg(activeTransform.id, isSynthetic);
+                }}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'contain',
+                  opacity: isImgLoading ? 0.35 : 1,
+                  transition: 'opacity 0.2s ease'
                 }}
               />
               {stageMode === 'wipe' && (
-                <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(59,130,246,0.4)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-                  B: {activeTransform.shortTitle.toUpperCase()}
+                <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(59,130,246,0.4)', padding: '2px 8px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {isImgLoading && <Loader2 size={10} className="animate-spin" />}
+                  <span>B: {activeTransform.shortTitle.toUpperCase()}</span>
                 </div>
               )}
             </div>
+
+            {/* In-flight Loading Overlay */}
+            {isImgLoading && (
+              <div className="viewport-loader" style={{ pointerEvents: 'none' }}>
+                <div className="viewport-loader-spinner" />
+                <span className="mono-font" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                  COMPUTING {activeTransform.shortTitle.toUpperCase()} SPECTRUM...
+                </span>
+              </div>
+            )}
 
             {/* Wipe Divider Line */}
             {stageMode === 'wipe' && (

@@ -3,6 +3,7 @@ import numpy as np
 import os
 import math
 from pipeline.face_geometry import detect_face
+from pipeline.image_utils import save_optimized_image
 
 def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplier=1.0):
     """
@@ -261,7 +262,7 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
 
     os.makedirs(output_dir, exist_ok=True)
     map_path = os.path.join(output_dir, f"{prefix}_lighting_map.jpg")
-    cv2.imwrite(map_path, vis_img)
+    save_optimized_image(map_path, vis_img)
     
     results["lighting_map_path"] = map_path.replace("\\", "/")
     

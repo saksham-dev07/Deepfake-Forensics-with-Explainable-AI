@@ -21,6 +21,7 @@ import threading
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+from pipeline.image_utils import save_optimized_image
 
 MP_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "face_landmarker.task")
 _local_storage = threading.local()
@@ -141,7 +142,7 @@ def compute_face_symmetry(image_rgb, landmarks_first, output_dir=None, prefix="f
                 face_crop_bgr = cv2.cvtColor(face_crop, cv2.COLOR_RGB2BGR)
                 blended = cv2.addWeighted(face_crop_bgr, 0.4, diff_vis, 0.8, 0)
                 symmetry_map_path = os.path.join(output_dir, f"{prefix}_symmetry_map.jpg")
-                cv2.imwrite(symmetry_map_path, blended)
+                save_optimized_image(symmetry_map_path, blended)
 
     # 2. Geometric Symmetry Score (Highly Accurate)
     re = landmarks_first.get("right_eye")
@@ -198,7 +199,7 @@ def compute_texture_consistency(image_rgb, face_bbox, output_dir=None, prefix="f
         blended = cv2.addWeighted(face_crop_bgr, 0.4, tex_vis, 0.8, 0)
         
         texture_map_path = os.path.join(output_dir, f"{prefix}_texture_map.jpg")
-        cv2.imwrite(texture_map_path, blended)
+        save_optimized_image(texture_map_path, blended)
 
     inner_h, inner_w = face_region.shape
     inner_margin = int(min(inner_h, inner_w) * 0.2)
@@ -471,7 +472,7 @@ def visualize_landmarks(image_rgb, landmarks, metrics=None, save_path=None, pose
 
     if landmarks is None or "all_landmarks" not in landmarks:
         if save_path:
-            cv2.imwrite(save_path, cv2.cvtColor(vis, cv2.COLOR_RGB2BGR))
+            save_optimized_image(save_path, cv2.cvtColor(vis, cv2.COLOR_RGB2BGR))
         return vis
 
     # Draw Face Mesh
@@ -594,7 +595,7 @@ def visualize_landmarks(image_rgb, landmarks, metrics=None, save_path=None, pose
             cv2.arrowedLine(pose_vis, nose_tip, p1, (255, 50, 50), 3, cv2.LINE_AA, tipLength=0.15)
             draw_hud_text(pose_vis, "X (Pitch Axis)", nose_tip, p1, (255, 50, 50), (1.0, 0.0))
             
-            cv2.imwrite(pose_save_path, cv2.cvtColor(pose_vis, cv2.COLOR_RGB2BGR))
+            save_optimized_image(pose_save_path, cv2.cvtColor(pose_vis, cv2.COLOR_RGB2BGR))
 
     # Print stats
     if metrics:
@@ -608,7 +609,7 @@ def visualize_landmarks(image_rgb, landmarks, metrics=None, save_path=None, pose
         cv2.putText(vis, text, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
 
     if save_path:
-        cv2.imwrite(save_path, cv2.cvtColor(vis, cv2.COLOR_RGB2BGR))
+        save_optimized_image(save_path, cv2.cvtColor(vis, cv2.COLOR_RGB2BGR))
 
     return vis
 
@@ -626,7 +627,7 @@ def analyze_face_geometry(image_rgb, output_dir, prefix="face", frame_files=None
     vis_path = os.path.join(output_dir, f"{prefix}_landmarks.jpg")
 
     if landmarks_first is None:
-        cv2.imwrite(vis_path, cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR))
+        save_optimized_image(vis_path, cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR))
         return {
             "face_detected": False,
             "symmetry_score": None,

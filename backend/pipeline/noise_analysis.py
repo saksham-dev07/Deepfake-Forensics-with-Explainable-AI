@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import os
+from pipeline.image_utils import save_optimized_image
 
 def extract_noise_residual(image_rgb):
     """
@@ -54,7 +55,7 @@ def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multipli
     
     # Save the edge-preserving denoised image
     denoised_path = os.path.join(output_dir, f"{prefix}_denoised.jpg")
-    cv2.imwrite(denoised_path, clean_img)
+    save_optimized_image(denoised_path, clean_img)
     
     # Amplify the noise for visualization
     # We use cv2.COLORMAP_JET to vividly highlight the low/high variance areas
@@ -65,7 +66,7 @@ def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multipli
     blended_noise = cv2.addWeighted(cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR), 0.4, noise_vis, 0.8, 0)
     
     noise_path = os.path.join(output_dir, f"{prefix}_map.jpg")
-    cv2.imwrite(noise_path, blended_noise)
+    save_optimized_image(noise_path, blended_noise)
     
     # ---------------------------------------------
     # NEW: Spatial Rich Model (SRM) Filter Map
@@ -78,7 +79,7 @@ def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multipli
     blended_srm = cv2.addWeighted(cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR), 0.4, srm_vis, 0.8, 0)
     
     srm_path = os.path.join(output_dir, f"{prefix}_srm_map.jpg")
-    cv2.imwrite(srm_path, blended_srm)
+    save_optimized_image(srm_path, blended_srm)
     
     # Calculate noise variance.
     # With NLM, the variance of natural noise is tighter and lower than with simple blur.

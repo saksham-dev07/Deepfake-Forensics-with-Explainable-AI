@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import os
+from pipeline.image_utils import save_optimized_image
 
 def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplier=1.0):
     """
@@ -29,8 +30,8 @@ def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplie
     blended_cb = cv2.addWeighted(image_bgr, 0.4, cv2.cvtColor(cb_vis_rgb, cv2.COLOR_RGB2BGR), 0.8, 0)
     blended_cr = cv2.addWeighted(image_bgr, 0.4, cv2.cvtColor(cr_vis_rgb, cv2.COLOR_RGB2BGR), 0.8, 0)
     
-    cv2.imwrite(cb_path, blended_cb)
-    cv2.imwrite(cr_path, blended_cr)
+    save_optimized_image(cb_path, blended_cb)
+    save_optimized_image(cr_path, blended_cr)
     
     # 2. HSV Analysis (Saturation/Vibrancy Variance)
     hsv = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2HSV)
@@ -40,7 +41,7 @@ def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplie
     s_vis = cv2.applyColorMap(s, cv2.COLORMAP_VIRIDIS)
     blended_s = cv2.addWeighted(image_bgr, 0.4, s_vis, 0.8, 0)
     s_path = os.path.join(output_dir, f"{prefix}_s_map.jpg")
-    cv2.imwrite(s_path, blended_s)
+    save_optimized_image(s_path, blended_s)
     
     # 3. LAB Analysis (Skin Subsurface Scattering)
     lab = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2LAB)
@@ -50,7 +51,7 @@ def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplie
     a_vis = cv2.applyColorMap(a, cv2.COLORMAP_PLASMA)
     blended_a = cv2.addWeighted(image_bgr, 0.4, a_vis, 0.8, 0)
     a_path = os.path.join(output_dir, f"{prefix}_a_map.jpg")
-    cv2.imwrite(a_path, blended_a)
+    save_optimized_image(a_path, blended_a)
     
     # Calculate variances across all critical non-luma channels
     cb_var = np.var(cb)

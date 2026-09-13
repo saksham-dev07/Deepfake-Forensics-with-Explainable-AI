@@ -5,6 +5,7 @@ import uuid
 import matplotlib.pyplot as plt
 from skimage.metrics import structural_similarity as ssim
 from pathlib import Path
+from pipeline.image_utils import save_optimized_image
 
 def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, quality_multiplier=1.0):
     """
@@ -249,7 +250,7 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         os.makedirs(save_dir, exist_ok=True)
         save_path = os.path.join(save_dir, filename)
         
-        cv2.imwrite(save_path, canvas)
+        save_optimized_image(save_path, canvas)
         
         # Calculate web relative path
         if "uploads" in str(save_path).replace("\\", "/"):

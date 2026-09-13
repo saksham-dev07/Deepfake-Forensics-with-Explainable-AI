@@ -68,8 +68,16 @@ REPORT_DIR = "reports"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(REPORT_DIR, exist_ok=True)
 
-# Mount the uploads directory to serve images to the frontend
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+class CachedStaticFiles(StaticFiles):
+    """StaticFiles with aggressive browser caching to prevent repeated slow downloads."""
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=604800, immutable"
+        return response
+
+# Mount the uploads directory to serve images to the frontend with caching
+app.mount("/uploads", CachedStaticFiles(directory="uploads"), name="uploads")
 
 # Mount built static assets if available (e.g. Hugging Face Spaces multi-stage container)
 if os.path.isdir("static/assets"):

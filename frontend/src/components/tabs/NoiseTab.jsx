@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { Camera, ZoomIn, Info, ArrowRightLeft, Maximize2, Sliders, Check, Copy } from 'lucide-react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { Camera, ZoomIn, Info, ArrowRightLeft, Maximize2, Sliders, Check, Copy, Loader2 } from 'lucide-react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import TestExplanation from '../ui/TestExplanation';
@@ -43,6 +43,7 @@ const NoiseTab = ({
   const [wipePercent, setWipePercent] = useState(50);
   const [contrastGain, setContrastGain] = useState(1.5);
   const [hudCoords, setHudCoords] = useState(null);
+  const [isImgLoading, setIsImgLoading] = useState(false);
   const stageContainerRef = useRef(null);
 
   const noiseAnalysis = useMemo(() => result.noise_analysis || {}, [result.noise_analysis]);
@@ -170,6 +171,29 @@ const NoiseTab = ({
   const originalFaceUrl = useMemo(() => {
     return resolveOriginalFaceUrl(result);
   }, [result]);
+
+  // Preload all exhibit images to avoid latency when switching exhibits
+  useEffect(() => {
+    exhibits.forEach(ex => {
+      if (ex.img && !ex.img.startsWith('data:')) {
+        const img = new Image();
+        img.src = ex.img;
+      }
+    });
+    if (originalFaceUrl && !originalFaceUrl.startsWith('data:')) {
+      const img = new Image();
+      img.src = originalFaceUrl;
+    }
+  }, [exhibits, originalFaceUrl]);
+
+  // Trigger loading feedback whenever exhibit changes
+  useEffect(() => {
+    if (activeObj?.img && !activeObj.img.startsWith('data:')) {
+      setIsImgLoading(true);
+    } else {
+      setIsImgLoading(false);
+    }
+  }, [activeExhibit, activeObj?.img]);
 
   const handleStageMouseMove = useCallback((e) => {
     if (!stageContainerRef.current) return;
@@ -346,18 +370,38 @@ const NoiseTab = ({
               }}
             >
               <img 
+                key={activeObj.id}
                 src={activeObj.img} 
-                alt="" 
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                alt={activeObj.name} 
+                onLoad={() => setIsImgLoading(false)}
                 onError={(e) => {
+                  setIsImgLoading(false);
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = makeFallbackSvg(activeObj.id);
                 }}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'contain',
+                  opacity: isImgLoading ? 0.35 : 1,
+                  transition: 'opacity 0.2s ease'
+                }}
               />
-              <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(16,185,129,0.4)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
-                B: PRNU SILICON NOISE
+              <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(16,185,129,0.4)', padding: '2px 8px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--success)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {isImgLoading && <Loader2 size={10} className="animate-spin" />}
+                <span>B: {activeObj.name.toUpperCase()}</span>
               </div>
             </div>
+
+            {/* In-flight Loading Overlay */}
+            {isImgLoading && (
+              <div className="viewport-loader" style={{ pointerEvents: 'none' }}>
+                <div className="viewport-loader-spinner" style={{ borderTopColor: 'var(--success)' }} />
+                <span className="mono-font" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                  FETCHING {activeObj.shortLabel.toUpperCase()} PATTERN...
+                </span>
+              </div>
+            )}
 
             {/* Wipe Divider Line */}
             {stageMode === 'wipe' && (

@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { 
-  Search, ZoomIn, Info, ArrowRightLeft, Sliders, Maximize2, Check, Copy
+  Search, ZoomIn, Info, ArrowRightLeft, Sliders, Maximize2, Check, Copy, Loader2
 } from 'lucide-react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -45,6 +45,7 @@ const ElaTab = ({
   const [wipePercent, setWipePercent] = useState(50);
   const [elaMultiplier, setElaMultiplier] = useState(1.0);
   const [hudCoords, setHudCoords] = useState(null);
+  const [isImgLoading, setIsImgLoading] = useState(false);
   const stageContainerRef = useRef(null);
 
   const elaAnalysis = useMemo(() => result.ela_analysis || {}, [result.ela_analysis]);
@@ -178,6 +179,29 @@ const ElaTab = ({
   const originalFaceUrl = useMemo(() => {
     return resolveOriginalFaceUrl(result);
   }, [result]);
+
+  // Preload all exhibit images to avoid network stalling when clicking
+  useEffect(() => {
+    exhibits.forEach(ex => {
+      if (ex.img && !ex.img.startsWith('data:')) {
+        const img = new Image();
+        img.src = ex.img;
+      }
+    });
+    if (originalFaceUrl && !originalFaceUrl.startsWith('data:')) {
+      const img = new Image();
+      img.src = originalFaceUrl;
+    }
+  }, [exhibits, originalFaceUrl]);
+
+  // Trigger loading state whenever active exhibit changes
+  useEffect(() => {
+    if (activeObj?.img && !activeObj.img.startsWith('data:')) {
+      setIsImgLoading(true);
+    } else {
+      setIsImgLoading(false);
+    }
+  }, [activeExhibit, activeObj?.img]);
 
   const handleStageMouseMove = useCallback((e) => {
     if (!stageContainerRef.current) return;
@@ -355,18 +379,38 @@ const ElaTab = ({
               }}
             >
               <img 
+                key={activeObj.id}
                 src={activeObj.img} 
-                alt="" 
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                alt={activeObj.name} 
+                onLoad={() => setIsImgLoading(false)}
                 onError={(e) => {
+                  setIsImgLoading(false);
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = makeFallbackSvg(activeObj.id);
                 }}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'contain',
+                  opacity: isImgLoading ? 0.35 : 1,
+                  transition: 'opacity 0.2s ease'
+                }}
               />
-              <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(59,130,246,0.4)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-                B: ELA RESIDUAL (Q=95)
+              <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(59,130,246,0.4)', padding: '2px 8px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--primary)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {isImgLoading && <Loader2 size={10} className="animate-spin" />}
+                <span>B: {activeObj.name.toUpperCase()}</span>
               </div>
             </div>
+
+            {/* In-flight Loading Overlay */}
+            {isImgLoading && (
+              <div className="viewport-loader" style={{ pointerEvents: 'none' }}>
+                <div className="viewport-loader-spinner" />
+                <span className="mono-font" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                  FETCHING {activeObj.shortLabel.toUpperCase()} MATRIX...
+                </span>
+              </div>
+            )}
 
             {/* Wipe Divider Line */}
             {stageMode === 'wipe' && (

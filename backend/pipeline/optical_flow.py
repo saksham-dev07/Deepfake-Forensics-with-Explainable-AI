@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from pipeline.face_geometry import detect_face
+from pipeline.image_utils import save_optimized_image
 
 def analyze_optical_flow(video_path, output_dir, prefix="flow"):
     """
@@ -144,7 +145,7 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
     # Save the flow field image
     if 'bgr_flow' in locals():
         flow_img_path = os.path.join(output_dir, f"{prefix}_field.jpg")
-        cv2.imwrite(flow_img_path, bgr_flow)
+        save_optimized_image(flow_img_path, bgr_flow)
         results["flow_field_path"] = flow_img_path.replace("\\", "/")
     
     return results

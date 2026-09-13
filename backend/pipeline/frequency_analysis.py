@@ -18,6 +18,7 @@ import numpy as np
 import cv2
 import os
 import pywt
+from pipeline.image_utils import save_optimized_image
 
 def compute_swn_noise_map(image_rgb, save_path=None):
     """
@@ -99,7 +100,7 @@ def compute_swn_noise_map(image_rgb, save_path=None):
     final = np.hstack([blended, colorbar_colored])
     
     if save_path:
-        cv2.imwrite(save_path, final)
+        save_optimized_image(save_path, final)
         
     total_anomaly_area = sum(cv2.contourArea(c) for c in significant)
     anomaly_ratio = float(total_anomaly_area / (h * w))
@@ -140,7 +141,7 @@ def compute_cepstrum(image_rgb, save_path=None):
     cepstrum_colored = cv2.applyColorMap(cepstrum_normalized, cv2.COLORMAP_JET)
     
     if save_path:
-        cv2.imwrite(save_path, cepstrum_colored)
+        save_optimized_image(save_path, cepstrum_colored)
         
     return cepstrum_colored, cepstrum_shift
 
@@ -174,7 +175,7 @@ def compute_dwt_diagonal(image_rgb, save_path=None):
     cv2.line(grid_colored, (0, h//2), (w, h//2), (255, 255, 255), 1)
     
     if save_path:
-        cv2.imwrite(save_path, grid_colored)
+        save_optimized_image(save_path, grid_colored)
         
     return grid_colored, np.abs(HH)
 
@@ -254,7 +255,7 @@ def compute_dct_spectrum(image_rgb, save_path=None):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 200, 255), 1, cv2.LINE_AA)
 
     if save_path:
-        cv2.imwrite(save_path, dct_colored)
+        save_optimized_image(save_path, dct_colored)
 
     return dct_log, dct_colored, dct_hf_ratio
 
@@ -345,7 +346,7 @@ def compute_block_dct_artifacts(image_rgb, save_path=None):
     final = np.hstack([blended, colorbar_colored])
     
     if save_path:
-        cv2.imwrite(save_path, final)
+        save_optimized_image(save_path, final)
         
     # Calculate variance
     block_variance = float(np.var(block_hf_energy))
@@ -459,7 +460,7 @@ def compute_fft_magnitude(image_rgb, save_path=None):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.3, (200, 200, 200), 1, cv2.LINE_AA)
 
     if save_path:
-        cv2.imwrite(save_path, mag_colored)
+        save_optimized_image(save_path, mag_colored)
 
     return magnitude, mag_colored
 
@@ -601,7 +602,7 @@ def pca_spectral_decomposition(image_rgb, output_dir, prefix="freq"):
     pc3_colored = cv2.applyColorMap(pc3_norm, cv2.COLORMAP_TWILIGHT)
 
     pca_path = os.path.join(output_dir, f"{prefix}_pca_pc3.jpg")
-    cv2.imwrite(pca_path, pc3_colored)
+    save_optimized_image(pca_path, pc3_colored)
 
     # Variance ratio: how much info is in PC3 relative to total
     total_var = np.sum(eigenvalues)
@@ -642,7 +643,7 @@ def compute_high_pass_filter(image_rgb, save_path=None):
     img_colored = cv2.applyColorMap(img_back_norm, cv2.COLORMAP_BONE)
     
     if save_path:
-        cv2.imwrite(save_path, img_colored)
+        save_optimized_image(save_path, img_colored)
         
     hpf_variance = float(np.var(img_back))
         
@@ -664,7 +665,7 @@ def compute_phase_spectrum(image_rgb, save_path=None):
     phase_colored = cv2.applyColorMap(phase_normalized, cv2.COLORMAP_OCEAN)
     
     if save_path:
-        cv2.imwrite(save_path, phase_colored)
+        save_optimized_image(save_path, phase_colored)
         
     phase_variance = float(np.var(phase))
         
@@ -706,7 +707,7 @@ def compute_spectral_residual_saliency(image_rgb, save_path=None):
     smap_colored = cv2.applyColorMap(smap_norm, cv2.COLORMAP_HOT)
     
     if save_path:
-        cv2.imwrite(save_path, smap_colored)
+        save_optimized_image(save_path, smap_colored)
         
     saliency_variance = float(np.var(saliency_map))
     return smap_colored, saliency_variance

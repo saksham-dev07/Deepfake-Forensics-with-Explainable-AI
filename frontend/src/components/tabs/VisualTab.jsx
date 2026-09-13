@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { 
   Flame, Search, Info, ZoomIn, Eye, Sliders, Maximize2, 
-  ArrowRightLeft, Layers, Sparkles, Compass, Check, Copy
+  ArrowRightLeft, Layers, Sparkles, Compass, Check, Copy, Loader2
 } from 'lucide-react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -47,7 +47,7 @@ const VisualTab = ({
   const [colormap, setColormap] = useState('inferno'); // 'inferno' | 'jet' | 'raw'
   const [hudCoords, setHudCoords] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
-
+  const [isImgLoading, setIsImgLoading] = useState(false);
   const stageContainerRef = useRef(null);
 
   // Fallback SVG generator
@@ -90,6 +90,25 @@ const VisualTab = ({
   }, [result]);
 
   const currentHeatmapUrl = activeExhibit === 'coarse' ? coarseGradcamUrl : guidedGradcamUrl;
+
+  // Preload heatmaps and face
+  useEffect(() => {
+    [coarseGradcamUrl, guidedGradcamUrl, originalFaceUrl].forEach(url => {
+      if (url && !url.startsWith('data:')) {
+        const img = new Image();
+        img.src = url;
+      }
+    });
+  }, [coarseGradcamUrl, guidedGradcamUrl, originalFaceUrl]);
+
+  // Loading state trigger
+  useEffect(() => {
+    if (currentHeatmapUrl && !currentHeatmapUrl.startsWith('data:')) {
+      setIsImgLoading(true);
+    } else {
+      setIsImgLoading(false);
+    }
+  }, [activeExhibit, currentHeatmapUrl]);
   const nnScore = typeof result.nn_score === 'number' ? result.nn_score : (typeof result.overall_score === 'number' ? result.overall_score : 0);
   const anomalyPct = (nnScore * 100).toFixed(1);
 
@@ -286,7 +305,6 @@ const VisualTab = ({
               </div>
             </div>
 
-            {/* Foreground: Grad-CAM Overlay with Clip-path and Opacity */}
             <div 
               style={{ 
                 position: 'absolute', 
@@ -302,18 +320,38 @@ const VisualTab = ({
               }}
             >
               <img 
+                key={activeExhibit}
                 src={currentHeatmapUrl} 
-                alt="" 
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                alt={activeExhibit} 
+                onLoad={() => setIsImgLoading(false)}
                 onError={(e) => {
+                  setIsImgLoading(false);
                   e.currentTarget.onerror = null;
-                  e.currentTarget.src = makeFallbackSvg(activeHeatmap);
+                  e.currentTarget.src = makeFallbackSvg(activeExhibit);
+                }}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'contain',
+                  opacity: isImgLoading ? 0.35 : 1,
+                  transition: 'opacity 0.2s ease'
                 }}
               />
-              <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(244,63,94,0.4)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--danger)', fontFamily: 'var(--font-mono)' }}>
-                B: GRAD-CAM ATTRIBUTION
+              <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(244,63,94,0.4)', padding: '2px 8px', borderRadius: '3px', fontSize: '0.65rem', color: 'var(--danger)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {isImgLoading && <Loader2 size={10} className="animate-spin" />}
+                <span>B: {activeExhibit === 'coarse' ? 'COARSE GRAD-CAM' : 'GUIDED GRAD-CAM'}</span>
               </div>
             </div>
+
+            {/* In-flight Loading Overlay */}
+            {isImgLoading && (
+              <div className="viewport-loader" style={{ pointerEvents: 'none' }}>
+                <div className="viewport-loader-spinner" style={{ borderTopColor: 'var(--danger)' }} />
+                <span className="mono-font" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+                  COMPUTING {activeExhibit.toUpperCase()} ATTRIBUTION...
+                </span>
+              </div>
+            )}
 
             {/* Wipe Divider Line */}
             {stageMode === 'wipe' && (

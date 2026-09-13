@@ -2,6 +2,7 @@ import cv2
 import os
 import subprocess
 import imageio_ffmpeg
+from pipeline.image_utils import save_optimized_image
 
 MAX_DURATION_SEC = 60
 NUM_FRAMES = 16
@@ -26,7 +27,7 @@ def process_video(video_path: str, job_id: str):
         frame_path = os.path.join(frames_dir, "frame_0000.jpg")
         img = cv2.imread(video_path)
         if img is not None:
-            cv2.imwrite(frame_path, img)
+            save_optimized_image(frame_path, img, max_dim=1080, quality=85)
             return frames_dir, None
         else:
             raise ValueError("Could not read image file.")
