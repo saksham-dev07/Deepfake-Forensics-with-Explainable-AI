@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import shutil
 import os
@@ -380,6 +380,135 @@ async def list_reports():
         "total_storage_consumed_bytes": total_bytes,
         "reports": reports
     }
+
+@app.get("/reports", response_class=HTMLResponse)
+async def reports_vault_ui():
+    """Visual Forensic Storage Explorer directly viewable in the browser & HF Spaces."""
+    import datetime
+    reports = []
+    total_bytes = 0
+    if os.path.exists(REPORT_DIR):
+        for fname in sorted(os.listdir(REPORT_DIR), reverse=True):
+            if fname.endswith(".pdf"):
+                fpath = os.path.join(REPORT_DIR, fname)
+                size_bytes = os.path.getsize(fpath)
+                total_bytes += size_bytes
+                mtime = os.path.getmtime(fpath)
+                created_at = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S UTC")
+                job_id = fname[:-4]
+                reports.append({
+                    "job_id": job_id,
+                    "filename": fname,
+                    "size_mb": round(size_bytes / (1024 * 1024), 2),
+                    "size_kb": round(size_bytes / 1024, 1),
+                    "download_url": f"/api/reports/{job_id}/pdf",
+                    "created_at": created_at
+                })
+    total_mb = round(total_bytes / (1024 * 1024), 2)
+    storage_dir = os.path.abspath(REPORT_DIR)
+    
+    rows_html = ""
+    for r in reports:
+        rows_html += f"""
+        <tr>
+            <td style="font-family:monospace; color:#38bdf8; font-weight:600;">{r['job_id']}</td>
+            <td><span style="background:rgba(59,130,246,0.15); color:#60a5fa; padding:3px 8px; border-radius:4px; font-family:monospace; font-size:12px; border:1px solid rgba(59,130,246,0.3);">Court PDF</span></td>
+            <td style="font-family:monospace; font-weight:bold; color:#f8fafc;">{r['size_mb']} MB <span style="color:#94a3b8; font-size:11px;">({r['size_kb']} KB)</span></td>
+            <td style="color:#94a3b8; font-size:13px;">{r['created_at']}</td>
+            <td>
+                <a href="{r['download_url']}" target="_blank" style="display:inline-flex; align-items:center; gap:4px; background:#2563eb; color:#ffffff; padding:6px 14px; border-radius:6px; text-decoration:none; font-size:12px; font-weight:600; margin-right:8px;">View PDF ↗</a>
+                <a href="{r['download_url']}" download="{r['filename']}" style="display:inline-flex; align-items:center; gap:4px; background:#1e293b; color:#cbd5e1; border:1px solid #334155; padding:6px 12px; border-radius:6px; text-decoration:none; font-size:12px; font-weight:600;">Download 💾</a>
+            </td>
+        </tr>
+        """
+    
+    if not reports:
+        rows_html = '<tr><td colspan="5" style="text-align:center; padding:3rem; color:#64748b;">No PDF dossiers generated yet. Run an analysis in the Web Console to generate your first dossier!</td></tr>'
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepForensics | Evidentiary Storage Vault</title>
+    <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0b0f19; color: #f8fafc; padding: 2rem; min-height: 100vh; }}
+        .container {{ max-width: 1100px; margin: 0 auto; }}
+        .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }}
+        .brand {{ display: flex; align-items: center; gap: 12px; }}
+        .brand-badge {{ background: linear-gradient(135deg, #3b82f6, #1d4ed8); width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; }}
+        .title {{ font-size: 1.4rem; font-weight: 800; }}
+        .subtitle {{ font-size: 0.85rem; color: #94a3b8; margin-top: 2px; }}
+        .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 2rem; }}
+        .card {{ background: #111827; border: 1px solid #1e293b; border-radius: 10px; padding: 1.25rem; }}
+        .card-label {{ font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-bottom: 0.4rem; font-weight: 600; }}
+        .card-val {{ font-size: 1.6rem; font-weight: 800; color: #f8fafc; font-family: monospace; }}
+        .card-sub {{ font-size: 0.75rem; color: #64748b; margin-top: 4px; }}
+        .table-wrap {{ background: #111827; border: 1px solid #1e293b; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }}
+        table {{ width: 100%; border-collapse: collapse; text-align: left; }}
+        th {{ background: #1a2234; padding: 12px 16px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 700; border-bottom: 1px solid #1e293b; }}
+        td {{ padding: 14px 16px; border-bottom: 1px solid #1e293b; font-size: 14px; }}
+        tr:hover {{ background: rgba(255,255,255,0.02); }}
+        .nav-btn {{ background: #1e293b; color: #f8fafc; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; border: 1px solid #334155; }}
+        .nav-btn:hover {{ background: #334155; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="brand">
+                <div class="brand-badge">🛡️</div>
+                <div>
+                    <div class="title">DeepForensics <span style="color:#38bdf8;">Evidentiary Storage Vault</span></div>
+                    <div class="subtitle">Live Server Storage &amp; Case Dossier Registry</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <a href="/" class="nav-btn">← Back to Web Console</a>
+                <a href="/api/reports" target="_blank" class="nav-btn">JSON Telemetry API ↗</a>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="card">
+                <div class="card-label">Server Storage Directory</div>
+                <div class="card-val" style="font-size:0.95rem; word-break:break-all; color:#38bdf8;">{storage_dir}</div>
+                <div class="card-sub">Linux Container Local Mount</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Total Stored PDF Dossiers</div>
+                <div class="card-val" style="color:#10b981;">{len(reports)}</div>
+                <div class="card-sub">Verified Evidence Files</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Active Disk Space Consumed</div>
+                <div class="card-val" style="color:#f59e0b;">{total_mb} MB</div>
+                <div class="card-sub">{total_bytes:,} bytes on disk</div>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Case / Job UUID</th>
+                        <th>Evidence Type</th>
+                        <th>Storage Consumed</th>
+                        <th>Synthesized At (UTC)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+"""
+    return HTMLResponse(content=html_content)
 
 def run_analysis_pipeline(job_id: str, file_path: str):
     # =============================================

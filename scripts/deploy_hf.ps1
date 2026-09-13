@@ -30,6 +30,17 @@ Copy-Item (Join-Path $src ".gitattributes") (Join-Path $deployDir ".gitattribute
 Copy-Item -Recurse (Join-Path $src "pipeline") (Join-Path $deployDir "pipeline")
 Copy-Item -Recurse (Join-Path $src "weights") (Join-Path $deployDir "weights")
 
+# Copy built frontend into static directory so Hugging Face Space App tab renders full UI
+$frontendDist = Join-Path $workspaceRoot "frontend\dist"
+if (Test-Path $frontendDist) {
+    Write-Host "==> Bundling pre-built frontend into deployment static folder..." -ForegroundColor Cyan
+    $staticDeploy = Join-Path $deployDir "static"
+    Copy-Item -Recurse $frontendDist $staticDeploy
+    # Remove LFS pointer file and heavy benchmark charts from web static
+    Remove-Item (Join-Path $staticDeploy "gradcam-mockup.png") -Force -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force (Join-Path $staticDeploy "benchmark_artifacts") -ErrorAction SilentlyContinue
+}
+
 # Clean bytecode and evaluation reports
 Get-ChildItem -Path $deployDir -Include "__pycache__" -Recurse -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Get-ChildItem -Path (Join-Path $deployDir "weights") -Include "*.png","*.jpg","*.pdf" -Recurse -Force | Remove-Item -Force -ErrorAction SilentlyContinue
@@ -40,6 +51,7 @@ try {
     git init -b main | Out-Null
     git config user.name "Saksham Agarwal"
     git config user.email "sakshamagarwal123@gmail.com"
+    git config lfs.allowincompletepush true
     git lfs install | Out-Null
 
     git add .gitattributes
