@@ -351,7 +351,10 @@ const LightingTab = ({
                 );
               })}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.25rem' }}>
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.25rem' }}
+                title="Illumination Divergence Tolerance (θ): Threshold angle (25°–65°) above which the 3D lighting direction difference is classified as an anomalous splice."
+              >
                 <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>&theta;:</span>
                 <input 
                   type="range" 

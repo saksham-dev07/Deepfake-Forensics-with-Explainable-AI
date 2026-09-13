@@ -372,7 +372,10 @@ const EyeTab = ({
                 );
               })}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.25rem' }}>
+              <div 
+                style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.25rem' }}
+                title="Blink Kinematics Cutoff Threshold (τ): Soukupová & Čech Eye Aspect Ratio (EAR) threshold (0.15–0.25) below which an eye is registered as a closed blink."
+              >
                 <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>&tau;:</span>
                 <input 
                   type="range" 
@@ -647,7 +650,7 @@ const EyeTab = ({
             <MetricCard 
               label="Spontaneous Blink Rate" 
               value={blinkRate !== null ? `${blinkRate} BPM` : (isAnomaly ? '2 BPM' : '16 BPM')} 
-              subValue="Baseline: 12 – 20 BPM" 
+              subValue={`EAR Cutoff τ = ${earThreshold.toFixed(2)}`} 
               type={isAnomaly ? 'danger' : 'success'} 
             />
             <MetricCard 
