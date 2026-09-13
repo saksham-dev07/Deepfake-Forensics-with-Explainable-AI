@@ -7,6 +7,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import TestDefinition from '../ui/TestDefinition';
 import VerdictBadge from '../ui/VerdictBadge';
+import WipeDivider from '../ui/WipeDivider';
 import { API_BASE } from '../../constants/api';
 import { resolveOriginalFaceUrl, handleFaceImgError } from '../../utils/mediaUrl';
 
@@ -353,24 +354,15 @@ const VisualTab = ({
               </div>
             )}
 
-            {/* Wipe Divider Line */}
+            {/* Wipe Divider Line with Draggable Center Handle */}
             {stageMode === 'wipe' && (
-              <div 
-                style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  bottom: 0, 
-                  left: `${wipePercent}%`, 
-                  width: '2px', 
-                  background: 'var(--danger)', 
-                  boxShadow: '0 0 8px rgba(244,63,94,0.8)',
-                  pointerEvents: 'none'
-                }}
-              >
-                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '22px', height: '22px', borderRadius: '50%', background: 'var(--danger)', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
-                  <ArrowRightLeft size={10} color="#fff" />
-                </div>
-              </div>
+              <WipeDivider
+                wipePercent={wipePercent}
+                setWipePercent={setWipePercent}
+                containerRef={stageContainerRef}
+                color="var(--danger)"
+                shadowColor="rgba(244,63,94,0.8)"
+              />
             )}
 
             {/* Live HUD Coordinate Tracker */}

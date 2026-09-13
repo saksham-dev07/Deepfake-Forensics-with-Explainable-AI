@@ -8,6 +8,7 @@ import 'katex/dist/katex.min.css';
 import MetricCard from '../ui/MetricCard';
 import TestExplanation from '../ui/TestExplanation';
 import VerdictBadge from '../ui/VerdictBadge';
+import WipeDivider from '../ui/WipeDivider';
 import { API_BASE } from '../../constants/api';
 import { resolveOriginalFaceUrl, handleFaceImgError } from '../../utils/mediaUrl';
 
@@ -489,39 +490,15 @@ const ColorTab = ({
                 </div>
               )}
 
-              {/* Wipe Divider Line */}
+              {/* Wipe Divider Line with Draggable Center Handle */}
               {stageMode === 'wipe' && (
-                <div 
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: `${wipePercent}%`,
-                    width: '2px',
-                    background: 'var(--primary)',
-                    boxShadow: '0 0 8px rgba(56, 189, 248, 0.8)',
-                    cursor: 'ew-resize',
-                    zIndex: 10
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    background: 'var(--primary)',
-                    color: '#000',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.65rem'
-                  }}>
-                    <ArrowRightLeft size={10} />
-                  </div>
-                </div>
+                <WipeDivider
+                  wipePercent={wipePercent}
+                  setWipePercent={setWipePercent}
+                  containerRef={stageContainerRef}
+                  color="var(--primary)"
+                  shadowColor="rgba(56, 189, 248, 0.8)"
+                />
               )}
 
               {/* Watermark Label for Exhibit B */}

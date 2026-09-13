@@ -5,6 +5,7 @@ import 'katex/dist/katex.min.css';
 import TestExplanation from '../ui/TestExplanation';
 import VerdictBadge from '../ui/VerdictBadge';
 import MetricCard from '../ui/MetricCard';
+import WipeDivider from '../ui/WipeDivider';
 import { API_BASE } from '../../constants/api';
 import { resolveOriginalFaceUrl, handleFaceImgError } from '../../utils/mediaUrl';
 
@@ -403,24 +404,15 @@ const NoiseTab = ({
               </div>
             )}
 
-            {/* Wipe Divider Line */}
+            {/* Wipe Divider Line with Draggable Center Handle */}
             {stageMode === 'wipe' && (
-              <div 
-                style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  bottom: 0, 
-                  left: `${wipePercent}%`, 
-                  width: '2px', 
-                  background: 'var(--success)', 
-                  boxShadow: '0 0 8px rgba(16,185,129,0.8)',
-                  pointerEvents: 'none'
-                }}
-              >
-                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '22px', height: '22px', borderRadius: '50%', background: 'var(--success)', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
-                  <ArrowRightLeft size={10} color="#fff" />
-                </div>
-              </div>
+              <WipeDivider
+                wipePercent={wipePercent}
+                setWipePercent={setWipePercent}
+                containerRef={stageContainerRef}
+                color="var(--success)"
+                shadowColor="rgba(16,185,129,0.8)"
+              />
             )}
 
             {/* Live HUD Coordinate Tracker */}

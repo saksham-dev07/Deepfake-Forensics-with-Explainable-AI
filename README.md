@@ -714,6 +714,7 @@ The frontend is an enterprise-grade forensic console built with **React 18** and
 - **Single Authoritative Forensic Dossier Header (`ReportDashboard.jsx`)**: Displays case reference tracking (`REF #...`), live sensor convergence status, clean verdict pill with anomaly risk score, court-admissible 1-sentence plain-English findings, and instant export PDF / new scan action buttons.
 - **Streamlined Media Inspector Sidebar**: Surfaces technical specifications (exact resolution, file size, Laplacian focus sharpness, model architecture) alongside an interactive **Target Face Crop Preview Card** (with full-resolution modal zoom) and a **Diagnostic Sensor Matrix** with live status pills (`NOMINAL`, `ELEVATED`, `ANOMALY`) and 1-click tab jumping.
 - **Interactive A/B Forensics Split Workbench**:
+  - **Direct Viewport Swipe Handle (`WipeDivider.jsx`)**: The vertical split divider and central circular handle (`⇄`) are fully draggable across the master viewport using standard W3C Pointer Events with active pointer capture (`setPointerCapture`) and `touch-action: none`. Investigators can swipe directly across the image canvas on desktop mouse or touch devices, in addition to using the precision bottom range slider.
   - **Dynamic Layer Badges**: Viewport headers dynamically reflect active exhibits (e.g., `B: HSV SATURATION ELA`, `B: PRNU SILICON NOISE`) the instant they are promoted from the matrix filmstrip.
   - **In-Flight Visual Feedback**: Smooth opacity transitions and a dedicated `.viewport-loader` pulsing spinner overlay provide unmistakable visual confirmation while matrices are streaming.
   - **Proactive Background Prefetching**: Client-side prefetch hooks (`new Image().src = ex.img`) preload all exhibit thumbnails and high-res layers on tab mount, eliminating network delays when toggling between analytical maps.
@@ -979,7 +980,8 @@ Deepfake-Forensics-with-Explainable-AI/
         │   │
         │   └── ui/                         # Modular UI Micro-Components
         │       ├── MetricCard.jsx          ├── ScoreRing.jsx       ├── SimpleSparkline.jsx
-        │       ├── TestDefinition.jsx      ├── TestExplanation.jsx └── VerdictBadge.jsx
+        │       ├── TestDefinition.jsx      ├── TestExplanation.jsx ├── VerdictBadge.jsx
+        │       └── WipeDivider.jsx
         │
         ├── constants/                      # Scientific Definitions & Configurations
         │   └── testDefinitions.js          # Exact test descriptions for all 16 modules

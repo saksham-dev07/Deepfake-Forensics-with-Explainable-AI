@@ -15,6 +15,7 @@ This is the high-performance **React 18 + Vite** client application for the **De
   - `ModelsOverview.jsx`: Neural architecture explorer with interactive Recharts loss and accuracy curves.
   - `ReportDashboard.jsx`: Single authoritative Forensic Dossier Header with case reference tracking, one-sentence plain-English findings, export PDF / scan CTAs, a streamlined Inspected Media sidebar with **Target Face Crop Preview Card**, interactive Diagnostic Sensor Matrix, and live tab badges.
 - **Interactive A/B Forensics Split Workbench**:
+  - **Direct Viewport Swipe Handle (`WipeDivider.jsx`)**: The vertical split divider and central circular handle (`⇄`) are fully draggable across the master viewport using standard W3C Pointer Events with active pointer capture (`setPointerCapture`) and `touch-action: none`. Investigators can swipe directly across the image canvas on desktop mouse or touch devices, in addition to using the precision bottom range slider.
   - **Dynamic Layer Badges**: Viewport headers dynamically reflect active exhibits (e.g., `B: HSV SATURATION ELA`, `B: PRNU SILICON NOISE`) the instant they are promoted.
   - **In-Flight Visual Feedback**: Smooth opacity fade transitions and a dedicated `.viewport-loader` pulsing spinner overlay provide unmistakable visual confirmation while matrices are streaming.
   - **Proactive Background Prefetching**: Client-side prefetch hooks (`new Image().src = ex.img`) preload all exhibit thumbnails and high-res layers on tab mount, eliminating network delays when toggling between analytical maps.
