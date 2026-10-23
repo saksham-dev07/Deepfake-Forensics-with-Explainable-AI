@@ -1,6 +1,7 @@
 import cv2
 import os
 import subprocess
+import math
 import imageio_ffmpeg
 from pipeline.image_utils import save_optimized_image
 
@@ -16,31 +17,31 @@ def process_video(video_path: str, job_id: str):
     frames_dir = f"uploads/{job_id}_frames"
     os.makedirs(frames_dir, exist_ok=True)
     
-    # Get reliable ffmpeg path
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-    
     audio_path = f"uploads/{job_id}.wav"
     
     # Check if it's an image
     file_extension = video_path.split('.')[-1].lower()
-    if file_extension in ['jpg', 'jpeg', 'png']:
-        frame_path = os.path.join(frames_dir, "frame_0000.jpg")
+    if file_extension in ['jpg', 'jpeg', 'png', 'webp']:
+        frame_path = os.path.join(frames_dir, "frame_0000.png")
         img = cv2.imread(video_path)
         if img is not None:
-            save_optimized_image(frame_path, img, max_dim=1080, quality=85)
+            save_optimized_image(frame_path, img, max_dim=1080)
             return frames_dir, None
         else:
             raise ValueError("Could not read image file.")
 
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+
     # Get video duration
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    
-    if total_frames == 0 or fps == 0:
+    frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+
+    if not math.isfinite(fps) or fps <= 0 or not math.isfinite(frame_count) or frame_count <= 0:
         cap.release()
         raise ValueError("Video has no frames or could not be read.")
         
+    total_frames = int(frame_count)
     duration = total_frames / fps
     if duration > MAX_DURATION_SEC:
         duration = MAX_DURATION_SEC
@@ -54,7 +55,7 @@ def process_video(video_path: str, job_id: str):
             [ffmpeg_exe, '-y', '-i', video_path, '-t', str(MAX_DURATION_SEC), '-vn', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', audio_path],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            check=True
+            check=True, timeout=120
         )
         if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
             audio_path = None
@@ -66,7 +67,10 @@ def process_video(video_path: str, job_id: str):
     try:
         from scenedetect import detect, ContentDetector
         print(f"Running Scene Detection on {video_path}...")
-        scene_list = detect(video_path, ContentDetector(threshold=27.0))
+        scene_list = detect(video_path, ContentDetector(threshold=27.0), end_time=float(MAX_DURATION_SEC))
+        if len(scene_list) > NUM_FRAMES:
+            # Spread the budget over the clip rather than taking only early cuts.
+            scene_list = [scene_list[i * len(scene_list) // NUM_FRAMES] for i in range(NUM_FRAMES)]
         
         frame_indices = []
         if scene_list and len(scene_list) > 0:
@@ -94,10 +98,11 @@ def process_video(video_path: str, job_id: str):
             
         frame_indices = sorted(list(set(frame_indices)))[:NUM_FRAMES]
         
-    except ImportError:
-        print("Warning: scenedetect not installed. Falling back to uniform frame extraction.")
+    except Exception as error:
+        print(f"Scene detection unavailable ({error}); using uniform frame extraction.")
         frame_indices = [int(i * total_frames / NUM_FRAMES) for i in range(NUM_FRAMES)]
         
+    frame_indices = sorted(set(frame_indices))[:NUM_FRAMES]
     extracted_count = 0
     
     # Fast extraction using ffmpeg with select filter
@@ -105,13 +110,13 @@ def process_video(video_path: str, job_id: str):
         try:
             # Create a complex filter string to select specific frames, escaping the comma for ffmpeg
             select_expr = '+'.join([rf"eq(n\,{idx})" for idx in frame_indices])
-            output_pattern = os.path.join(frames_dir, "frame_%04d.jpg")
+            output_pattern = os.path.join(frames_dir, "frame_%04d.png")
             
             subprocess.run(
-                [ffmpeg_exe, '-y', '-i', video_path, '-vf', f"select={select_expr}", '-vsync', '0', '-q:v', '2', output_pattern],
+                [ffmpeg_exe, '-y', '-i', video_path, '-t', str(MAX_DURATION_SEC), '-vf', f"select={select_expr},scale=w='min(1080,iw)':h='min(1080,ih)':force_original_aspect_ratio=decrease", '-fps_mode', 'passthrough', '-frames:v', str(NUM_FRAMES), '-start_number', '0', output_pattern],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                check=True
+                check=True, timeout=120
             )
         except Exception as e:
             print(f"Error extracting frames with ffmpeg: {e}")
@@ -121,9 +126,11 @@ def process_video(video_path: str, job_id: str):
                 cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
                 ret, frame = cap.read()
                 if ret:
-                    frame_path = os.path.join(frames_dir, f"frame_{extracted_count:04d}.jpg")
-                    cv2.imwrite(frame_path, frame)
+                    frame_path = os.path.join(frames_dir, f"frame_{extracted_count:04d}.png")
+                    save_optimized_image(frame_path, frame, max_dim=1080)
                     extracted_count += 1
             cap.release()
     
+    if not any(name.startswith('frame_') and name.lower().endswith('.png') for name in os.listdir(frames_dir)):
+        raise ValueError("No frames could be extracted from video")
     return frames_dir, audio_path

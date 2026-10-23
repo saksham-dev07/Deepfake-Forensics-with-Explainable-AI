@@ -1,5 +1,10 @@
 # Technical Specification & Forensic Architecture: Multimodal Meta-Classifier & Fusion Engine (`ensemble_classifier.py`)
 
+## Runtime correction: shared inference gateway
+
+`FEATURE_ORDER` defines the 15 columns once. `predict(feature_dict)` applies neutral defaults and delegates to `predict_batch(matrix)`, which returns a one-dimensional probability array. A loaded XGBoost model sets the trained flag and takes precedence; otherwise the loaded PyTorch model runs in eval mode. Only genuinely untrained models use the mean fallback. SHAP calls this same batched gateway and applies the verdict's critical-sensor override, avoiding attribution to a different network. The existing single-token attention block is not multi-head feature attention; no new attention architecture or retraining is introduced.
+
+
 **Implementation File**: [`backend/pipeline/ensemble_classifier.py`](../pipeline/ensemble_classifier.py)  
 **Analytical Classification**: Multimodal Forensic Decision Fusion / Tabular ResNet & Gradient-Boosted Trees  
 **Architectural Components**: PyTorch Tabular ResNet with Self-Attention (`DeepfakeMetaClassifier`) + XGBoost (`XGBClassifier`)  
@@ -284,4 +289,14 @@ The production Meta-Classifier is trained via [`backend/scripts/train_ensemble_m
   - Precision-Recall curve with Average Precision (AP)
   - Permutation Feature Sensitivity bar chart (Self-Attention audit)
 
+
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Loading clears trained flags before attempting a checkpoint. A corrupt/incompatible XGBoost file now proceeds to the existing trained PyTorch checkpoint instead of aborting the fallback. The shared batch prediction gateway rejects malformed shapes, NaN/infinity, and out-of-range anomaly inputs before either model or SHAP evaluates them. All feature order and default neutral values remain unchanged. Synthetic training distributions are not a validation benchmark.
+
+## Research review (2026-10-17)
+
+Fusion now requires a trained checkpoint and validates finite in-range output batches; it does not silently replace missing weights with an arithmetic mean. Synthetic demonstration generation uses a local seeded RNG rather than resetting global NumPy randomness. Executing the module validates existing weights instead of overwriting them through automatic training. Single-token softmax attention is mathematically a value projection plus residual, not cross-sensor attention; its trained layout is preserved pending real-data retraining. See research_core.md.
 

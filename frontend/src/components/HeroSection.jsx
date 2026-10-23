@@ -14,7 +14,7 @@ const HeroSection = () => {
       </h1>
 
       <p className="workbench-description">
-        Enterprise multi-sensory forensic pipeline for digital media verification. Deconstructs uploaded video and imagery across 15 physical, biological, spectral, and neural dimensions to produce court-admissible evidence.
+        Inspect images and videos for signs of manipulation. Compare forensic signals, explore visual explanations, and export a report for further review.
       </p>
 
       <div style={{
@@ -26,15 +26,15 @@ const HeroSection = () => {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
           <CheckCircle2 size={14} color="var(--success)" />
-          <span>Daubert Admissibility Ready</span>
+          <span>Reviewable findings</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
           <Cpu size={14} color="var(--primary)" />
-          <span>15 Parallel Forensic Sensors</span>
+          <span>15 forensic signals</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
           <FileCheck size={14} color="var(--accent)" />
-          <span>Dual Grad-CAM &amp; SHAP Grounding</span>
+          <span>Visual explanations</span>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import cv2
 import os
+import threading
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
@@ -10,7 +11,9 @@ from pipeline.image_utils import save_optimized_image
 class XAIExplainer:
     def __init__(self, model):
         self.model = model
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = next(model.parameters()).device
+        if not hasattr(model, "_inference_lock"):
+            model._inference_lock = threading.RLock()
         
         # Identify the target layer for GradCAM based on the model architecture
         # For EfficientNet, the last convolutional layer is usually appropriate.
@@ -24,6 +27,17 @@ class XAIExplainer:
             self.available = False
             
     def generate_heatmap(self, input_tensor, original_image, save_path):
+        with self.model._inference_lock, torch.enable_grad():
+            # Guided backprop must not modify the caller's gradient flags or buffer.
+            tensor = input_tensor.detach().clone().to(self.device).requires_grad_(True)
+            try:
+                return self._generate_heatmap(tensor, original_image, save_path)
+            finally:
+                self.model.zero_grad(set_to_none=True)
+                if self.available:
+                    self.cam.activations_and_grads.clear()
+
+    def _generate_heatmap(self, input_tensor, original_image, save_path):
         """
         Generates and saves a GradCAM heatmap and Guided Grad-CAM pixel map.
         """
@@ -48,11 +62,15 @@ class XAIExplainer:
         
         # Generate Guided Grad-CAM
         guided_path = None
+        # The dependency mutates ReLU modules; restore originals even if backward fails.
+        relus = [(parent, name, child) for parent in self.model.modules()
+                 for name, child in parent.named_children() if isinstance(child, torch.nn.ReLU)]
         try:
             from pytorch_grad_cam import GuidedBackpropReLUModel
             guided_model = GuidedBackpropReLUModel(model=self.model, device=self.device)
             
-            cam_gb = guided_model(input_tensor, target_category=0)
+            guided_input = input_tensor.detach().clone().requires_grad_(True)
+            cam_gb = guided_model(guided_input, target_category=0)
             # Element-wise multiply the GradCAM mask with the guided backprop to get Guided Grad-CAM
             guided_gradcam = np.multiply(cam_gb, np.expand_dims(grayscale_cam, axis=-1))
             
@@ -70,14 +88,18 @@ class XAIExplainer:
             grad_uint8 = np.uint8(255 * grad_magnitude)
             guided_colored = cv2.applyColorMap(grad_uint8, cv2.COLORMAP_INFERNO)
             
-            guided_path = save_path.replace(".jpg", "_guided.jpg")
-            save_optimized_image(guided_path, guided_colored)
+            root, extension = os.path.splitext(save_path)
+            candidate_path = root + "_guided" + extension
+            save_optimized_image(candidate_path, guided_colored)
+            guided_path = candidate_path
         except Exception as e:
             print("Failed to generate Guided Grad-CAM:", e)
+        finally:
+            for parent, name, original in relus:
+                parent._modules[name] = original
             
         return save_path, guided_path
 
     def get_shap_features(self):
-        # In a real implementation, SHAP requires a background dataset and can be very slow
-        # We simulate feature ranking based on regions commonly identified
-        return ["Mouth region blending anomalies", "Inconsistent lighting on left cheek", "Micro-desynchronization in syllables"]
+        """Legacy interface; measured ensemble SHAP values are generated in main.py."""
+        return []

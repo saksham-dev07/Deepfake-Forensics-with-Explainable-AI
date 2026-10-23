@@ -2,10 +2,19 @@ import cv2
 import numpy as np
 import os
 import uuid
-import matplotlib.pyplot as plt
 from skimage.metrics import structural_similarity as ssim
-from pathlib import Path
 from pipeline.image_utils import save_optimized_image
+
+
+def _extract_highlights(eye_rgb, mask):
+    """Threshold measured source pixels before any display enlargement."""
+    lightness = cv2.cvtColor(eye_rgb, cv2.COLOR_RGB2LAB)[:, :, 0]
+    values = lightness[mask > 0]
+    if not len(values):
+        return np.zeros_like(lightness)
+    threshold = max(180, np.percentile(values, 90))
+    return np.where((mask > 0) & (lightness > threshold), 255, 0).astype(np.uint8)
+
 
 def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, quality_multiplier=1.0):
     """
@@ -16,9 +25,8 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
     try:
         img = cv2.imread(image_path)
         if img is None:
-            return {"corneal_score": 0.5, "error": "Could not read image"}
+            return {"available": False, "score_available": False, "eligible_for_fusion": False, "corneal_score": 0.5, "error": "Could not read image"}
             
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         h, w = img.shape[:2]
         
@@ -31,12 +39,16 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
             
         if not detection_result.face_landmarks:
             return {
+                "available": False, "score_available": False, "eligible_for_fusion": False,
                 "corneal_score": 0.5,
                 "warning": "No face detected for corneal analysis",
                 "corneal_map_path": None
             }
             
         face_landmarks = detection_result.face_landmarks[0]
+        if len(face_landmarks) < 478:
+            return {"available": False, "score_available": False, "eligible_for_fusion": False, "corneal_score": 0.5,
+                    "warnings": ["Iris landmarks are unavailable; corneal highlights cannot be isolated."], "corneal_map_path": None}
         
         # Mediapipe Eye Contours (tightly bounds the sclera and iris)
         # Left eye (right side of image)
@@ -53,6 +65,26 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         
         cv2.fillPoly(left_eye_mask_full, [le_pts], 255)
         cv2.fillPoly(right_eye_mask_full, [re_pts], 255)
+
+        # Bright sclera and eyelids are not corneal reflections. Intersect each
+        # eyelid mask with the observed iris disk (MediaPipe's four iris edges).
+        def iris_region(indices, eye_mask):
+            points = np.array([[face_landmarks[i].x * w, face_landmarks[i].y * h] for i in indices], np.float32)
+            if not np.isfinite(points).all():
+                return None
+            (cx, cy), radius = cv2.minEnclosingCircle(points)
+            if radius < 1:
+                return None
+            disk = np.zeros_like(eye_mask)
+            cv2.circle(disk, (round(cx), round(cy)), round(radius), 255, -1)
+            eye_mask[:] = cv2.bitwise_and(eye_mask, disk)
+            return np.array([[cx - radius, cy - radius], [cx + radius, cy + radius]], np.int32)
+
+        left_iris = iris_region(range(474, 478), left_eye_mask_full)
+        right_iris = iris_region(range(469, 473), right_eye_mask_full)
+        if left_iris is None or right_iris is None:
+            return {"available": False, "score_available": False, "eligible_for_fusion": False, "corneal_score": 0.5,
+                    "warnings": ["Both iris regions need resolvable source pixels; enlargement cannot recover missing detail."], "corneal_map_path": None}
         
         # Bounding boxes for cropping
         def get_bbox(pts, pad=2):
@@ -63,8 +95,8 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
                 max(0, y_min - pad), min(h, y_max + pad)
             )
             
-        lx_min, lx_max, ly_min, ly_max = get_bbox(le_pts, pad=5)
-        rx_min, rx_max, ry_min, ry_max = get_bbox(re_pts, pad=5)
+        lx_min, lx_max, ly_min, ly_max = get_bbox(left_iris, pad=0)
+        rx_min, rx_max, ry_min, ry_max = get_bbox(right_iris, pad=0)
         
         # Crop eye regions
         left_eye_rgb = img_rgb[ly_min:ly_max, lx_min:lx_max]
@@ -76,42 +108,26 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         
         if left_eye_rgb.size == 0 or right_eye_rgb.size == 0:
              return {
+                "available": False, "score_available": False, "eligible_for_fusion": False,
                 "corneal_score": 0.5,
                 "warning": "Eye regions could not be cropped clearly",
                 "corneal_map_path": None
             }
             
-        # Resize to standard size for comparison
+        # Segment at native resolution; resizing RGB first invents interpolated
+        # brightness and can erase a one-pixel reflection in a small face.
+        left_thresh = _extract_highlights(left_eye_rgb, left_mask)
+        right_thresh = _extract_highlights(right_eye_rgb, right_mask)
         target_size = (64, 64)
         left_eye_rgb = cv2.resize(left_eye_rgb, target_size)
         right_eye_rgb = cv2.resize(right_eye_rgb, target_size)
         
-        left_mask = cv2.resize(left_mask, target_size, interpolation=cv2.INTER_NEAREST)
-        right_mask = cv2.resize(right_mask, target_size, interpolation=cv2.INTER_NEAREST)
+        left_thresh = cv2.resize(left_thresh, target_size, interpolation=cv2.INTER_NEAREST)
+        right_thresh = cv2.resize(right_thresh, target_size, interpolation=cv2.INTER_NEAREST)
         
-        # Isolate specular highlights using Color-Informed Brightness
-        def extract_highlights(eye_rgb, mask):
-            # Convert to LAB to find brightness
-            lab = cv2.cvtColor(eye_rgb, cv2.COLOR_RGB2LAB)
-            l_channel = lab[:,:,0]
-            
-            # Apply exact eye mask
-            l_channel = cv2.bitwise_and(l_channel, l_channel, mask=mask)
-            
-            # Threshold top 10% brightness inside the eye mask
-            valid_pixels = l_channel[mask > 0]
-            if len(valid_pixels) == 0:
-                return np.zeros_like(l_channel)
-                
-            p90 = np.percentile(valid_pixels, 90)
-            thresh_val = max(180, p90) # Require absolute brightness as well
-            
-            _, thresh = cv2.threshold(l_channel, thresh_val, 255, cv2.THRESH_BINARY)
-            return thresh
-            
-        left_thresh = extract_highlights(left_eye_rgb, left_mask)
-        right_thresh = extract_highlights(right_eye_rgb, right_mask)
-        
+        if not np.any(left_thresh) or not np.any(right_thresh):
+            return {"available": False, "score_available": False, "eligible_for_fusion": False, "corneal_score": 0.5, "warnings": ["Both eyes need measurable highlights; reflection evidence is unavailable."], "corneal_map_path": None}
+
         # Grayscale versions for visualization
         left_eye_img = cv2.cvtColor(left_eye_rgb, cv2.COLOR_RGB2GRAY)
         right_eye_img = cv2.cvtColor(right_eye_rgb, cv2.COLOR_RGB2GRAY)
@@ -258,8 +274,8 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         # -------------------------------------------------------------
         loupe_canvas = np.zeros((220, 380, 3), dtype=np.uint8)
         # Resize cropped eye RGBs
-        le_zoom = cv2.resize(left_eye_rgb, (160, 160))
-        re_zoom = cv2.resize(right_eye_rgb, (160, 160))
+        le_zoom = cv2.resize(cv2.cvtColor(left_eye_rgb, cv2.COLOR_RGB2BGR), (160, 160))
+        re_zoom = cv2.resize(cv2.cvtColor(right_eye_rgb, cv2.COLOR_RGB2BGR), (160, 160))
         # Draw circular mask on zoom
         mask_circle = np.zeros((160, 160), dtype=np.uint8)
         cv2.circle(mask_circle, (80, 80), 75, 255, -1)
@@ -273,72 +289,35 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
         cv2.circle(loupe_canvas, (280, 110), 76, (56, 189, 248), 2)
         cv2.putText(loupe_canvas, "LEFT OCULAR LOUPE", (35, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1, cv2.LINE_AA)
         cv2.putText(loupe_canvas, "RIGHT OCULAR LOUPE", (215, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1, cv2.LINE_AA)
-        cv2.putText(loupe_canvas, f"Point Spread Sim: {(sim_score * 100):.1f}%", (110, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (16, 185, 129) if sim_score > 0.4 else (244, 63, 94), 1, cv2.LINE_AA)
+        cv2.putText(loupe_canvas, f"Binary Mask SSIM: {sim_score:.3f}", (110, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (16, 185, 129) if sim_score > 0.4 else (244, 63, 94), 1, cv2.LINE_AA)
         
         loupe_filename = f"corneal_loupe_{file_uid}.jpg"
         loupe_save_path = os.path.join(save_dir, loupe_filename)
         save_optimized_image(loupe_save_path, loupe_canvas)
 
-        # -------------------------------------------------------------
-        # EXHIBIT 3: 3D Light Source Ray Convergence Map
-        # -------------------------------------------------------------
-        ray_canvas = np.zeros((380, 380, 3), dtype=np.uint8)
-        # Background dark gradient
-        cv2.rectangle(ray_canvas, (0, 0), (380, 380), (8, 12, 22), -1)
-        # Draw ocular spheres
-        cv2.circle(ray_canvas, (130, 260), 45, (20, 30, 50), -1)
-        cv2.circle(ray_canvas, (250, 260), 45, (20, 30, 50), -1)
-        cv2.circle(ray_canvas, (130, 260), 45, (56, 189, 248), 1)
-        cv2.circle(ray_canvas, (250, 260), 45, (56, 189, 248), 1)
-        cv2.circle(ray_canvas, (130, 260), 18, (10, 15, 30), -1)
-        cv2.circle(ray_canvas, (250, 260), 18, (10, 15, 30), -1)
-        
-        # Draw specular convergence rays
-        is_convergent = iou > 0.25
-        ray_color = (16, 185, 129) if is_convergent else (244, 63, 94)
-        target_pt = (190, 70) if is_convergent else (120, 60)
-        target_pt2 = (190, 70) if is_convergent else (270, 80)
-        
-        cv2.line(ray_canvas, (130, 260), target_pt, ray_color, 2, cv2.LINE_AA)
-        cv2.line(ray_canvas, (250, 260), target_pt2, ray_color, 2, cv2.LINE_AA)
-        cv2.circle(ray_canvas, target_pt, 6, ray_color, -1)
-        if not is_convergent:
-            cv2.circle(ray_canvas, target_pt2, 6, ray_color, -1)
-            
-        cv2.putText(ray_canvas, "EPIPOLAR SPECULAR RAY CONVERGENCE", (25, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (240, 240, 240), 1, cv2.LINE_AA)
-        status_txt = "CONVERGENT PHYSICAL ILLUMINANT" if is_convergent else "UNCONVERGED STEREO LIGHT SOURCES"
-        cv2.putText(ray_canvas, status_txt, (35, 350), cv2.FONT_HERSHEY_SIMPLEX, 0.42, ray_color, 1, cv2.LINE_AA)
-        
-        ray_filename = f"corneal_vectors_{file_uid}.jpg"
-        ray_save_path = os.path.join(save_dir, ray_filename)
-        save_optimized_image(ray_save_path, ray_canvas)
+        # Highlight overlap cannot reconstruct light-source rays.
+        web_path, loupe_web_path = save_path, loupe_save_path
 
-        # Calculate web relative paths
-        if "uploads" in str(save_path).replace("\\", "/"):
-            parent_dir = Path(save_path).parts[-2]
-            web_path = f"uploads/{parent_dir}/{filename}"
-            loupe_web_path = f"uploads/{parent_dir}/{loupe_filename}"
-            ray_web_path = f"uploads/{parent_dir}/{ray_filename}"
-        else:
-            web_path = f"static/results/{filename}"
-            loupe_web_path = f"static/results/{loupe_filename}"
-            ray_web_path = f"static/results/{ray_filename}"
-        
         return {
+            "available": True,
+            "score_available": True,
+            "eligible_for_fusion": True,
+            "score_calibrated": False,
+            "score_kind": "heuristic",
             "corneal_score": float(corneal_score),
             "iou": float(iou),
             "ssim": float(sim_score),
             "total_glare_area": float(total_glare_area),
             "area_diff_ratio": float(area_diff_ratio),
             "suppressed": bool(total_glare_area > 150 or area_diff_ratio > 0.3),
-            "suppression_reason": "Total glare area is extremely high, indicating glasses." if total_glare_area > 150 else ("Asymmetric glare detected, indicating side-lighting." if area_diff_ratio > 0.3 else None),
+            "suppression_reason": "Large highlight masks (cause undetermined)." if total_glare_area > 150 else ("Asymmetric highlight area (cause undetermined)." if area_diff_ratio > 0.3 else None),
             "corneal_map_path": web_path.replace("\\", "/"),
             "ocular_loupe_path": loupe_web_path.replace("\\", "/"),
-            "specular_vector_path": ray_web_path.replace("\\", "/"),
+            "specular_vector_path": None,
             "explanation": {
-                "what_happened": "Extracted the micro-reflections from the left and right corneas and mathematically compared their geometry.",
-                "result": "Mismatched Reflections (Deepfake)" if corneal_score > 0.5 and not (total_glare_area > 150 or area_diff_ratio > 0.3) else ("Suppressed: Glasses/Lighting Detected" if (total_glare_area > 150 or area_diff_ratio > 0.3) else "Consistent Eye Reflections"),
-                "why_it_happened": "The reflections in the left and right eyes are geometrically completely different, which violates the laws of physics." if corneal_score > 0.5 and not (total_glare_area > 150 or area_diff_ratio > 0.3) else ("The anomaly score was suppressed because massive reflection blocks (glasses) or high asymmetry (side lighting) naturally distort the corneal reading." if (total_glare_area > 150 or area_diff_ratio > 0.3) else "The reflections in both eyes perfectly match the physical lighting environment."),
+                "what_happened": "Compared native-resolution bright-pixel masks within the visible iris regions; no 3D illuminant reconstruction was performed.",
+                "result": "Lower Highlight-Mask Similarity" if corneal_score > 0.5 and not (total_glare_area > 150 or area_diff_ratio > 0.3) else ("Heuristic Dampening Applied" if (total_glare_area > 150 or area_diff_ratio > 0.3) else "Higher Highlight-Mask Similarity"),
+                "why_it_happened": "Highlight masks differ under this heuristic; lighting, gaze, and occlusion can also cause differences." if corneal_score > 0.5 and not (total_glare_area > 150 or area_diff_ratio > 0.3) else ("A legacy rule dampened the score for large or asymmetric highlight masks; their physical cause was not identified." if (total_glare_area > 150 or area_diff_ratio > 0.3) else "Highlight masks are similar under this heuristic; this alone does not establish authenticity."),
                 "variables": {
                     "Intersection over Union (IoU)": f"{(iou * 100):.1f}%",
                     "Structural Similarity (SSIM)": f"{(sim_score * 100):.1f}%",
@@ -351,7 +330,7 @@ def analyze_corneal_reflections(image_path, save_dir=None, face_results=None, qu
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return {"corneal_score": 0.5, "error": str(e)}
+        return {"available": False, "score_available": False, "eligible_for_fusion": False, "corneal_score": 0.5, "error": str(e)}
 
 if __name__ == "__main__":
     import sys

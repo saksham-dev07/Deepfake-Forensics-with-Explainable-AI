@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react';
-import { API_BASE, API_KEY } from '../constants/api';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { API_KEY } from '../constants/api';
+import { resolveMediaUrl } from '../utils/mediaUrl';
 
 export const useAnalysisPipeline = () => {
   const [file, setFile] = useState(null);
@@ -10,182 +11,169 @@ export const useAnalysisPipeline = () => {
   const [jobId, setJobId] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const activeRun = useRef(null);
+
+  const stopWatching = useCallback(() => {
+    const run = activeRun.current;
+    activeRun.current = null;
+    if (!run) return;
+    run.controller.abort();
+    run.streamController?.abort();
+    run.pollController?.abort();
+    clearTimeout(run.pollTimer);
+    clearTimeout(run.watchdog);
+  }, []);
+
+  useEffect(() => stopWatching, [stopWatching]);
 
   const handleFileUpload = async (selectedFile) => {
     if (!selectedFile) return;
+    stopWatching();
+    setProgress(0);
+    setTelemetry(null);
+    setLogs([]);
+    setResult(null);
+    setJobId(null);
+    setError(null);
+    const extension = selectedFile.name?.split('.').pop().toLowerCase();
+    if (!['mp4', 'avi', 'mov', 'mkv', 'webm', 'png', 'jpg', 'jpeg', 'webp'].includes(extension)) {
+      setStatus('idle');
+      setError('Unsupported format. Use MP4, AVI, MOV, MKV, WEBM, JPG, PNG, or WEBP.');
+      return;
+    }
+    if (selectedFile.size > 100 * 1024 * 1024) {
+      setStatus('idle');
+      setError('File too large. Maximum size is 100 MB.');
+      return;
+    }
+    if (!selectedFile.size) {
+      setStatus('idle');
+      setError('This file is empty. Choose a nonempty image or video.');
+      return;
+    }
+    const run = { controller: new AbortController() };
+    activeRun.current = run;
+    const isCurrent = () => activeRun.current === run;
     setFile(selectedFile);
     setStatus('uploading');
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
-    try {
-      const response = await fetch(`${API_BASE}/api/analyze`, {
-        method: 'POST',
-        headers: {
-          'x-api-key': API_KEY,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        if (response.status === 413) {
-          throw new Error('File too large. Maximum size is 100 MB.');
-        } else if (response.status === 400) {
-          throw new Error('Invalid file type or bad request.');
-        } else {
-          throw new Error('Backend processing failed or server is unreachable.');
-        }
+    const acceptStatus = (data) => {
+      if (!isCurrent()) return true;
+      if (data.status === 'processing') {
+        setProgress(typeof data.progress === 'number' && Number.isFinite(data.progress) ? Math.max(0, Math.min(100, data.progress)) : 0);
+        if (data.telemetry) setTelemetry(data.telemetry);
+        if (Array.isArray(data.logs)) setLogs(data.logs.flatMap(line => typeof line === 'string' ? [{ type: 'INFO', msg: line }]
+          : typeof line?.msg === 'string' ? [{ type: typeof line.type === 'string' ? line.type : 'INFO', msg: line.msg }] : []));
+        return false;
       }
-
-      const data = await response.json();
-      setJobId(data.job_id);
-      setStatus('processing');
-      setError(null);
-      pollStatus(data.job_id);
-    } catch (err) {
-      console.error(err);
-      setStatus('idle');
-      const isNetworkErr = err.name === 'TypeError' || (err.message && err.message.toLowerCase().includes('fetch'));
-      const friendlyMsg = isNetworkErr
-        ? 'Forensic backend server is offline. Run the Python backend service, or click any Instant Forensic Demo to evaluate.'
-        : (err.message || 'Error uploading file. Please ensure the backend server is running.');
-      setError(friendlyMsg);
-    }
-  };
-
-  const pollStatus = async (currentJobId) => {
-    // Watchdog Timer to detect silent backend drops
-    let watchdogTimeout;
-    const controller = new AbortController();
-    
-    const resetWatchdog = () => {
-      clearTimeout(watchdogTimeout);
-      watchdogTimeout = setTimeout(() => {
-        controller.abort('Backend connection timed out (no data received for 45 seconds).');
-      }, 45000);
+      if (data.status === 'completed' && data.result) {
+        setProgress(100);
+        setStatus('complete');
+        setResult(data.result);
+      } else {
+        setStatus('idle');
+        setError('Analysis failed: ' + (data.error || data.message || 'Unknown job state'));
+      }
+      stopWatching();
+      return true;
     };
 
-    try {
-      const response = await fetch(`${API_BASE}/api/status/${currentJobId}/stream`, {
-        headers: {
-          'x-api-key': API_KEY,
-        },
-        signal: controller.signal
-      });
-
-      if (!response.ok) {
-        throw new Error(`Stream connection failed: ${response.status}`);
-      }
-
-      resetWatchdog();
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        resetWatchdog();
-        
-        buffer += decoder.decode(value, { stream: true });
-        
-        // Process complete SSE messages separated by double newlines
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop(); // Keep incomplete chunk in buffer
-        
-        for (const part of parts) {
-          if (part.startsWith('data: ')) {
-            const dataStr = part.substring(6);
-            try {
-              const data = JSON.parse(dataStr);
-              
-              if (data.status === 'processing') {
-                setProgress(data.progress || 0);
-                if (data.telemetry) setTelemetry(data.telemetry);
-                if (data.logs) setLogs(data.logs);
-              } else if (data.status === 'completed') {
-                setProgress(100);
-                setStatus('complete');
-                setResult(data.result);
-                clearTimeout(watchdogTimeout);
-                return;
-              } else if (data.status === 'failed' || !data.status) {
-                setStatus('idle');
-                setError('Analysis failed: ' + (data.error || data.message || 'Job not found or unknown error'));
-                clearTimeout(watchdogTimeout);
-                return;
-              }
-            } catch (err) {
-              console.error('Error parsing stream JSON', err);
-            }
-          }
-        }
-      }
-      clearTimeout(watchdogTimeout);
-    } catch (err) {
-      clearTimeout(watchdogTimeout);
-      console.warn('SSE stream interrupted, transitioning to polling fallback...', err);
-      fallbackPoll(currentJobId);
-    }
-  };
-
-  const fallbackPoll = async (currentJobId) => {
-    const pollInterval = 1200;
-    let attempts = 0;
-    const maxAttempts = 180; // ~3.5 minutes maximum wait
-
-    const check = async () => {
-      attempts++;
-      if (attempts > maxAttempts) {
-        setStatus('idle');
-        setError('Analysis timed out. The backend server took too long to complete.');
+    const fallbackPoll = async (currentJobId, attempts = 0) => {
+      if (!isCurrent()) return;
+      if (attempts >= 180) {
+        acceptStatus({ status: 'failed', error: 'Analysis timed out.' });
         return;
       }
-
+      run.pollController = new AbortController();
+      run.watchdog = setTimeout(() => run.pollController.abort(), 15000);
       try {
-        const res = await fetch(`${API_BASE}/api/status/${currentJobId}`, {
-          headers: { 'x-api-key': API_KEY }
+        const response = await fetch(resolveMediaUrl(`/api/status/${currentJobId}`), {
+          headers: { 'x-api-key': API_KEY }, signal: run.pollController.signal,
         });
-
-        if (!res.ok) {
-          if (res.status === 404) {
-            setStatus('idle');
-            setError('Analysis job not found on server.');
-            return;
-          }
-          setTimeout(check, pollInterval);
+        if (!isCurrent()) return;
+        if ([401, 403, 404].includes(response.status)) {
+          acceptStatus({ status: 'failed', error: response.status === 404 ? 'Job not found on server.' : 'API authorization failed.' });
           return;
         }
-
-        const data = await res.json();
-        if (data.status === 'processing') {
-          setProgress(data.progress || 0);
-          if (data.telemetry) setTelemetry(data.telemetry);
-          if (data.logs) setLogs(data.logs);
-          setTimeout(check, pollInterval);
-        } else if (data.status === 'completed') {
-          setProgress(100);
-          setStatus('complete');
-          setResult(data.result);
-        } else if (data.status === 'failed') {
-          setStatus('idle');
-          setError('Analysis failed: ' + (data.error || data.message || 'Unknown error'));
-        } else {
-          setTimeout(check, pollInterval);
-        }
-      } catch (e) {
-        console.warn('Polling retry attempt...', e);
-        setTimeout(check, pollInterval);
+        if (response.ok && acceptStatus(await response.json())) return;
+      } catch {
+        // Transient network failures retry while this run is still active.
+      } finally {
+        clearTimeout(run.watchdog);
       }
+      if (isCurrent()) run.pollTimer = setTimeout(() => fallbackPoll(currentJobId, attempts + 1), 1200);
     };
 
-    check();
+    const watchStatus = async (currentJobId) => {
+      run.streamController = new AbortController();
+      const resetWatchdog = () => {
+        clearTimeout(run.watchdog);
+        run.watchdog = setTimeout(() => run.streamController.abort(), 45000);
+      };
+      let reader;
+      try {
+        resetWatchdog(); // Includes time spent waiting for response headers.
+        const response = await fetch(resolveMediaUrl(`/api/status/${currentJobId}/stream`), {
+          headers: { 'x-api-key': API_KEY }, signal: run.streamController.signal,
+        });
+        if (!isCurrent()) return;
+        if (!response.ok) throw new Error(`Stream connection failed: ${response.status}`);
+        reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (isCurrent()) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!isCurrent()) return;
+          resetWatchdog();
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split(/\r?\n\r?\n/);
+          buffer = parts.pop();
+          for (const part of parts) {
+            const payload = part.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n');
+            if (!payload) continue;
+            let data;
+            try { data = JSON.parse(payload); } catch { continue; }
+            if (acceptStatus(data)) return;
+          }
+        }
+      } catch {
+        // An interrupted stream and an early clean EOF both fall back to polling.
+      } finally {
+        clearTimeout(run.watchdog);
+        run.streamController.abort();
+        if (reader) await reader.cancel().catch(() => {});
+      }
+      if (isCurrent()) await fallbackPoll(currentJobId);
+    };
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    try {
+      const response = await fetch(resolveMediaUrl('/api/analyze'), {
+        method: 'POST', headers: { 'x-api-key': API_KEY }, body: formData, signal: run.controller.signal,
+      });
+      if (!isCurrent()) return;
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || `Upload failed (${response.status}).`);
+      }
+      const data = await response.json();
+      if (!isCurrent()) return;
+      if (typeof data.job_id !== 'string' || !data.job_id) throw new Error('The backend did not return an analysis ID. Try again.');
+      setJobId(data.job_id);
+      setStatus('processing');
+      await watchStatus(data.job_id);
+    } catch (err) {
+      if (!isCurrent()) return;
+      setStatus('idle');
+      setError(err.name === 'TypeError' ? 'Forensic backend is unreachable. Check the backend service or try an instant demo.' : err.message);
+      stopWatching();
+    }
   };
 
   const resetApp = () => {
+    stopWatching();
     setFile(null);
     setStatus('idle');
     setProgress(0);
@@ -198,26 +186,13 @@ export const useAnalysisPipeline = () => {
 
   const loadSampleResult = (sample) => {
     if (!sample) return;
+    resetApp();
     setFile({ name: sample.meta.fileName, size: sample.result.file_metadata.file_size_bytes });
     setJobId(sample.meta.id);
-    setResult(sample.result);
+    setResult({ ...sample.result, is_demo: true });
     setProgress(100);
     setStatus('complete');
-    setError(null);
   };
 
-  return {
-    file,
-    status,
-    progress,
-    telemetry,
-    logs,
-    jobId,
-    result,
-    error,
-    setError,
-    handleFileUpload,
-    loadSampleResult,
-    resetApp
-  };
+  return { file, status, progress, telemetry, logs, jobId, result, error, setError, handleFileUpload, loadSampleResult, resetApp };
 };

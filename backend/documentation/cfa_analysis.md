@@ -1,5 +1,7 @@
 ## Technical Specification & Forensic Architecture: Color Filter Array (CFA) Demosaicing Analysis (`cfa_analysis.py`)
 
+> Research correction (2026-10-17): this grayscale filter is a generic residual contrast proxy, not Popescu/Farid's CFA interpolation estimator. The ratio score is now continuous at 0.5 and 2.0, with the central branch and outer endpoints retained; this changes the legacy feature distribution and requires benchmarking. Face statistics now use fully contained 8x8 blocks; background excludes every face-overlapping block. Low quality moves the score toward neutral 0.5 rather than zero. Invalid evidence, including a spatially varying image with no measurable filtered residual, returns `available: false` and score 0.5; normal results identify `score_kind: "heuristic"`, `score_calibrated: false`. See [research comparison](research_image_forensics.md#3-cfa_analysispy); this correction supersedes stronger grid-identification claims below.
+
 **Implementation File**: [`backend/pipeline/cfa_analysis.py`](../pipeline/cfa_analysis.py)  
 **Analytical Classification**: Hardware Sensor Forensics / Photosite Interpolation Artifact Verification  
 **Upstream Dependencies**: `OpenCV (cv2)`, `NumPy`, `SciPy (convolve2d)`, `Matplotlib`  
@@ -260,3 +262,8 @@ def analyze_cfa_artifacts(
 3. **Small Face Bounding Boxes ($<8\text{ px}$)**: Clamped via `max(0, ...)` and `min(W_B, ...)` coordinates.
 4. **Division by Zero in Ratio**: Protected by epsilon term $\epsilon = 10^{-6}$.
 5. **Exception Encapsulation**: Entire routine wrapped in `try...except` returning fallback score `0.5` and error trace to ensure pipeline resilience.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Images smaller than an 8x8 block and constant images return neutral 0.5 with warnings. Local variances are vectorized with the same block definition. Face/background comparisons accept the shared face_bbox field (legacy box also supported) and require nonempty regions. The caller now supplies the detected face box. CFA heatmaps use OpenCV plus save_optimized_image, avoiding global pyplot state. Output paths retain their actual nested directory rather than reconstructing an incorrect uploads path. These filtered residuals are heuristic evidence, not proof of camera origin.

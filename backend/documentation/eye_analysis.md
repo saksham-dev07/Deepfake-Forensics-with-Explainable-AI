@@ -273,3 +273,8 @@ def analyze_eye_movements(
   2. **Tracking Dropouts**: When face landmarks drop temporarily, duplicates the previous valid EAR sample (`ear_sequence.append(ear_sequence[-1])`) to maintain continuous temporal alignment.
   3. **Zero Variance Protection**: Guarded against zero standard deviation before correlation calculation to avoid division by zero on static images.
   4. **Duration Cap**: Processing is bounded to 15 seconds (`max_frames = int(fps * 15)`) to maintain strict backend response guarantees.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+The thread-local FaceLandmarker belongs to its cache and is no longer closed by eye analysis. Missing observations remain NaN gaps, reset the blink state, and are excluded from correlations and observed duration. Fewer than two seconds of valid observations or less than 80% coverage returns neutral 0.5 with a warning. EAR converts normalized landmarks to pixel coordinates so non-square frames do not distort eye geometry. Plot rendering uses an isolated Figure and the shared optimized encoder.

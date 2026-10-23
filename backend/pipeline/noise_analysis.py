@@ -5,17 +5,17 @@ from pipeline.image_utils import save_optimized_image
 
 def extract_noise_residual(image_rgb):
     """
-    Extracts the pure Photo Response Non-Uniformity (PRNU) noise residual.
+    Extracts a signed denoising residual (a noise proxy, not a camera PRNU fingerprint).
     Uses Non-Local Means (NLM) denoising to create an edge-preserved clean image,
-    and subtracts it from the original to isolate pure sensor noise.
+    and subtracts it from the original, preserving negative and positive residuals.
     """
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     
     # Apply edge-preserving NLM Denoising to simulate a clean image.
     clean_img = cv2.fastNlMeansDenoising(gray, None, h=10, templateWindowSize=7, searchWindowSize=21)
     
-    # Extract the high-frequency PRNU noise residual
-    noise = cv2.subtract(gray, clean_img)
+    # Preserve both signs of the denoising residual.
+    noise = gray.astype(np.float32) - clean_img.astype(np.float32)
     
     return noise, clean_img
 
@@ -45,10 +45,13 @@ def extract_srm_noise(image_rgb):
 
 def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multiplier=1.0):
     """
-    Analyzes the sensor noise (PRNU consistency) of the image.
-    Deepfakes often exhibit unnatural smoothness or mismatched noise prints
-    where the synthetic face was blended into the real background.
+    Measures whole-image NLM residual variance and a single SRM-style filter.
+    Neither measurement identifies a camera or estimates its PRNU fingerprint.
     """
+    if (min(image_rgb.shape[:2]) < 8 or not np.any(np.ptp(image_rgb, axis=(0, 1)))
+            or not np.isfinite(quality_multiplier) or quality_multiplier <= 0):
+        return {"noise_score": 0.5, "available": False, "score_kind": "heuristic", "score_calibrated": False,
+                "warnings": ["Insufficient spatial variation, image size, or valid quality factor for noise analysis."]}
     os.makedirs(output_dir, exist_ok=True)
     
     noise, clean_img = extract_noise_residual(image_rgb)
@@ -59,7 +62,7 @@ def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multipli
     
     # Amplify the noise for visualization
     # We use cv2.COLORMAP_JET to vividly highlight the low/high variance areas
-    noise_vis = cv2.normalize(noise, None, 0, 255, cv2.NORM_MINMAX)
+    noise_vis = cv2.normalize(noise, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
     noise_vis = cv2.applyColorMap(noise_vis, cv2.COLORMAP_JET)
     
     # Blend with original
@@ -88,8 +91,7 @@ def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multipli
     variance = np.var(noise)
     
     # Score calculation (heuristic)
-    # NLM PRNU variance is much cleaner.
-    # Calibrate thresholds via IQA:
+    # Legacy thresholds are uncalibrated residual heuristics, not a sensor model.
     t_min = 2.0 * quality_multiplier
     t_low = 1.0 * quality_multiplier
     t_max = 15.0 * quality_multiplier
@@ -112,10 +114,12 @@ def analyze_sensor_noise(image_rgb, output_dir, prefix="noise", quality_multipli
         "srm_map_path": srm_path.replace("\\", "/"),
         "noise_variance": round(float(variance), 4),
         "noise_score": noise_score,
+        "available": True,
+        "score_kind": "heuristic", "score_calibrated": False,
         "explanation": {
-            "what_happened": "Extracted the Photo Response Non-Uniformity (PRNU) noise residual using Non-Local Means Denoising.",
-            "result": "Unnaturally Smooth (Deepfake)" if noise_score > 0.5 else "Natural PRNU Sensor Noise",
-            "why_it_happened": "The image lacks the natural microscopic noise grain produced by physical camera sensors, indicating it was synthetically generated." if noise_score > 0.5 else "The image exhibits standard sensor noise variance consistent with a real digital camera.",
+            "what_happened": "Measured a signed Non-Local Means denoising residual; this is not a camera identity fingerprint.",
+            "result": "Noise Residual Anomaly" if noise_score > 0.5 else "Noise Residual Within Heuristic Range",
+            "why_it_happened": "Residual variance falls outside the heuristic range. Compression, denoising, and image content also affect this measurement." if noise_score > 0.5 else "Residual variance is within the heuristic range; this does not establish authenticity.",
             "variables": {
                 "Noise Variance": f"{variance:.2f}",
                 "Expected Range": f"[{t_min:.1f} - {t_max:.1f}]"

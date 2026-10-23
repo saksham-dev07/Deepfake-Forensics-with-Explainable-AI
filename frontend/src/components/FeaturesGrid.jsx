@@ -10,7 +10,7 @@ const DOMAINS = [
     label: 'Deep Neural & XAI',
     icon: BrainCircuit,
     color: 'var(--primary)',
-    summary: 'Feature attribution and spatial attention head isolating GAN warping seams.',
+    summary: 'Visual model output and explanations of its prediction.',
     specs: [
       { name: 'Visual Backbone', detail: 'EfficientNet-B4 compound scaled (380×380 px) with CBAM attention.' },
       { name: 'Dual-Layer Grad-CAM', detail: 'Macroscopic activation map hooked to 1792-channel conv_head.' },
@@ -23,12 +23,12 @@ const DOMAINS = [
     label: 'Physical Optics & Noise',
     icon: Camera,
     color: '#38bdf8',
-    summary: 'Sensor silicon non-uniformities and optical compression artifacts.',
+    summary: 'Supporting measurements of residuals, compression, and highlights.',
     specs: [
-      { name: 'Lukas PRNU Noise', detail: 'Photo-Response Non-Uniformity extracted via Non-Local Means patch filtering.' },
-      { name: 'Error Level Analysis (ELA)', detail: 'JPEG Q=95 recompression matrix measuring localized compression delta.' },
+      { name: 'Denoising residual', detail: 'Signed residual after Non-Local Means denoising; not a camera identity fingerprint.' },
+      { name: 'Error Level Analysis (ELA)', detail: 'JPEG recompression differences and local variation.' },
       { name: 'Bayer CFA Demosaicing', detail: '3×3 high-pass demosaicing grid residuals isolating synthetic re-sampling.' },
-      { name: 'Corneal Highlights NCC', detail: 'Normalized Cross-Correlation of ocular reflections under 3D lighting.' }
+      { name: 'Corneal highlight masks', detail: 'Overlap and similarity of thresholded eye highlights.' }
     ]
   },
   {
@@ -36,11 +36,11 @@ const DOMAINS = [
     label: 'Biological & Kinematics',
     icon: HeartPulse,
     color: 'var(--success)',
-    summary: 'Involuntary autonomic signals and biometric motion physics.',
+    summary: 'Face geometry, eye observations, and pulse-like color variation.',
     specs: [
       { name: 'Subcutaneous rPPG', detail: 'Remote photoplethysmography extracting blood volume pulse via CHROM projection.' },
       { name: '468 3D Mesh Tracking', detail: 'MediaPipe facial landmarks with PnP-solved 3D head pose Euler angles.' },
-      { name: 'Eye Aspect Ratio (EAR)', detail: 'Blink duration and frequency dynamics identifying synthetic gaze stillness.' },
+      { name: 'Eye Aspect Ratio (EAR)', detail: 'Observed eye aspect ratios and blink frequency.' },
       { name: 'DIS Optical Flow', detail: 'Dense temporal vector field measuring spatial boundary jitter variance.' }
     ]
   },
@@ -52,7 +52,7 @@ const DOMAINS = [
     summary: 'Frequency domain voids and multi-modal audio-visual synchronization.',
     specs: [
       { name: '2D FFT & 8×8 DCT', detail: 'Azimuthal radial integration detecting high-frequency GAN spectral voids.' },
-      { name: 'SyncNet 1024-D Metric', detail: 'Audio-visual temporal offset distance between phonemes and mouth kinematics.' },
+      { name: 'SyncNet 1024-D Metric', detail: 'Aligned audio/video embedding distance; offset confidence may be unavailable.' },
       { name: 'Voice Anti-Spoofing CNN', detail: 'Mel-frequency spectrogram depthwise CNN detecting vocoder phase artifacts.' },
       { name: 'Container Metadata Audit', detail: 'EXIF structure, codec profiles, and quantization tables validation.' }
     ]
@@ -79,6 +79,8 @@ const FeaturesGrid = () => {
         {/* Domain Switcher Pills */}
         <div style={{
           display: 'flex',
+          flexWrap: 'wrap',
+          maxWidth: '100%',
           gap: '0.35rem',
           background: 'var(--panel-subtle)',
           padding: '0.3rem',
@@ -121,7 +123,7 @@ const FeaturesGrid = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
           <div style={{
             width: '36px', height: '36px', borderRadius: '8px',
-            background: `${current.color}15`, border: `1px solid ${current.color}35`,
+            background: `color-mix(in srgb, ${current.color} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${current.color} 25%, transparent)`,
             display: 'flex', alignItems: 'center', justifyContent: 'center', color: current.color
           }}>
             <CurrentIcon size={18} />

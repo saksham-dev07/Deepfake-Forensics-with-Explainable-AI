@@ -198,7 +198,8 @@ def compute_dct_spectrum(image_rgb, save_path=None):
     gray_float = np.float32(gray) / 255.0
 
     # Apply 2D DCT
-    dct_result = cv2.dct(gray_float)
+    from scipy.fft import dctn
+    dct_result = dctn(gray_float, type=2, norm="ortho")
 
     # ── DCT-specific high-frequency energy ratio ──
     # In a 2D DCT, DC is at (0,0) and frequency increases toward bottom-right.
@@ -295,7 +296,7 @@ def compute_block_dct_artifacts(image_rgb, save_path=None):
     Y_blocks = A @ X_blocks @ A.T
     
     # Create mask for high-frequency coefficients (bottom right triangle)
-    mask = np.tri(8, 8, -3, dtype=bool).T
+    mask = np.add.outer(np.arange(8), np.arange(8)) >= 8
     
     # Sum the absolute values of HF coefficients
     block_hf_energy = np.sum(np.abs(Y_blocks) * mask, axis=(2, 3))
@@ -421,14 +422,11 @@ def compute_fft_magnitude(image_rgb, save_path=None):
     Y, X = np.ogrid[:h, :w]
     dist = np.sqrt((X - w // 2) ** 2 + (Y - h // 2) ** 2).astype(int)
     max_r = min(h // 2, w // 2)
-    radial = np.zeros(max_r)
-    for r_val in range(max_r):
-        ring = magnitude[dist == r_val]
-        if len(ring) > 0:
-            radial[r_val] = np.mean(ring)
+    counts = np.bincount(dist.ravel())[:max_r]
+    radial = np.bincount(dist.ravel(), weights=magnitude.ravel())[:max_r] / np.maximum(counts, 1)
 
     # Draw mini chart
-    chart_w, chart_h = min(160, w // 4), min(80, h // 5)
+    chart_w, chart_h = max(1, min(160, w // 4)), max(1, min(80, h // 5))
     chart_x, chart_y = w - chart_w - 10, h - chart_h - 10
 
     # Semi-transparent background
@@ -437,7 +435,7 @@ def compute_fft_magnitude(image_rgb, save_path=None):
     cv2.addWeighted(overlay, 0.6, mag_colored, 0.4, 0, mag_colored)
 
     # Normalize radial profile to chart height
-    r_min, r_max = np.min(radial), np.max(radial)
+    r_min, r_max = (np.min(radial), np.max(radial)) if radial.size else (0.0, 0.0)
     if r_max - r_min > 1e-8:
         r_norm = (radial - r_min) / (r_max - r_min)
     else:
@@ -488,11 +486,8 @@ def azimuthal_average(image_rgb):
     max_r = min(cy, cx)
 
     # Compute radial average
-    radial_profile = np.zeros(max_r)
-    for i in range(max_r):
-        mask = r == i
-        if np.any(mask):
-            radial_profile[i] = np.mean(power_spectrum[mask])
+    counts = np.bincount(r.ravel())[:max_r]
+    radial_profile = np.bincount(r.ravel(), weights=power_spectrum.ravel())[:max_r] / np.maximum(counts, 1)
 
     return radial_profile
 
@@ -673,10 +668,10 @@ def compute_phase_spectrum(image_rgb, save_path=None):
 
 def compute_spectral_residual_saliency(image_rgb, save_path=None):
     """
-    Isolates GAN/Deepfake Transpose Convolution grids using Spectral Residuals.
+    Visual saliency following the spectral-residual construction of Hou/Zhang.
     Computes Log Amplitude Spectrum, subtracts the smoothed (box-filtered) version,
     and reconstructs the image using Inverse FFT.
-    The resulting Saliency Map highlights periodic high-frequency noise (like checkerboards).
+    Salient image structure is not specific evidence of a GAN or periodic grid.
     """
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     gray_float = gray.astype(np.float32) / 255.0
@@ -713,11 +708,32 @@ def compute_spectral_residual_saliency(image_rgb, save_path=None):
     return smap_colored, saliency_variance
 
 
+def _radial_power_law_fit(radial_profile):
+    """Fit log P(r) = slope * log r + intercept, excluding DC/invalid bins.
+
+    A straight line in log(power) versus linear radius is exponential decay,
+    not the power law P(r) proportional to r**slope.
+    """
+    powers = np.asarray(radial_profile, dtype=np.float64)[1:]
+    radius = np.arange(1, len(powers) + 1, dtype=np.float64)
+    valid = np.isfinite(powers) & (powers > 0)
+    if np.count_nonzero(valid) < 3:
+        return None, None
+    x, y = np.log(radius[valid]), np.log(powers[valid])
+    slope, intercept = np.polyfit(x, y, 1)
+    return float(slope), float(np.std(y - (slope * x + intercept)))
+
+
 def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multiplier=1.0):
     """
     Run full frequency domain analysis on an image.
     Returns a dict with all computed metrics and paths to saved visualizations.
     """
+    if (min(image_rgb.shape[:2]) < 8 or np.ptp(cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)) == 0
+            or not np.isfinite(quality_multiplier) or quality_multiplier <= 0):
+        return {"spectral_anomaly_score": 0.5, "available": False,
+                "score_kind": "heuristic", "score_calibrated": False,
+                "warnings": ["Insufficient image size, spatial variation, or valid quality factor for spectral analysis."]}
     os.makedirs(output_dir, exist_ok=True)
 
     # DCT spectrum
@@ -733,6 +749,7 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
 
     # Azimuthal average
     radial_profile = azimuthal_average(image_rgb)
+    radial_slope, radial_power_law_deviation = _radial_power_law_fit(radial_profile)
 
     # =========================================
     # IMPROVED: Continuous spectral anomaly scoring (Calibrated via IQA)
@@ -755,7 +772,8 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
         # Extremely low
         spectral_anomaly = 0.75
 
-    # Additional signal: azimuthal 1/f deviation
+    # Legacy semilog falloff heuristic (not a 1/f fit). Keep its score semantics
+    # until a labeled benchmark can recalibrate the new log-log diagnostic.
     deviation = 0.0
     if len(radial_profile) > 10:
         log_profile = np.log(radial_profile[1:] + 1e-10)
@@ -840,7 +858,7 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
     verdicts = {
         "fft": {
             "status": "Pass" if hf_ratio > 0.0001 else "Fail",
-            "reason": f"High-Freq ratio {hf_ratio:.5f} > 0.0001" if hf_ratio > 0.0001 else f"Synthetic lack of high-frequencies ({hf_ratio:.5f})"
+            "reason": f"High-frequency ratio {hf_ratio:.5f}; heuristic threshold 0.0001 (not an origin test)."
         },
         "dct": {
             "status": "Pass" if dct_hf_ratio > 0.00001 else "Fail",
@@ -848,7 +866,7 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
         },
         "block_dct": {
             "status": "Pass" if block_variance < 1000.0 else "Fail" if block_variance > 5000.0 else "Warning",
-            "reason": f"Normal block variance ({block_variance:.1f})" if block_variance < 1000.0 else f"Disrupted JPEG grid ({block_variance:.1f})"
+            "reason": f"High-frequency block-energy variance {block_variance:.1f}; texture and encoding both affect this."
         },
         "high_pass": {
             "status": "Pass" if hpf_variance > 100.0 else "Fail",
@@ -856,19 +874,19 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
         },
         "phase": {
             "status": "Pass" if phase_variance > 1.5 else "Fail" if phase_variance < 0.5 else "Warning",
-            "reason": f"Phase coherent ({phase_variance:.2f})" if phase_variance > 1.5 else f"Phase disruption detected ({phase_variance:.2f})"
+            "reason": f"Phase-angle variance {phase_variance:.2f}; this is not a phase-coherence measurement."
         },
         "swn": {
             "status": "Pass" if swn_anomaly_ratio < 0.01 else "Fail" if swn_anomaly_ratio > 0.05 else "Warning",
-            "reason": f"No spliced edges" if swn_anomaly_ratio < 0.01 else f"Detected zero-crossing anomalies ({swn_anomaly_ratio:.3f})"
+            "reason": f"Zero-crossing map outlier-area ratio {swn_anomaly_ratio:.3f}; splicing is not established."
         },
         "pca": {
             "status": "Pass" if pc3_var_ratio < 0.05 else "Fail",
-            "reason": f"Normal PCA residuals ({pc3_var_ratio:.3f})" if pc3_var_ratio < 0.05 else f"Hidden periodic artifacts ({pc3_var_ratio:.3f})"
+            "reason": f"Third color-component variance ratio {pc3_var_ratio:.3f}; this does not measure periodicity."
         },
         "saliency": {
             "status": "Pass" if saliency_variance < 500.0 else "Fail" if saliency_variance > 1500.0 else "Warning",
-            "reason": f"Natural smooth edges" if saliency_variance < 500.0 else f"Detected periodic GAN grid ({saliency_variance:.1f})"
+            "reason": f"Spectral-residual saliency variance {saliency_variance:.1f}; salient structure is not GAN-specific."
         },
         "cepstrum": {
             "status": "Pass" if cepstrum_var < 0.03 else "Fail" if cepstrum_var > 0.05 else "Warning",
@@ -883,8 +901,8 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
     # Generate Explanation
     explanation = {
         "what_happened": "Fourier Transforms (FFT) and Discrete Cosine Transforms (DCT) were applied to analyze the frequency-domain spectrum of the image.",
-        "result": "Spectral energy appears naturally distributed." if spectral_anomaly < 0.5 else "Detected synthetic spectral fingerprints, such as high-frequency GAN checkerboarding or unusual periodic artifacts.",
-        "why_it_happened": "Neural networks generate images iteratively using transpose convolutions, which often leave behind microscopic, invisible 'checkerboard' artifacts in the high-frequency spectrum that physical cameras do not produce.",
+        "result": "Lower Spectral Heuristic Score" if spectral_anomaly < 0.5 else "Elevated Spectral Heuristic Score",
+        "why_it_happened": "The score uses legacy image-statistic thresholds, not a trained reproduction of the cited spectral classifiers. Blur, resizing, JPEG compression, scene content, and generation can affect these measurements; no individual plot identifies AI origin.",
         "variables": {
             "Spectral Anomaly Score": f"{spectral_anomaly:.2f}",
             "High-Freq Energy Ratio": f"{hf_ratio:.5f}",
@@ -917,6 +935,11 @@ def analyze_frequency_domain(image_rgb, output_dir, prefix="freq", quality_multi
         "saliency_variance": round(saliency_variance, 6),
         "dwt_var": round(dwt_var, 6),
         "spectral_anomaly_score": round(spectral_anomaly, 4),
+        "available": True,
+        "score_kind": "heuristic",
+        "score_calibrated": False,
+        "radial_log_slope": radial_slope,
+        "radial_power_law_deviation": radial_power_law_deviation,
         "radial_profile_length": len(radial_profile),
         "radial_profile": [round(float(x), 4) for x in radial_profile] if len(radial_profile) > 0 else [],
         "verdicts": verdicts,

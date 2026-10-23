@@ -2,7 +2,7 @@ import os
 import torch
 
 # 1. Path to your extracted directory containing the model files
-dir_path = "backend\improved_finetuned_model_v2.zip"
+dir_path = "backend/improved_finetuned_model_v2.zip"
 output_pth = "improved_finetuned_model_v2.pth"
 
 # 2. Load the state dictionary or model structure stored in the folder

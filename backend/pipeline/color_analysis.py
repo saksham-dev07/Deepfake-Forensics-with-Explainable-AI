@@ -6,10 +6,13 @@ from pipeline.image_utils import save_optimized_image
 def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplier=1.0):
     """
     Analyzes the image across multiple color spaces: YCbCr, HSV, and LAB.
-    Deepfake generative models often struggle to properly reproduce 
-    the complex micro-coloration of human skin (subsurface scattering)
-    across diverse spectral representations.
+    These whole-image statistics describe color diversity, not skin physiology.
     """
+    if (min(image_rgb.shape[:2]) < 8 or not np.any(np.ptp(image_rgb, axis=(0, 1)))
+            or np.ptp(image_rgb, axis=2).max() == 0
+            or not np.isfinite(quality_multiplier) or quality_multiplier <= 0):
+        return {"color_anomaly_score": 0.5, "available": False, "score_kind": "heuristic", "score_calibrated": False,
+                "warnings": ["Insufficient color/spatial variation, image size, or valid quality factor for chrominance analysis."]}
     os.makedirs(output_dir, exist_ok=True)
     
     # 1. YCrCb Analysis (Standard Chrominance)
@@ -57,6 +60,10 @@ def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplie
     cb_var = np.var(cb)
     cr_var = np.var(cr)
     h_var = np.var(h)
+    # OpenCV hue is circular on [0, 180); 0 and 179 are adjacent reds.
+    # Retain h_variance for older reports; expose the meaningful circular metric.
+    valid_hue = h[s > 0].astype(np.float64) * (2 * np.pi / 180.0)
+    hue_circular_variance = float(np.clip(1 - np.abs(np.mean(np.exp(1j * valid_hue))), 0, 1))
     s_var = np.var(s)
     a_var = np.var(a)
     b_var = np.var(b)
@@ -89,14 +96,17 @@ def analyze_chrominance(image_rgb, output_dir, prefix="color", quality_multiplie
         "cb_variance": round(float(cb_var), 4),
         "cr_variance": round(float(cr_var), 4),
         "h_variance": round(float(h_var), 4),
+        "h_circular_variance": round(hue_circular_variance, 6),
         "s_variance": round(float(s_var), 4),
         "a_variance": round(float(a_var), 4),
         "b_variance": round(float(b_var), 4),
         "color_anomaly_score": color_score,
+        "available": True,
+        "score_kind": "heuristic", "score_calibrated": False,
         "explanation": {
-            "what_happened": "Analyzed chrominance variance across YCbCr, HSV, and LAB color spaces to detect synthetic skin rendering.",
-            "result": "Color Space Anomalies Detected" if color_score > 0.5 else "Natural Chrominance Profiles",
-            "why_it_happened": "The image exhibits unnaturally flat color variance in the skin tones (a* blood-flow channel or saturation), which strongly indicates AI generation." if color_score > 0.5 else "The image contains rich, natural color variance across all spectral channels, consistent with real subsurface scattering in human skin.",
+            "what_happened": "Measured whole-image chrominance variance across YCbCr, HSV, and LAB color spaces.",
+            "result": "Lower Whole-Image Color Variation" if color_score > 0.5 else "Higher Whole-Image Color Variation",
+            "why_it_happened": "Low color variance crosses the heuristic thresholds. Image content, grading, and compression can also cause this." if color_score > 0.5 else "Color variance is within the heuristic range; these channels alone do not establish authenticity or blood flow.",
             "variables": {
                 "Cb/Cr Variance": f"Cb: {cb_var:.1f} / Cr: {cr_var:.1f}",
                 "Saturation Variance": f"{s_var:.1f}",

@@ -1,5 +1,7 @@
 # Technical Specification & Forensic Architecture: Error Level Analysis (ELA) & Compression Forensics (`ela_analysis.py`)
 
+> Research correction (2026-10-17): the score is an uncalibrated JPEG recompression heuristic, not an authenticity probability or a reproduction of Farid's JPEG-ghost method. Tiny, spatially constant, or invalid-quality inputs now return `available: false`, neutral `ela_score: 0.5`, and a warning. Normal results expose `available: true` and `score_kind: "heuristic"`, `score_calibrated: false`. See [research comparison](research_image_forensics.md#1-ela_analysispy); this correction supersedes stronger detection claims below.
+
 **Implementation File**: [`backend/pipeline/ela_analysis.py`](../pipeline/ela_analysis.py)  
 **Analytical Classification**: JPEG Quantization Forensics / Multi-Spectral Error Discrepancy  
 **Upstream Dependencies**: `OpenCV (cv2)`, `NumPy`, `OS`, `tempfile`  
@@ -249,3 +251,8 @@ def analyze_ela(
 * **Interactions**:
   * Highly complementary to **Feature 7 (`prnu_score`)** and **Feature 13 (`cfa_score`)**. While CFA and PRNU detect hardware-level sensor noise, ELA captures software-level file saving and compositing discrepancies.
 * **Temporary File Lifecycle**: All intermediate JPEG files are written to `tempfile.gettempdir()` and encapsulated in `try...finally` blocks to guarantee automatic deletion, preventing disk accumulation during high-throughput analysis.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+JPEG recompression uses `cv2.imencode` / `imdecode`, without process-wide temporary filenames. Amplification promotes residuals to float before clipping; uint8 arithmetic previously wrapped bright differences. All blocks, including the last and partial edge blocks, enter the variance calculation. Existing score thresholds are unchanged and need dataset calibration after these numerical corrections.

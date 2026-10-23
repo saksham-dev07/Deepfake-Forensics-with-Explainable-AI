@@ -7,14 +7,17 @@ from pipeline.image_utils import save_optimized_image
 
 def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplier=1.0):
     """
-    Estimates 2D lighting direction on the face vs the background.
-    High divergence indicates the face was spliced from a different lighting environment.
+    Compares a sphere-normal face shading fit with background gradients.
+    Surface texture, geometry and albedo prevent treating this as physical proof.
     """
     results = {
         "lighting_anomaly_score": 0.5,
-        "face_light_angle": 0.0,
-        "bg_light_angle": 0.0,
-        "angle_difference": 0.0,
+        "available": False,
+        "score_kind": "heuristic",
+        "score_calibrated": False,
+        "face_light_angle": None,
+        "bg_light_angle": None,
+        "angle_difference": None,
         "lighting_map_path": None,
         "chrome_probe_path": None,
         "shading_residual_path": None,
@@ -22,6 +25,9 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
     }
 
     h, w, _ = image_rgb.shape
+    if min(h, w) < 8 or not np.isfinite(quality_multiplier) or quality_multiplier <= 0:
+        results["warnings"].append("Insufficient image size or invalid quality factor for lighting analysis.")
+        return results
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     
     # WEBCAM NOISE FIX: Illumination is a low-frequency signal.
@@ -61,14 +67,17 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
     # ==============================================================
     # 3D SPHERICAL HARMONIC LIGHTING ESTIMATION (SHLE)
     # ==============================================================
-    # Instead of 2D gradients, we use the true 3D topography of the face
-    # to reconstruct a 9-coefficient Spherical Harmonic environment map.
+    # Landmarks are assigned sphere-center normals; they are not measured
+    # surface normals or the morphable 3D model used by the cited research.
 
     M_matrix = []
     B_vector = []
     
     if landmarks is not None and "all_landmarks_3d" in landmarks:
-        points_3d = landmarks["all_landmarks_3d"]
+        points_3d = np.asarray(landmarks["all_landmarks_3d"], dtype=np.float64)
+        if points_3d.ndim != 2 or points_3d.shape[1] != 3 or not np.isfinite(points_3d).all() or len(points_3d) <= 9:
+            results["warnings"].append("Insufficient finite 3D landmarks for lighting analysis.")
+            return results
         xs = [p[0] for p in points_3d]
         ys = [p[1] for p in points_3d]
         zs = [p[2] for p in points_3d]
@@ -120,15 +129,22 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
     
     if len(M_np) > 9:
         v, residuals, rank, s = np.linalg.lstsq(M_np, B_np, rcond=None)
+        if rank < 9 or not np.isfinite(v).all():
+            results["warnings"].append("Lighting fit is underdetermined or non-finite.")
+            return results
         sh_coeffs = v.flatten()
         
         # The primary light direction can be approximated by the 1st order bands (Y1, Y2, Y3)
         # Y1 is Y, Y2 is Z, Y3 is X
         Lx = float(sh_coeffs[3])
         Ly = float(sh_coeffs[1])
+        if np.isclose(Lx, 0.0) and np.isclose(Ly, 0.0):
+            results["warnings"].append("The fitted face shading has no measurable image-plane direction.")
+            return results
         face_angle = (np.rad2deg(np.arctan2(Ly, Lx)) + 360) % 360
     else:
         results["warnings"].append("Could not solve 3D Spherical Harmonics.")
+        return results
 
     # BACKGROUND: Use robust Sobel gradients
     bg_mask = cv2.bitwise_not(face_mask)
@@ -149,6 +165,10 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
         circular_variance = 1.0 - R
         
         return (mean_angle + 360) % 360, circular_variance
+
+    if not np.any(bg_valid):
+        results["warnings"].append("No measurable background lighting gradient.")
+        return results
 
     bg_angle, bg_variance = get_dominant_angle_and_variance(angle, bg_valid)
     
@@ -182,7 +202,8 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
         confidence = max(0.1, 1.0 - ((bg_variance - 0.5) * 2.0))
         results["warnings"].append(f"Textured background detected (Var: {bg_variance:.2f}). Reducing lighting confidence.")
         
-    results["lighting_anomaly_score"] = max(0.10, base_score * confidence)
+    results["lighting_anomaly_score"] = 0.5 + (base_score - 0.5) * confidence
+    results["available"] = True
 
     # ==============================================================
     # RENDER 3D LIGHT PROBE (lighting_map_path)
@@ -191,9 +212,9 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
     vis_img = cv2.cvtColor(vis_img, cv2.COLOR_RGB2BGR)
 
     if sh_coeffs is not None:
-        probe_radius = max(40, int(min(w, h) * 0.1))
+        probe_radius = max(1, min(max(40, int(min(w, h) * 0.1)), (min(w, h) - 1) // 2))
         # Place probe in top right corner
-        pcx, pcy = w - probe_radius - 20, probe_radius + 20
+        pcx, pcy = w - probe_radius - 1, probe_radius
         
         # Draw a dark background for the probe
         cv2.circle(vis_img, (pcx, pcy), probe_radius + 4, (0, 0, 0), -1)
@@ -345,7 +366,7 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
     cv2.arrowedLine(probe_img, (pcx, pcy), pt_bg, (248, 189, 56), 2, tipLength=0.25, line_type=cv2.LINE_AA)
 
     # HUD Annotations
-    cv2.putText(probe_img, "VIRTUAL CHROME SPHERE PROBE", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+    cv2.putText(probe_img, "ILLUSTRATIVE SHADING PROBE", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
     cv2.putText(probe_img, "9D Spherical Harmonics (l <= 2)", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (140, 140, 140), 1, cv2.LINE_AA)
     cv2.putText(probe_img, f"FACE: {face_angle:.1f} deg", (20, probe_dim - 45), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (11, 158, 245), 1, cv2.LINE_AA)
     cv2.putText(probe_img, f"BG:   {bg_angle:.1f} deg", (20, probe_dim - 25), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (248, 189, 56), 1, cv2.LINE_AA)
@@ -422,9 +443,9 @@ def analyze_lighting(image_rgb, output_dir, prefix="lighting", quality_multiplie
     results["shading_residual_path"] = shading_residual_path.replace("\\", "/")
 
     results["explanation"] = {
-        "what_happened": "Reconstructed a 3D Spherical Harmonic environment map of the face and compared its light source angle to the background's 2D lighting gradients.",
-        "result": "Lighting Mismatch (Deepfake)" if results["lighting_anomaly_score"] > 0.5 else "Consistent Global Illumination",
-        "why_it_happened": "The light hitting the person's face comes from a completely different angle than the light in the background room, proving the face was spliced in." if results["lighting_anomaly_score"] > 0.5 else "The 3D lighting on the face perfectly matches the environmental light source in the background.",
+        "what_happened": "Fitted a nine-term shading model using approximate sphere normals, then compared its image-plane direction with background intensity gradients.",
+        "result": "Elevated Shading-Direction Difference" if results["lighting_anomaly_score"] > 0.5 else "Lower Shading-Direction Difference",
+        "why_it_happened": "Background gradients are affected by texture and object boundaries, while face shading also depends on albedo, pose, and geometry. These different measurements cannot prove a shared or spliced light source; the sphere is an illustration of the fit.",
         "variables": {
             "Face Light Angle": f"{face_angle:.1f}°",
             "Background Light Angle": f"{bg_angle:.1f}°",

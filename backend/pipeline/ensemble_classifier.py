@@ -37,6 +37,12 @@ class SelfAttention(nn.Module):
         return out + x # Residual connection
 
 class DeepfakeMetaClassifier(nn.Module):
+    FEATURE_ORDER = (
+        "nn_score", "spectral_score", "ela_score", "geometry_anomaly",
+        "noise_score", "color_score", "sync_score", "metadata_score", "rppg_score",
+        "lighting_score", "eye_score", "voice_score", "flow_score", "cfa_score", "corneal_score",
+    )
+
     def __init__(self, input_dim=15):
         super(DeepfakeMetaClassifier, self).__init__()
         # Advanced Tabular ResNet + Self-Attention
@@ -45,7 +51,7 @@ class DeepfakeMetaClassifier(nn.Module):
             nn.BatchNorm1d(64),
             nn.ReLU(),
             ResidualBlock(64),
-            SelfAttention(64), # Dynamic Sensor Weighing
+            SelfAttention(64), # Legacy single-token projection; preserve checkpoint layout.
             ResidualBlock(64),
             nn.Linear(64, 32),
             nn.BatchNorm1d(32),
@@ -99,80 +105,80 @@ class DeepfakeMetaClassifier(nn.Module):
         13: cfa_score
         14: corneal_score
         """
-        np.random.seed(42)
+        rng = np.random.RandomState(42)
         X = []
         y = []
 
         # Generate "Real" samples
         for _ in range(num_samples // 2):
-            features = np.clip(np.random.normal(loc=0.2, scale=0.15, size=15), 0.0, 1.0)
+            features = np.clip(rng.normal(loc=0.2, scale=0.15, size=15), 0.0, 1.0)
             
-            rand_val = np.random.rand()
+            rand_val = rng.rand()
             if rand_val < 0.1:
                 # 1. NN is fooled (false positive), but physical sensors stay low
-                features[0] = np.random.uniform(0.6, 0.9) # NN fooled
+                features[0] = rng.uniform(0.6, 0.9) # NN fooled
             elif rand_val < 0.3:
                 # 2. NN knows it's Real, but physical heuristics throw FALSE POSITIVES
                 # (e.g. Corneal reflection fails because of glasses, Geometry fails because of motion blur)
-                features[0] = np.random.uniform(0.05, 0.35)
+                features[0] = rng.uniform(0.05, 0.35)
                 # Spike 1 or 2 physical sensors to simulate real-world false positives
-                false_positive_sensors = np.random.choice(range(1, 15), size=2, replace=False)
-                features[false_positive_sensors[0]] = np.random.uniform(0.6, 0.95)
-                if np.random.rand() < 0.5:
-                    features[false_positive_sensors[1]] = np.random.uniform(0.5, 0.8)
+                false_positive_sensors = rng.choice(range(1, 15), size=2, replace=False)
+                features[false_positive_sensors[0]] = rng.uniform(0.6, 0.95)
+                if rng.rand() < 0.5:
+                    features[false_positive_sensors[1]] = rng.uniform(0.5, 0.8)
                 
             # Randomize metadata_score (7) to prevent it from becoming a shortcut
-            features[7] = np.random.uniform(0.0, 1.0)
+            features[7] = rng.uniform(0.0, 1.0)
             X.append(features)
             y.append(0.15) # Real (Soft Label)
 
         # Generate "Fake" samples
         for _ in range(num_samples // 2):
-            rand_val = np.random.rand()
+            rand_val = rng.rand()
             
             if rand_val < 0.3:
                 # 1. Standard Low-Quality Deepfake (Everything is highly anomalous)
-                features = np.clip(np.random.normal(loc=0.7, scale=0.2, size=15), 0.0, 1.0)
+                features = np.clip(rng.normal(loc=0.7, scale=0.2, size=15), 0.0, 1.0)
                 
             elif rand_val < 0.6:
                 # 2. Highly realistic pure-generative (Midjourney/Sora)
                 # NN might be fooled, but pure synthetic signals (CFA, Noise, Spectral) catch it
-                features = np.clip(np.random.normal(loc=0.2, scale=0.1, size=15), 0.0, 1.0)
-                features[0] = np.random.uniform(0.1, 0.4) # NN thinks it's real
-                features[4] = np.random.uniform(0.7, 1.0) # Noise
-                features[13] = np.random.uniform(0.7, 1.0) # CFA
-                features[1] = np.random.uniform(0.7, 1.0) # Spectral
+                features = np.clip(rng.normal(loc=0.2, scale=0.1, size=15), 0.0, 1.0)
+                features[0] = rng.uniform(0.1, 0.4) # NN thinks it's real
+                features[4] = rng.uniform(0.7, 1.0) # Noise
+                features[13] = rng.uniform(0.7, 1.0) # CFA
+                features[1] = rng.uniform(0.7, 1.0) # Spectral
                 
             elif rand_val < 0.75:
                 # 3. High-Quality Face Swap (Celeb-DF) -> CRITICAL FIX!
                 # Global background is completely authentic (CFA, Noise, Lighting = low)
                 # But NN catches the swapped face, and Geometry/Face sensors catch it
-                features = np.clip(np.random.normal(loc=0.15, scale=0.1, size=15), 0.0, 1.0)
-                features[0] = np.random.uniform(0.6, 1.0) # NN successfully catches the face
+                features = np.clip(rng.normal(loc=0.15, scale=0.1, size=15), 0.0, 1.0)
+                features[0] = rng.uniform(0.6, 1.0) # NN successfully catches the face
                 
                 # Make sure at least one face-specific physical sensor catches the swap boundary
-                sensor_to_spike = np.random.choice([2, 3, 10, 14]) # ELA, Geometry, Eye, Corneal
-                features[sensor_to_spike] = np.random.uniform(0.6, 1.0)
+                sensor_to_spike = rng.choice([2, 3, 10, 14]) # ELA, Geometry, Eye, Corneal
+                features[sensor_to_spike] = rng.uniform(0.6, 1.0)
                 
             elif rand_val < 0.9:
                 # 4. Neural Network is FOOLED, but biological sensors catch the flaw!
                 # (e.g. Corneal mismatch is 80% or Geometry is anomalous, even though NN outputs 30%)
-                features = np.clip(np.random.normal(loc=0.15, scale=0.1, size=15), 0.0, 1.0)
-                features[0] = np.random.uniform(0.1, 0.4) # NN thinks it's completely real!
+                features = np.clip(rng.normal(loc=0.15, scale=0.1, size=15), 0.0, 1.0)
+                features[0] = rng.uniform(0.1, 0.4) # NN thinks it's completely real!
                 
                 # At least two biological/face sensors catch it
-                sensors_to_spike = np.random.choice([2, 3, 10, 14], size=2, replace=False)
-                features[sensors_to_spike[0]] = np.random.uniform(0.7, 1.0)
-                features[sensors_to_spike[1]] = np.random.uniform(0.5, 0.9)
+                sensors_to_spike = rng.choice([2, 3, 10, 14], size=2, replace=False)
+                features[sensors_to_spike[0]] = rng.uniform(0.7, 1.0)
+                features[sensors_to_spike[1]] = rng.uniform(0.5, 0.9)
                 
             else:
                 # 5. Audio-only spoofing (face is completely real, but voice/sync is fake)
-                features = np.clip(np.random.normal(loc=0.2, scale=0.1, size=15), 0.0, 1.0)
-                features[11] = np.random.uniform(0.8, 1.0) # Voice score anomalous
-                features[6] = np.random.uniform(0.7, 1.0) # Sync score anomalous
+                features = np.clip(rng.normal(loc=0.2, scale=0.1, size=15), 0.0, 1.0)
+                features[11] = rng.uniform(0.8, 1.0) # Voice score anomalous
+                features[6] = rng.uniform(0.7, 1.0) # Sync score anomalous
             
             # Randomize metadata_score (7) to prevent it from becoming a shortcut
-            features[7] = np.random.uniform(0.0, 1.0)
+            features[7] = rng.uniform(0.0, 1.0)
             X.append(features)
             y.append(0.85) # Fake (Soft Label)
 
@@ -235,15 +241,21 @@ class DeepfakeMetaClassifier(nn.Module):
         if model_path is None:
             model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "ensemble_mlp.pth")
             
+        self.is_trained = False
+        self.is_xgb_trained = False
         # Attempt to load XGBoost first if available
         if self.use_xgboost:
             xgb_save_path = model_path.replace(".pth", "_xgb.json")
             if os.path.exists(xgb_save_path):
-                self.xgb_model.load_model(xgb_save_path)
-                self.is_xgb_trained = True
-                print(f"Loaded XGBoost Meta-Classifier from {xgb_save_path}")
-                return True
-                
+                try:
+                    self.xgb_model.load_model(xgb_save_path)
+                    self.is_xgb_trained = True
+                    self.is_trained = True
+                    print(f"Loaded XGBoost Meta-Classifier from {xgb_save_path}")
+                    return True
+                except Exception as error:
+                    print(f"XGBoost checkpoint unavailable; trying PyTorch: {error}")
+
         if os.path.exists(model_path):
             state_dict = torch.load(model_path, map_location=self.device, weights_only=True)
             
@@ -280,39 +292,36 @@ class DeepfakeMetaClassifier(nn.Module):
         """
         Predict final deepfake confidence from a dictionary of scores.
         """
-        if not self.is_trained:
-            # Fallback to simple mean if not trained
-            return sum(feature_dict.values()) / len(feature_dict)
-            
-        self.eval()
-        
-        # Order matters! Must match generate_synthetic_dataset
-        feature_order = [
-            "nn_score", "spectral_score", "ela_score", "geometry_anomaly", 
-            "noise_score", "color_score", "sync_score", "metadata_score", "rppg_score", 
-            "lighting_score", "eye_score", "voice_score", "flow_score", 
-            "cfa_score", "corneal_score"
-        ]
-        
-        x_vector = [feature_dict.get(key, 0.5) for key in feature_order]
-        
+        x_vector = [feature_dict.get(key, 0.5) for key in self.FEATURE_ORDER]
+        return float(self.predict_batch([x_vector])[0])
+
+    def predict_batch(self, features):
+        """Shared inference gateway for production and SHAP, in FEATURE_ORDER."""
+        values = np.asarray(features, dtype=np.float32)
+        if values.ndim != 2 or values.shape[1] != len(self.FEATURE_ORDER) or not np.isfinite(values).all():
+            raise ValueError("Expected finite batches with 15 features in FEATURE_ORDER")
+        if np.any((values < 0) | (values > 1)):
+            raise ValueError("Anomaly features must be in [0, 1]")
+        if values.shape[0] == 0:
+            return np.empty(0, dtype=np.float32)
         if self.use_xgboost and self.is_xgb_trained:
-            x_array = np.array([x_vector])
-            confidence = float(self.xgb_model.predict_proba(x_array)[0][1])
-            return confidence
-            
-        x_tensor = torch.FloatTensor([x_vector]).to(self.device)
-        
-        with torch.no_grad():
-            output = self(x_tensor)
-            confidence = output.item()
-            
-        return confidence
+            predictions = np.asarray(self.xgb_model.predict_proba(values)[:, 1])
+        elif not self.is_trained:
+            raise RuntimeError("A trained meta-classifier checkpoint is required for fusion")
+        else:
+            self.eval()
+            x_tensor = torch.as_tensor(values, device=self.device)
+            with torch.no_grad():
+                predictions = self(x_tensor).cpu().numpy().reshape(-1)
+        if predictions.shape != (len(values),) or not np.isfinite(predictions).all() or np.any((predictions < 0) | (predictions > 1)):
+            raise ValueError("Meta-classifier returned invalid anomaly scores")
+        return predictions
 
 if __name__ == "__main__":
-    # Test/Train script
+    # Validate existing weights; training is an explicit operation.
     classifier = DeepfakeMetaClassifier()
-    classifier.train_model()
+    if not classifier.load_model():
+        raise RuntimeError("No trained meta-classifier checkpoint found")
     
     # Test a prediction
     test_features = {

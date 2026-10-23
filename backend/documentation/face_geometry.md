@@ -229,20 +229,22 @@ Where:
 
 ---
 
-## 7. Holographic Graphics Pipeline & Visual Artifacts
+## 7. Landmark Graphics Pipeline & Visual Artifacts
 
 ```python
-# Multi-Pass Glow Compositing
-overlay_with_glow = cv2.addWeighted(overlay, 0.9, glow, 0.6, 0)
-vis = cv2.addWeighted(vis, 0.6, overlay_with_glow, 1.2, 0)
+# Draw face-relative mesh marks onto a copy of the original image.
+overlay = image_rgb.copy()
+# ... tessellation, vertices, and key points ...
+vis = cv2.addWeighted(image_rgb, 0.75, overlay, 0.25, 0)
 ```
-* The source image is dimmed to $60\%$ so that the mint hologram mesh (`(200, 248, 129)`) and dual-concentric white/black keypoint markers appear with high contrast without clipping skin pixels.
+
+The mint mesh uses RGB `(80, 210, 180)` at 25% opacity. Mark sizes follow the face extent rather than the surrounding frame. MediaPipe Tasks tessellation is supported when legacy Solutions are absent. Unmarked pixels retain their original brightness; there is no additive glow or global dimming. Brightness represents the chosen drawing style, not anomaly intensity.
 
 ### Artifact Suite:
 | Artifact Name | Visual Style | Colormap / Styling | Forensic Target |
 | :--- | :--- | :--- | :--- |
 | **`face_crop.jpg`** | Normalized biometric face crop | Standardized $380 \times 380$ px anchor | Ground-truth reference for interactive A/B workbench comparisons |
-| **`face_landmarks.jpg`** | 468-point 3D hologram mesh | Mint `(200, 248, 129)` with Gaussian glow | Structural mesh tracking & landmark placement |
+| **`face_landmarks.jpg`** | Translucent landmark mesh | Mint `(80, 210, 180)` at 25% opacity | Structural mesh tracking & landmark placement |
 | **`face_head_pose.jpg`** | Clean image with 3D axes | Red (X Pitch), Green (Y Yaw), Blue (Z Roll) | 3D skull orientation and solvePnP convergence |
 | **`face_symmetry_map.jpg`** | Mirrored absolute difference | `COLORMAP_MAGMA` overlay | Anatomical sagittal asymmetry |
 | **`face_texture_map.jpg`** | 2D Laplacian field | `COLORMAP_TWILIGHT_SHIFTED` | Boundary blending blur & edge feathering |
@@ -318,3 +320,12 @@ def analyze_face_geometry(
   3. **Sparse Sampling Robustness**: Normalization factor for head pose velocity variance ($3000.0$) accommodates sparse sampling across long videos without generating false jitter alarms.
   4. **Tri-Tier AI-Altered Retouching Guardrail**: When 3D landmark contours exhibit generative smoothing or warping ($s_{\text{geom}} \ge 0.45$) while the deep vision backbone confirms genuine human identity ($s_{\text{nn}} < 0.40$), this module triggers the **`AI-Altered / Retouched`** verdict instead of falsely accusing the user of malicious deepfake impersonation.
 
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Face bounding boxes are clamped once at detection, rejecting empty boxes; 468-point meshes fall back to eye corners when iris indices are unavailable. Empty texture crops return neutral before color conversion. Head-pose differences unwrap angles across ±180 degrees and use each frame’s dimensions. Temporal plots tolerate missing metric observations; frame indices refer to detected observations only. Results include face_bbox and omit nonexistent head-pose artifacts. Private figures render through the shared optimized encoder.
+
+## Landmark exhibit visibility (2026-10-17)
+
+The renderer scales marks to the face extent and uses MediaPipe Tasks tessellation connections when legacy Solutions are absent. A 25% overlay is blended with 75% of the source frame, preserving unmarked pixels. Additive glow and background dimming were removed because dense points saturated small faces into white patches. This changes visualization only; landmark coordinates, measurements, and anomaly scoring are unchanged. Regression coverage checks small-face saturation, unchanged background, image dimensions, and input immutability.

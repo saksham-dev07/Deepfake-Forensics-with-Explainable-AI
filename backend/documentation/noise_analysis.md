@@ -1,5 +1,7 @@
 # Technical Specification & Forensic Architecture: Sensor Noise (PRNU) & Spatial Rich Model (SRM) Analysis (`noise_analysis.py`)
 
+> Research correction (2026-10-17): the implementation computes one signed NLM residual and one SRM-style high-pass magnitude; it does not estimate a camera PRNU fingerprint or implement the trained SRM model. Tiny, spatially constant, or invalid-quality inputs now return `available: false`, neutral `noise_score: 0.5`, and a warning. Valid results expose `available: true` and `score_kind: "heuristic"`, `score_calibrated: false`. See [research comparison](research_image_forensics.md#2-noise_analysispy); this correction supersedes stronger claims below.
+
 **Implementation File**: [`backend/pipeline/noise_analysis.py`](../pipeline/noise_analysis.py)  
 **Analytical Classification**: Physics-Based Sensor Forensics / Photo-Response Non-Uniformity / Steganalytic Rich Models  
 **Upstream Dependencies**: `OpenCV (cv2)`, `NumPy`, `OS`  
@@ -194,3 +196,8 @@ def analyze_sensor_noise(
 * **Safety Guards Handled**:
   1. **Log-Zero Singularities**: Log compression in SRM visualization adds $\epsilon = 10^{-5}$ (`np.log(srm_noise + 1e-5)`) preventing mathematical divergence on flat black regions.
   2. **IQA Scaling**: Quality multiplier $Q$ adjusts expected noise bounds, ensuring compressed JPEG captures do not trigger false positive deepfake scores.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+The residual is now signed float32 subtraction, rather than saturated uint8 subtraction. Visualization explicitly normalizes to uint8. Variance measures a denoising residual, not a verified device fingerprint. Thresholds remain heuristic; validation and recalibration against labeled media are required after the arithmetic correction.

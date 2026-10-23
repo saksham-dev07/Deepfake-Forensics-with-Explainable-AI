@@ -3,8 +3,8 @@ Error Level Analysis (ELA) for Deepfake Detection.
 
 ELA works by re-saving the image at a known JPEG quality level,
 then computing the difference between the original and re-saved version.
-Regions that have been manipulated will show different compression 
-artifacts compared to the rest of the image.
+Recompression differences depend on image content and encoding history.
+They are exploratory measurements, not a calibrated manipulation probability.
 
 This technique is widely used in digital forensics to detect:
 - Image splicing and compositing
@@ -15,8 +15,18 @@ This technique is widely used in digital forensics to detect:
 import numpy as np
 import cv2
 import os
-import tempfile
 from pipeline.image_utils import save_optimized_image
+
+
+def _jpeg_roundtrip(image_bgr, quality):
+    """Recompress in memory so independent jobs never share temporary files."""
+    success, encoded = cv2.imencode('.jpg', image_bgr, [cv2.IMWRITE_JPEG_QUALITY, quality])
+    if not success:
+        raise OSError("JPEG recompression failed")
+    decoded = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    if decoded is None:
+        raise OSError("JPEG decoding failed")
+    return decoded
 
 
 def compute_ela(image_rgb, quality=90, scale=15, save_path=None):
@@ -36,18 +46,13 @@ def compute_ela(image_rgb, quality=90, scale=15, save_path=None):
     # Convert to BGR for OpenCV
     image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
     
-    # Save to a temporary JPEG with specified quality
-    temp_path = os.path.join(tempfile.gettempdir(), "ela_temp.jpg")
-    cv2.imwrite(temp_path, image_bgr, [cv2.IMWRITE_JPEG_QUALITY, quality])
-    
-    # Read back the re-compressed image
-    recompressed = cv2.imread(temp_path)
+    recompressed = _jpeg_roundtrip(image_bgr, quality)
     
     # Compute absolute difference
     diff = cv2.absdiff(image_bgr, recompressed)
     
     # Amplify the differences
-    ela_image = diff * scale
+    ela_image = diff.astype(np.float32) * scale
     ela_image = np.clip(ela_image, 0, 255).astype(np.uint8)
     
     # Convert to RGB
@@ -62,8 +67,8 @@ def compute_ela(image_rgb, quality=90, scale=15, save_path=None):
     h, w = gray_diff.shape
     variances = []
     
-    for y in range(0, h - block_size, block_size):
-        for x in range(0, w - block_size, block_size):
+    for y in range(0, h, block_size):
+        for x in range(0, w, block_size):
             block = gray_diff[y:y+block_size, x:x+block_size]
             variances.append(np.var(block))
     
@@ -87,11 +92,6 @@ def compute_ela(image_rgb, quality=90, scale=15, save_path=None):
     if save_path:
         save_optimized_image(save_path, cv2.cvtColor(ela_rgb, cv2.COLOR_RGB2BGR))
     
-    # Cleanup temp file
-    try:
-        os.remove(temp_path)
-    except:
-        pass
     
     return ela_rgb, float(ela_score)
 
@@ -103,15 +103,12 @@ def compute_ela_heatmap(image_rgb, quality=90, save_path=None):
     """
     image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
     
-    temp_path = os.path.join(tempfile.gettempdir(), "ela_heatmap_temp.jpg")
-    cv2.imwrite(temp_path, image_bgr, [cv2.IMWRITE_JPEG_QUALITY, quality])
-    
-    recompressed = cv2.imread(temp_path)
+    recompressed = _jpeg_roundtrip(image_bgr, quality)
     diff = cv2.absdiff(image_bgr, recompressed)
     
     # Convert to grayscale and amplify
     gray_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-    gray_amplified = np.clip(gray_diff * 20, 0, 255).astype(np.uint8)
+    gray_amplified = np.clip(gray_diff.astype(np.float32) * 20, 0, 255).astype(np.uint8)
     
     # Apply Gaussian blur for smoother heatmap
     gray_smooth = cv2.GaussianBlur(gray_amplified, (11, 11), 0)
@@ -125,10 +122,6 @@ def compute_ela_heatmap(image_rgb, quality=90, save_path=None):
     if save_path:
         save_optimized_image(save_path, blended)
     
-    try:
-        os.remove(temp_path)
-    except:
-        pass
     
     return blended
 
@@ -141,16 +134,10 @@ def compute_jpeg_ghosting(image_rgb, save_path=None):
     diffs = []
     
     for q in qualities:
-        temp_path = os.path.join(tempfile.gettempdir(), f"ghost_temp_{q}.jpg")
-        cv2.imwrite(temp_path, image_bgr, [cv2.IMWRITE_JPEG_QUALITY, q])
-        recompressed = cv2.imread(temp_path)
+        recompressed = _jpeg_roundtrip(image_bgr, q)
         diff = cv2.absdiff(image_bgr, recompressed)
         gray_diff = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
         diffs.append(gray_diff)
-        try:
-            os.remove(temp_path)
-        except:
-            pass
             
     stack = np.stack(diffs, axis=-1)
     variance_map = np.var(stack, axis=-1)
@@ -177,19 +164,12 @@ def compute_hsv_ela(image_rgb, quality=90, save_path=None):
     hsv = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2HSV)
     
     image_bgr = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
-    temp_path = os.path.join(tempfile.gettempdir(), "hsv_ela_temp.jpg")
-    cv2.imwrite(temp_path, image_bgr, [cv2.IMWRITE_JPEG_QUALITY, quality])
-    
-    recompressed = cv2.imread(temp_path)
+    recompressed = _jpeg_roundtrip(image_bgr, quality)
     hsv_recomp = cv2.cvtColor(recompressed, cv2.COLOR_BGR2HSV)
     
-    try:
-        os.remove(temp_path)
-    except:
-        pass
         
     s_diff = cv2.absdiff(hsv[:,:,1], hsv_recomp[:,:,1])
-    s_amp = np.clip(s_diff * 15, 0, 255).astype(np.uint8)
+    s_amp = np.clip(s_diff.astype(np.float32) * 15, 0, 255).astype(np.uint8)
     hsv_colored = cv2.applyColorMap(s_amp, cv2.COLORMAP_TURBO)
     
     # Blend with original
@@ -206,6 +186,10 @@ def analyze_ela(image_rgb, output_dir, prefix="ela", quality_multiplier=1.0):
     Run full ELA analysis on an image.
     Returns a dict with metrics and visualization paths.
     """
+    if (min(image_rgb.shape[:2]) < 8 or not np.any(np.ptp(image_rgb, axis=(0, 1)))
+            or not np.isfinite(quality_multiplier) or quality_multiplier <= 0):
+        return {"ela_score": 0.5, "available": False, "score_kind": "heuristic", "score_calibrated": False,
+                "warnings": ["Insufficient spatial variation, image size, or valid quality factor for recompression analysis."]}
     os.makedirs(output_dir, exist_ok=True)
     
     # Standard ELA
@@ -250,11 +234,11 @@ def analyze_ela(image_rgb, output_dir, prefix="ela", quality_multiplier=1.0):
     
     # Interpret the score
     if final_ela_score > 0.6:
-        interpretation = "High compression inconsistency detected (Smooth Region Anomaly) - strong indicator of splicing/compositing."
+        interpretation = "Elevated JPEG recompression differences; texture, chroma subsampling, and ordinary re-saving can also cause this."
     elif final_ela_score > 0.3:
-        interpretation = "Moderate compression variations found - potential minor retouching or re-saving."
+        interpretation = "Moderate JPEG recompression differences; this does not identify an editing operation."
     else:
-        interpretation = "Compression levels appear uniform - consistent with an unmodified single-source image."
+        interpretation = "Lower JPEG recompression differences under this heuristic; this does not establish authenticity."
         
     # Generate Verdicts
     verdicts = {}
@@ -297,6 +281,8 @@ def analyze_ela(image_rgb, output_dir, prefix="ela", quality_multiplier=1.0):
         "ghosting_path": ghosting_path.replace("\\", "/"),
         "hsv_ela_path": hsv_ela_path.replace("\\", "/"),
         "ela_score": round(final_ela_score, 4),
+        "available": True,
+        "score_kind": "heuristic", "score_calibrated": False,
         "ela_base_variance": round(base_ela_score, 4),
         "ela_smooth_anomaly": round(edge_anomaly_score, 4),
         "ghost_variance": round(ghost_var, 4),
@@ -305,8 +291,8 @@ def analyze_ela(image_rgb, output_dir, prefix="ela", quality_multiplier=1.0):
         "ela_interpretation": interpretation,
         "verdicts": verdicts,
         "explanation": {
-            "what_happened": "Mathematically exposed areas of the image saved at different JPEG compression levels.",
-            "result": "Splicing Detected" if final_ela_score > 0.5 else "Authentic Compression",
+            "what_happened": "Compared decoded pixels with JPEG recompressions at several quality levels; prior compression quality is not recovered.",
+            "result": "Elevated Recompression Differences" if final_ela_score > 0.5 else "Lower Recompression Differences",
             "why_it_happened": interpretation,
             "variables": {
                 "Smooth Anomaly": f"{edge_anomaly_score:.2f}",

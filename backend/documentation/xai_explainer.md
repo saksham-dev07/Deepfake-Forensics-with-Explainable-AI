@@ -187,3 +187,13 @@ class XAIExplainer:
   1. **Layer Missing Guard**: If the target model lacks `.conv_head`, sets `self.available = False` and returns `(None, None)` without raising exceptions.
   2. **Singularity Guard**: Dynamic range division uses $\epsilon = 10^{-8}$ and $\epsilon = 10^{-7}$ guards to prevent divide-by-zero crashes on uniform or blank image inputs.
   3. **Guided Backprop Fallback**: Wraps Guided Grad-CAM execution in a try-except block to gracefully return standard Grad-CAM if Guided Backprop fails.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Grad-CAM follows the model’s actual device and shares its inference lock. Guided backprop always restores the original ReLU modules, including on failure. Artifact paths are derived with splitext for any extension and returned only after a successful save. The unused get_shap_features compatibility method returns an empty list instead of fabricated regional findings; measured SHAP features come from the production meta-classifier in main.py.
+
+## Research review (2026-10-17)
+
+Grad-CAM and guided backprop run with gradients explicitly enabled on independent cloned leaf inputs. Caller input gradient flags/buffers are preserved, repeated explanations cannot reuse input gradients, and model gradients/activation caches are cleared after each call even on failure. Trained activations are still restored after guided backprop. Attention is model behavior rather than edit localization proof; research_core.md cites Grad-CAM and saliency sanity-check papers.
+

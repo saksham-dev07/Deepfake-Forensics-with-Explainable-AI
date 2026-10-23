@@ -2,11 +2,10 @@ import cv2
 import numpy as np
 import mediapipe as mp
 import os
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from pipeline.image_utils import save_optimized_figure
 
-def calculate_ear(eye_landmarks, landmarks):
+def calculate_ear(eye_landmarks, landmarks, image_shape=None):
     """
     Calculate Eye Aspect Ratio (EAR).
     eye_landmarks: indices of the eye landmarks [p1, p2, p3, p4, p5, p6]
@@ -20,24 +19,33 @@ def calculate_ear(eye_landmarks, landmarks):
     p5 = np.array([landmarks[eye_landmarks[4]].x, landmarks[eye_landmarks[4]].y])
     p6 = np.array([landmarks[eye_landmarks[5]].x, landmarks[eye_landmarks[5]].y])
 
+    if image_shape is not None:
+        height, width = image_shape[:2]
+        p1, p2, p3, p4, p5, p6 = [p * [width, height] for p in (p1, p2, p3, p4, p5, p6)]
+
     # Vertical distances
     v1 = np.linalg.norm(p2 - p6)
     v2 = np.linalg.norm(p3 - p5)
     # Horizontal distance
     h = np.linalg.norm(p1 - p4)
 
-    ear = (v1 + v2) / (2.0 * h + 1e-6)
-    return ear
+    # A collapsed landmark span is missing geometry, not a closed eye.
+    return float((v1 + v2) / (2.0 * h)) if np.isfinite(h) and h > 1e-6 else np.nan
 
 def analyze_eye_movements(video_path, output_dir, prefix="eye"):
     """
     Analyzes eye blinking frequency and gaze symmetry over time using MediaPipe.
     """
     results = {
+        "available": False,
+        "score_available": False,
+        "eligible_for_fusion": False,
+        "score_calibrated": False,
+        "score_kind": "heuristic",
         "eye_anomaly_score": 0.5,
         "blink_count": 0,
         "blink_rate_per_min": 0.0,
-        "gaze_asymmetry": 0.0,
+        "gaze_asymmetry": None,
         "eye_plot_path": "",
         "warnings": []
     }
@@ -56,8 +64,10 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
 
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
-    if fps == 0 or np.isnan(fps): 
-        fps = 30.0
+    if not np.isfinite(fps) or fps <= 0:
+        cap.release()
+        results["warnings"].append("A known positive frame rate is required to measure blink duration and rate.")
+        return results
 
     # MediaPipe Face Mesh landmark indices for eyes
     # Right eye (user's right) -> Image left
@@ -70,7 +80,7 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
     right_ear_seq = []
     
     # Analyze up to 15 seconds
-    max_frames = int(fps * 15)
+    max_frames = min(450, int(fps * 15))
     frame_count = 0
 
     while cap.isOpened() and frame_count < max_frames:
@@ -86,8 +96,8 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
         if detection_result.face_landmarks:
             landmarks = detection_result.face_landmarks[0]
             
-            left_ear = calculate_ear(LEFT_EYE_IDX, landmarks)
-            right_ear = calculate_ear(RIGHT_EYE_IDX, landmarks)
+            left_ear = calculate_ear(LEFT_EYE_IDX, landmarks, frame.shape)
+            right_ear = calculate_ear(RIGHT_EYE_IDX, landmarks, frame.shape)
             
             avg_ear = (left_ear + right_ear) / 2.0
             
@@ -95,29 +105,25 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
             right_ear_seq.append(right_ear)
             ear_sequence.append(avg_ear)
         else:
-            if ear_sequence:
-                ear_sequence.append(ear_sequence[-1])
-                left_ear_seq.append(left_ear_seq[-1])
-                right_ear_seq.append(right_ear_seq[-1])
-            else:
-                ear_sequence.append(0.3)
-                left_ear_seq.append(0.3)
-                right_ear_seq.append(0.3)
-                
+            ear_sequence.append(np.nan)
+            left_ear_seq.append(np.nan)
+            right_ear_seq.append(np.nan)
+
         frame_count += 1
         
     cap.release()
-    detector.close()
 
-    if len(ear_sequence) < int(fps * 2): # Need at least 2 seconds
-        results["warnings"].append("Video too short for robust blink analysis.")
+    valid = np.isfinite(ear_sequence)
+    results["valid_frame_count"] = int(valid.sum())
+    if not len(valid) or valid.sum() < int(fps * 2) or valid.mean() < 0.8: # Need at least 2 seconds
+        results["warnings"].append("Insufficient visible face observations for blink analysis (requires 2 seconds and 80% coverage).")
         return results
 
     # 1. Blink Detection
     # A blink is typically a sharp drop in the Eye Aspect Ratio.
     # We dynamically calculate the threshold based on the user's natural resting EAR
     ear_array = np.array(ear_sequence)
-    resting_ear = np.median(ear_array)  # Median ignores the blink outliers
+    resting_ear = np.nanmedian(ear_array)  # Median ignores the blink outliers
     
     # A blink must be a significant relative drop (80% of resting) AND an absolute drop (-0.03)
     # This ensures we don't trigger false blinks on tiny landmark jitters, 
@@ -129,72 +135,83 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
 
     blinks = 0
     in_blink = False
+    was_open = False
     
     for ear_val in ear_sequence:
-        if ear_val < threshold:
-            if not in_blink:
-                in_blink = True
-                blinks += 1
-        else:
+        if not np.isfinite(ear_val):
             in_blink = False
+            was_open = False
+            continue
+        if ear_val < threshold:
+            if was_open:
+                in_blink = True
+        else:
+            # Count complete observed open/closed/open events. An initial
+            # closure, a cut, or a tracking gap cannot establish a blink.
+            if in_blink:
+                blinks += 1
+            in_blink = False
+            was_open = True
             
-    video_duration_min = len(ear_sequence) / (fps * 60.0)
+    video_duration_min = int(valid.sum()) / (fps * 60.0)
     blink_rate = blinks / video_duration_min if video_duration_min > 0 else 0
     
-    # 2. Gaze Asymmetry (Left vs Right eye openness correlation)
-    # Natural human eyes blink synchronously and have similar openness.
-    # Deepfakes often have "lazy eye" where one eye drops but the other doesn't.
-    if len(left_ear_seq) > 1 and np.std(left_ear_seq) > 1e-5 and np.std(right_ear_seq) > 1e-5:
-        correlation = np.corrcoef(left_ear_seq, right_ear_seq)[0, 1]
-        if np.isnan(correlation):
-            correlation = 1.0
+    # 2. Bilateral eyelid-openness correlation. EAR does not measure gaze.
+    left_valid = np.asarray(left_ear_seq)[valid]
+    right_valid = np.asarray(right_ear_seq)[valid]
+    if len(left_valid) > 1 and np.std(left_valid) > 1e-5 and np.std(right_valid) > 1e-5:
+        correlation = np.corrcoef(left_valid, right_valid)[0, 1]
+        gaze_asymmetry = float(1.0 - max(0, correlation)) if np.isfinite(correlation) else None
     else:
-        correlation = 1.0
-        
-    gaze_asymmetry = 1.0 - max(0, correlation)
+        gaze_asymmetry = None
     
     # Scoring
     anomaly_score = 0.1
     
-    # Normal human blink rate: 10-20 blinks per minute
-    # Deepfakes often blink too little (0-5) or way too fast (glitching)
+    # Retained legacy rule thresholds, not a validated deepfake probability.
     if blink_rate < 5.0 and video_duration_min > 0.1:  # Only penalize if video is > 6 seconds
         anomaly_score = max(anomaly_score, 0.70)
-        results["warnings"].append(f"Unnaturally low blink rate ({blink_rate:.1f} blinks/min)")
+        results["warnings"].append(f"Low observed blink rate ({blink_rate:.1f} blinks/min); short observations and attention can also cause this.")
     elif blink_rate > 45.0:
         anomaly_score = max(anomaly_score, 0.85)
-        results["warnings"].append(f"Unnaturally high blink rate / glitching ({blink_rate:.1f} blinks/min)")
+        results["warnings"].append(f"High observed blink rate ({blink_rate:.1f} blinks/min); this is not specific to synthesis.")
         
     # High asymmetry (uncorrelated eyes) is a huge red flag
-    if gaze_asymmetry > 0.4:
+    if gaze_asymmetry is not None and gaze_asymmetry > 0.4:
         anomaly_score = max(anomaly_score, 0.90)
-        results["warnings"].append("High gaze asymmetry ('lazy eye' deepfake artifact)")
-    elif gaze_asymmetry > 0.25:
+        results["warnings"].append("Low bilateral eyelid-openness correlation; pose, occlusion and landmark noise can also cause this.")
+    elif gaze_asymmetry is not None and gaze_asymmetry > 0.25:
         anomaly_score = max(anomaly_score, 0.60)
         
+    results["available"] = True
+    results["score_available"] = video_duration_min > 0.1
+    results["eligible_for_fusion"] = results["score_available"]
+    if not results["score_available"]:
+        results["warnings"].append("At most six seconds of observed eye data: blink/openness metrics are descriptive; the anomaly rule is unavailable.")
     results["eye_anomaly_score"] = float(anomaly_score)
     results["blink_count"] = int(blinks)
     results["blink_rate_per_min"] = float(round(blink_rate, 1))
-    results["gaze_asymmetry"] = float(round(gaze_asymmetry, 3))
+    results["gaze_asymmetry"] = round(gaze_asymmetry, 3) if gaze_asymmetry is not None else None
+    results["observed_duration_seconds"] = round(int(valid.sum()) / fps, 3)
+    results["asymmetry_measure"] = "eyelid_openness_correlation_not_gaze"
     
     # Generate Explanation
     explanation = {
-        "what_happened": "Blink rate and gaze convergence consistency over time were evaluated using Eye Aspect Ratio (EAR) mapping.",
-        "result": "Gaze and blink characteristics appear biologically natural." if anomaly_score < 0.5 else "Detected unnatural eye behaviors such as asynchronous gaze or abnormal blinking frequency.",
-        "why_it_happened": "Deepfakes often fail to render both eyes blinking synchronously or struggle with steady gaze convergence, leading to a 'lazy eye' effect or missing blinks entirely.",
+        "what_happened": "Measured complete eyelid closures and bilateral eye-openness correlation using Eye Aspect Ratio (EAR). Gaze direction was not estimated.",
+        "result": "Lower blink/openness heuristic score" if anomaly_score < 0.5 else "Elevated blink/openness heuristic score",
+        "why_it_happened": "Blink statistics depend on attention, health, pose, visibility and duration. Landmark noise can affect both measures; they do not establish authenticity or diagnose an eye condition.",
         "variables": {
             "Blinks Detected": int(blinks),
             "Blink Rate (per min)": f"{blink_rate:.1f}",
-            "Gaze Asymmetry Score": f"{gaze_asymmetry:.3f}",
+            "Eyelid Openness Asymmetry": f"{gaze_asymmetry:.3f}" if gaze_asymmetry is not None else "Unavailable (insufficient variation)",
             "Anomaly Score": f"{anomaly_score:.2f}"
         }
     }
     results["explanation"] = explanation
     
     # Generate Plot
-    plt.figure(figsize=(8, 3))
-    plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(8, 3), facecolor='#0f172a')
+    fig = Figure(figsize=(8, 3), facecolor='#0f172a')
+    ax = fig.subplots()
     ax.set_facecolor('#0f172a')
     
     time_axis = np.arange(len(ear_sequence)) / fps
@@ -212,9 +229,7 @@ def analyze_eye_movements(video_path, output_dir, prefix="eye"):
     ax.grid(True, color='#1e293b', alpha=0.6)
     
     plot_path = os.path.join(output_dir, f"{prefix}_plot.png")
-    plt.tight_layout()
-    plt.savefig(plot_path, dpi=120, bbox_inches='tight', facecolor='#0f172a')
-    plt.close('all')
+    save_optimized_figure(plot_path, fig)
     
     results["eye_plot_path"] = plot_path.replace("\\", "/")
     

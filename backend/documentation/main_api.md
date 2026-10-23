@@ -1,5 +1,12 @@
 # Technical Specification & System Architecture: Core FastAPI Server & Pipeline Coordinator (`main.py`)
 
+## Reliability and protected artifact interface
+
+Polling and SSE use one artifact serializer that strips internal file paths and signs upload URLs. Signatures use HMAC-SHA256 over `path:expires` with `API_KEY` and expire after one hour; only GET/HEAD for the exact upload/PDF path may use a signature. All report mutations/inventory and the vault require the API header. Invalid credentials return 401. CORS remains the outer middleware. A safe identifier pattern prevents client PDF job IDs from escaping the report directory. SPA asset resolution is confined to the static directory. API keys bundled into a frontend remain shared credentials, not per-user authentication.
+
+Lazy pipeline imports are inside the job exception handler. Missing trained visual inference fails the job. Production fusion and SHAP share the classifier's schema/gateway and `apply_critical_override`; the override is included in explained predictions. WEBP ingestion and WEBM telemetry/rPPG are supported. The face preview crop is saved through `save_optimized_image`. Logs describe upload validation without claiming a hash comparison; batch telemetry reports the sample limit rather than a measured throughput.
+
+
 **Implementation File**: [`backend/main.py`](../main.py)  
 **Analytical Classification**: Asynchronous Web Application / Microservice Gateway / Parallel Forensic Pipeline Orchestrator  
 **Framework Stack**: `FastAPI 0.110+`, `Uvicorn`, `PyTorch`, `SlowAPI (Rate Limiting)`, `concurrent.futures`  
@@ -11,7 +18,7 @@
 
 ## 1. Executive Summary & Architectural Topology
 
-`main.py` serves as the central nervous system of the DeepForensics platform. It coordinates client communication, enforces security parameters, ingests and validates media streams, dispatches asynchronous forensic workers across parallel CPU threads, fuses 15 multimodal sensory outputs via the PyTorch Meta-Classifier, and compiles Explainable AI reports.
+`main.py` serves as the central nervous system of the DeepForensics platform. It coordinates client communication, enforces security parameters, ingests and validates media streams, dispatches asynchronous forensic workers across parallel CPU threads, fuses 15 sensory outputs through XGBoost with a trained PyTorch fallback, and compiles Explainable AI reports.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
@@ -78,7 +85,7 @@ async def get_api_key(api_key_header: str = Security(api_key_header)):
 
 ### 2.3 CORS & Cached Static File Mounts
 * **CORS**: Configurable via `ALLOWED_ORIGINS` (defaults to `*`), enabling cross-origin integration with web frontends.
-* **Cached Static File Mount**: Mounts `/uploads` using `CachedStaticFiles` (a custom Starlette `StaticFiles` subclass) that sets `Cache-Control: public, max-age=604800, immutable` on all successful HTTP 200 responses. This prevents redundant re-downloads, enabling zero-latency client retrieval from browser disk/memory cache.
+* **Protected Static File Mount**: `/uploads` requires the API header or an exact-path signed URL. Responses use `Cache-Control: private, no-store` to avoid retaining sensitive exhibits in shared caches.
 * **Bandwidth Optimization Layer**: Artifacts are automatically downscaled to $\le 720\text{ px}$ ($\le 1080\text{ px}$ for reference frames) via `cv2.INTER_AREA` and saved as progressive quality-80 JPEGs via `save_optimized_image`, reducing overall forensic dataset transfer from $\approx 15\text{ MB}$ to $\approx 1.2\text{ MB}$ ($87-95\%$ drop).
 * **Face Crop Artifact**: Generates `uploads/{job_id}_frames/face_crop.jpg` ($380\times 380\text{ px}$) and returns `"face_crop_path"` alongside `"first_frame_path"`, enabling unified, pixel-aligned A/B comparison on the frontend.
 
@@ -202,7 +209,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
     future_cfa = executor.submit(run_with_fallback, analyze_cfa_artifacts, ...)
     future_corneal = executor.submit(run_with_fallback, analyze_corneal_reflections, ...)
 ```
-* **Fault-Tolerant Fallbacks**: If any individual worker raises an uncaught exception, `run_with_fallback` logs the trace to `error_log.txt` and returns a default neutral result dictionary, guaranteeing the total analysis never fails due to a single sub-module.
+* **Fault-Tolerant Fallbacks**: If any individual worker raises an uncaught exception, `run_with_fallback` logs the trace to `error_log.txt` and returns a default neutral result dictionary, allowing optional detector failures to be reported in `module_errors`; visual inference failures terminate the job.
 
 ---
 
@@ -280,3 +287,13 @@ The function `generate_shap_features` applies **SHapley Additive exPlanations (S
 | **`GET`** | `/api/status/{id}` | `x-api-key` | `job_id: str` | Polling endpoint returning progress ($0-100\%$), logs, result |
 | **`GET`** | `/api/status/{id}/stream` | `x-api-key` | `job_id: str` | Server-Sent Events (SSE) streaming real-time status |
 | **`GET`** | `/api/reports/{id}/pdf` | None | `job_id: str` | Downloads synthesized multi-page forensic PDF report |
+
+
+## Pipeline audit integration (2026-10-16)
+
+Lazy model and explainer construction is serialized with a reentrant lock. Models are published only after loading completes. CFA receives the existing first-frame face box so its documented face/background comparison actually runs. Individual detector warnings and neutral scores remain visible in module results.
+
+## Research review integration (2026-10-17)
+
+Working sample discovery accepts explicit frame_ PNG/JPEG names only, excluding generated exhibits on reruns. Video applicability follows source container extension rather than sampled frame count. Detector failures explicitly set available:false and eligible_for_fusion:false. Further research integration is documented in the consolidated review.
+

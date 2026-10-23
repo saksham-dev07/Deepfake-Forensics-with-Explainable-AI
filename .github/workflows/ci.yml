@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   frontend-build:
-    name: Frontend Build & Typecheck (React + Vite)
+    name: Frontend Lint, Regression Tests & Build (React + Vite)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -36,6 +36,10 @@ jobs:
       - name: Compile & Build Frontend Bundle
         working-directory: frontend
         run: npm run build
+
+      - name: Check Frontend Lint and Request Lifecycle Regressions
+        working-directory: frontend
+        run: npm run lint && npm test
 
   backend-lint-compile:
     name: Backend Code Integrity & Compilation (Python)

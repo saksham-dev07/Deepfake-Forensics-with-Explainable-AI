@@ -1,5 +1,10 @@
 # Technical Specification & Forensic Architecture: Remote Photoplethysmography (rPPG) Hemodynamic Forensics (`rppg_analysis.py`)
 
+## Container support update
+
+The video extension guard includes WEBM in addition to MP4, AVI, MOV and MKV. This prevents accepted WEBM uploads from being incorrectly skipped as static images. The existing frame cap, signal extraction and safety guards are unchanged.
+
+
 **Implementation File**: [`backend/pipeline/rppg_analysis.py`](../pipeline/rppg_analysis.py)  
 **Analytical Classification**: Physiological Forensics / Subcutaneous Hemodynamics / Chrominance-Based Pulse Extraction  
 **Signal Processing Method**: CHROM rPPG Projection (De Haan & Jeanne, 2013)  
@@ -254,3 +259,10 @@ def extract_rppg_signal(
   2. **Short Video Guard**: Requires a minimum of $60$ frames ($\ge 2.0\text{ seconds}$) to establish a valid Fourier frequency resolution ($\Delta f = f_s / N$).
   3. **Zero-Division Protection**: All power ratios and standard deviations employ $\epsilon = 10^{-9}$ denominators to prevent divide-by-zero crashes.
   4. **Headless Execution**: Uses `matplotlib.use('Agg')` and explicit `FigureCanvas` renderers to guarantee crash-free background threading on Windows servers.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Missing ROIs are NaN, never zero-filled or repeated. Pulse filtering uses the longest contiguous measured run, with at least max(60, 2×FPS) samples and 80% observed coverage; absent or constant observations return neutral 0.5 plus warnings. Processing is bounded to min(450, 15×FPS) frames. SNR remains the dimensionless peak/mean power ratio, not dB. Pulse-like variation alone does not establish authenticity. Plots use the shared optimized figure encoder.
+
+`available` is false until a measured result is produced; neutral/unavailable outputs must not be rendered as authentic findings.

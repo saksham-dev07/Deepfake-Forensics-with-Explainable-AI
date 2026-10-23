@@ -1,5 +1,7 @@
 # Technical Specification & Forensic Architecture: Frequency Domain & Spectral Forensics (`frequency_analysis.py`)
 
+> Research correction (2026-10-17): the legacy score is an uncalibrated collection of image-statistic heuristics, not the trained spectral classifier reported by Durall et al. Saliency is not a GAN-grid detector, phase variance is not phase coherence, and PCA color variance is not periodicity. New `radial_log_slope` and `radial_power_law_deviation` correctly fit log power against log radius (excluding DC); legacy semilog falloff scoring is retained pending calibration. Tiny, constant-luminance or invalid-quality inputs are `available: false` with score 0.5; valid results expose `score_kind: "heuristic"`, `score_calibrated: false`. See [research comparison](research_image_forensics.md#4-frequency_analysispy); this correction supersedes stronger claims below.
+
 **Implementation File**: [`backend/pipeline/frequency_analysis.py`](../pipeline/frequency_analysis.py)  
 **Analytical Classification**: 2D Fourier Analysis / Discrete Cosine Transform / Wavelet & Cepstral Decomposition  
 **Upstream Dependencies**: `OpenCV (cv2)`, `NumPy`, `PyWavelets (pywt)`, `OS`  
@@ -342,3 +344,13 @@ def analyze_frequency_domain(
   1. **Division-by-Zero Guards**: Guarded against zero total energy in FFT, DCT, DWT, and PCA across monochrome or black frames.
   2. **Windowing Edge Protection**: 2D Hanning window applied prior to FFT ensures spectral leakage crosshairs do not trigger false positive energy spikes.
   3. **IQA Normalization**: Dynamic scaling of anomaly thresholds by `quality_multiplier` $Q$ prevents blurry or compressed authentic images from falsely failing the high-frequency test.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Block DCT energy now selects u+v >= 8 (the high-frequency bottom-right triangle). The old transposed triangular mask incorrectly selected a directional off-diagonal band. Full-image DCT uses installed SciPy orthonormal DCT-II, including odd dimensions on OpenCV versions that reject them. Radial averages use bincount sums/counts instead of rescanning the entire image for each radius; numerical definitions are unchanged. Tiny FFT mini-charts handle empty radial arrays and keep chart dimensions positive. Scores remain heuristics requiring calibration on labeled media.
+
+## Unavailable spectral inputs
+
+The analysis entrypoint returns neutral `spectral_anomaly_score: 0.5` with a warning for images smaller than 8 pixels on either axis or spatially constant luminance. This prevents undefined one-sample covariance/PCA and avoids interpreting missing spatial evidence as synthesis. Artifact fields are omitted when no analysis can be performed.
+

@@ -1,5 +1,7 @@
 # Technical Specification & Forensic Architecture: 3D Spherical Harmonic Lighting & Photometric Inconsistency Analysis (`lighting_analysis.py`)
 
+> Research correction (2026-10-17): the face uses sphere-center approximate normals; background Sobel gradients are not surface-normal lighting estimates. The illustrative sphere is not a measured environment map and the direction difference cannot prove splicing. Missing/degenerate fits now return `available: false`, neutral score 0.5, and null angles. A fit with numerically zero image-plane direction is unavailable. Confidence reduction now shrinks both high and low scores toward 0.5. Valid results carry `score_kind: "heuristic"`, `score_calibrated: false`. See [research comparison](research_image_forensics.md#6-lighting_analysispy); this correction supersedes stronger physical claims below.
+
 **Implementation File**: [`backend/pipeline/lighting_analysis.py`](../pipeline/lighting_analysis.py)  
 **Analytical Classification**: Physics-Based Vision / Photometric Forensics / Spherical Harmonics Decomposition  
 **Upstream Dependencies**: `OpenCV (cv2)`, `NumPy`, `MediaPipe 3D Landmarks`, `Math`  
@@ -256,3 +258,8 @@ def analyze_lighting(
   1. **No Face Detected**: Safely returns `lighting_anomaly_score: 0.50` with a descriptive warning without raising exceptions.
   2. **Insufficient SH Points**: If 3D landmarks are occluded ($N \le 9$), falls back safely without executing invalid least-squares operations.
   3. **Circular Variance Protection**: Protects against textured background false alarms via dynamic confidence discounting.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Missing, rank-deficient, or non-finite spherical-harmonic fits now return neutral 0.5 with warnings. A missing background gradient is unavailable rather than a fabricated zero-degree estimate. The inset light probe radius and center fit inside small images, preventing out-of-bounds pixel writes. Lighting scores remain approximate comparisons of estimated face shading and background gradients, with existing heuristic thresholds.

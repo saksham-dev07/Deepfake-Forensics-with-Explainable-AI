@@ -25,6 +25,28 @@ short_description: Multi-modal deepfake detection across 15 forensic dimensions 
 
 # Deepfake Forensics & Explainable AI (XAI) Platform
 
+## Reliability and access updates
+
+### Frontend usability updates
+
+Navigation keeps the current report when returning to Analyze. At narrow widths, navigation wraps into four accessible controls, the upload action precedes capability cards, and the report summary precedes the diagnostic sidebar. All 16 analytical workbenches share a responsive stacking layout. History cards, demo choices, and the footer wrap without relying on clipped content.
+
+The upload control is a native keyboard-accessible button and accepts reselecting the same file. A skip link, focus indicators, reduced-motion styles, native image dialogs (Escape/Tab support), accessible diagnostic buttons, and persistent error alerts improve keyboard use. Clipboard/export failures appear inside the interface. A native progress element exposes loading status; Stop watching clarifies that server work can continue. Missing metadata displays as unavailable. The report overview shows returned scores and SHAP contributions without invented baselines or attribution values.
+
+Demo results carry an explicit illustrative-data banner and a history badge; demo PDF export is disabled. History tolerates malformed records and unavailable/full browser storage. Regression checks cover malformed/blocked storage, demo provenance and report export restrictions. Browser QA covers phone and desktop layouts, navigation preservation, and native-dialog Escape behavior. Status copy does not assert measured latency, cryptographic validation, court certification, or backend availability. CSS status fills use native color mixing rather than invalid alpha suffixes on CSS variables.
+
+
+Production fusion now uses the loaded XGBoost checkpoint when available, with a trained PyTorch fallback. SHAP evaluates the same inference gateway and critical-sensor overrides used by the verdict. Missing visual weights or failed visual inference fail the job instead of using an untrained head or a neutral substitute. Detector anomalies remain estimates, not proof of manipulation or authenticity.
+
+The console cancels its upload, stream, polling requests and timers on reset, replacement, or unmount; an already accepted server job may continue. An early SSE EOF also triggers polling. Uploads accept MP4, AVI, MOV, MKV, WEBM, JPG/JPEG, PNG and WEBP up to 100 MB. WEBM is supported by pulse analysis.
+
+Report generation, report inventory and the `/reports` vault require `x-api-key`. Upload artifacts and PDF reads accept that header or an exact-path signed URL valid for one hour. Status responses supply signed image URLs and omit internal file paths; artifact responses use private, non-storing cache headers. The browser build's API key is a shared service credential, not individual-user authentication. Configure `API_KEY`, `VITE_API_KEY` and `ALLOWED_ORIGINS` for deployment. The integrated Docker build uses Node 22. Model details and analytical views load on demand with skeleton placeholders.
+
+Stored benchmarks are dataset-specific: Celeb-DF v1 accuracy is 99.81%; the archived 977-video FaceForensics++ v2 evaluation reports 66.02% accuracy and 64.28% recall. The 96.80% training validation figure is not the FaceForensics++ test accuracy. These artifacts have not been re-evaluated by the reliability changes.
+
+Validation: `cd frontend && npm run lint && npm run build && npm test`; The frontend suite covers request races and rendering of all 16 analytical tabs with populated and missing data; backend regressions: `cd backend` then `python -m unittest discover -s tests -v` using an environment with the installed runtime dependencies and bundled weights.
+
+
 <div align="center">
   <p><strong>An Enterprise-Grade, Multi-Modal Ensemble System for Detecting Synthetic Media, Generative AI Forgeries, and Deepfakes Across 15 Forensic Dimensions.</strong></p>
   <p>
@@ -75,7 +97,7 @@ short_description: Multi-modal deepfake detection across 15 forensic dimensions 
    - [4.14 Hardware Bayer Grids (Color Filter Array Demosaicing)](#414-detector-13-color-filter-array-cfa-bayer-demosaicing)
    - [4.15 Ocular Ray Tracing (Bilateral Corneal Specular Highlights)](#415-detector-14-corneal-specular-highlight-consistency)
 5. [Meta-Classifier & Explainable AI (XAI) Theory](#5-meta-classifier--explainable-ai-xai-theory)
-6. [Interactive Frontend Console (React 18 + Vite)](#6-interactive-frontend-console-react-18--vite)
+6. [Interactive Frontend Console (React 19 + Vite)](#6-interactive-frontend-console-react-19--vite)
 7. [Court-Admissible PDF Evidentiary Dossier](#7-court-admissible-pdf-evidentiary-dossier)
 8. [Codebase Physical Architecture (File Map)](#8-codebase-physical-architecture-file-map)
 9. [Complete Technical Documentation Library](#9-complete-technical-documentation-library)
@@ -100,7 +122,7 @@ The **Deepfake Forensics Platform** is an enterprise-grade digital media inspect
 5. **Biological Hemodynamics & Kinematics**: Remote Photoplethysmography (rPPG pulse extraction) and neuromotor eye blink state machines.
 6. **Cross-Modal Metric Learning**: Deep metric lip-sync temporal alignment and lightweight depthwise separable acoustic anti-spoofing.
 
-The extracted continuous anomaly scores ($0.0 - 1.0$) are synthesized by an **8-Layer Tabular ResNet Meta-Classifier with 4-Head Multi-Head Self-Attention**, trained on Class-Balanced Weighted Focal Loss. Crucially, the system enforces **Explainable AI (XAI)** at every level: coarse and high-resolution Guided Grad-CAM heatmaps, game-theoretic SHAP feature impact rankings, and automated generation of court-admissible multi-page PDF evidentiary dossiers.
+The extracted continuous anomaly scores ($0.0 - 1.0$) are synthesized by an **8-Layer Tabular ResNet Meta-Classifier with a single-token self-attention block**, trained on Class-Balanced Weighted Focal Loss. Crucially, the system enforces **Explainable AI (XAI)** at every level: coarse and high-resolution Guided Grad-CAM heatmaps, game-theoretic SHAP feature impact rankings, and automated generation of court-admissible multi-page PDF evidentiary dossiers.
 
 > [!NOTE]
 > **Evidentiary Reliability & Court Admissibility**: The analytical reports, metric formulations, and dual-layer visual attribution heatmaps generated by this platform are structured to satisfy the Daubert standard of scientific reliability and Federal Rules of Evidence (FRE 702) for digital forensic expert testimony.
@@ -121,7 +143,7 @@ flowchart TD
     classDef out fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f8fafc,rx:8px,ry:8px;
 
     %% Ingestion Layer
-    CLIENT[React 18 + Vite Web Console]:::client -->|Multipart Media Upload 100MB| API[FastAPI Gateway w/ Magic MIME Validation]:::gateway
+    CLIENT[React 19 + Vite Web Console]:::client -->|Multipart Media Upload 100MB| API[FastAPI Gateway w/ Magic MIME Validation]:::gateway
     API -.->|Server-Sent Events: Real-Time Telemetry| CLIENT
     API --> VP[Video Processor: PySceneDetect & OpenCV KCF/CSRT Tracker]:::gateway
     VP --> TP[Concurrent ThreadPoolExecutor: 15-Sensor Pool]:::gateway
@@ -152,7 +174,7 @@ flowchart TD
 
     subgraph Decision_Engine ["Decision & Explainability Engine"]
         FUSION["15-Dimensional Anomaly Vector"]:::meta
-        FUSION --> RESNET["8-Layer Tabular ResNet (4-Head MHSA)"]:::meta
+        FUSION --> RESNET["8-Layer Tabular ResNet (single-token attention)"]:::meta
         RESNET --> OVERRIDE["Flawless Fake Heuristic Override"]:::meta
         RESNET --> SHAP["SHAP KernelExplainer Directional Impact"]:::meta
         S0 --> XAI["Dual-Resolution Grad-CAM + Guided HDR"]:::meta
@@ -178,7 +200,7 @@ Evaluated on 73,000+ balanced frames and clips from Deepfake Detection Challenge
 | :--- | :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Visual Backbone (Video)** | EfficientNet-B4 + CBAM | **19.3M** | **Celeb-DF v2 (Official Test)** (518 videos) | **99.81%** | **1.0000** | **99.71%** | **100.00%** | **99.85%** |
 | **Visual Backbone (Image)** | EfficientNet-B4 + CBAM | **19.3M** | **140k Real & Fake Faces (Test)** (20,000 images) | **99.96%** | **1.0000** | **99.93%** | **99.98%** | **99.96%** |
-| **Meta-Classifier** | 8-Layer Tabular ResNet + 4-Head MHSA | **1.2M** | 15-D Continuous Calibration Vectors | **99.52%** | **0.9995** | **99.70%** | **99.80%** | **99.75%** |
+| **Meta-Classifier** | 8-Layer Tabular ResNet + single-token attention | **1.2M** | 15-D Continuous Calibration Vectors | **99.52%** | **0.9995** | **99.70%** | **99.80%** | **99.75%** |
 | **Voice Spoofing CNN** | Depthwise Separable 2D-CNN | **0.8M** | ASVspoof 2019 (LA/PA) | **98.50%** | **0.9910** | **98.00%** | **98.80%** | **98.40%** |
 | **SyncNet Model** | Dual-Stream 3D-CNN Metric Space | **3.7M** | LRS2 + VoxCeleb2 | **96.80%** | **0.9850** | **97.10%** | **96.50%** | **96.80%** |
 
@@ -665,7 +687,7 @@ Ingesting the 15-dimensional anomaly vector $\mathbf{v} \in \mathbb{R}^{15}$, th
 1. **Input Projection**: Linear mapping $\mathbf{h}_0 = \text{LeakyReLU}(\mathbf{W}_{\text{in}} \mathbf{v} + \mathbf{b}_{\text{in}})$, where $\mathbf{W}_{\text{in}} \in \mathbb{R}^{64 \times 15}$.
 2. **Residual Blocks (3 Blocks, 6 Layers)**:
    $$\mathbf{h}_{k+1} = \mathbf{h}_k + \text{Dropout}_{0.15}\left(\mathbf{W}_{k, 2} \cdot \text{LeakyReLU}(\text{LayerNorm}(\mathbf{W}_{k, 1} \mathbf{h}_k))\right)$$
-3. **4-Head Multi-Head Self-Attention (MHSA)**:
+3. **a single-token self-attention block (MHSA)**:
    Given projected sequence $\mathbf{H} \in \mathbb{R}^{B \times 15 \times 64}$:
    $$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}}\right)\mathbf{V}$$
    $$\text{MHSA}(\mathbf{H}) = [\text{head}_1; \text{head}_2; \text{head}_3; \text{head}_4] \mathbf{W}_O$$
@@ -706,34 +728,21 @@ Features are ranked by $|\phi_i|$ and mapped to directional percentages ($\right
 
 ---
 
-## 6. Interactive Frontend Console (React 18 + Vite)
+## 6. Interactive Frontend Console (React 19 + Vite)
 
-The frontend is an enterprise-grade forensic console built with **React 18** and **Vite**, adhering strictly to modern glassmorphism design tokens without Tailwind CSS bloat.
+The frontend provides a responsive inspection workspace with Analyze, Methodology, Models, and History sections. Hash navigation supports direct section links and browser Back/Forward while preserving the current analysis.
 
-### Console Features
-- **Single Authoritative Forensic Dossier Header (`ReportDashboard.jsx`)**: Displays case reference tracking (`REF #...`), live sensor convergence status, clean verdict pill with anomaly risk score, court-admissible 1-sentence plain-English findings, and instant export PDF / new scan action buttons.
-- **Streamlined Media Inspector Sidebar**: Surfaces technical specifications (exact resolution, file size, Laplacian focus sharpness, model architecture) alongside an interactive **Target Face Crop Preview Card** (with full-resolution modal zoom) and a **Diagnostic Sensor Matrix** with live status pills (`NOMINAL`, `ELEVATED`, `ANOMALY`) and 1-click tab jumping.
-- **Interactive A/B Forensics Split Workbench**:
-  - **Direct Viewport Swipe Handle (`WipeDivider.jsx`)**: The vertical split divider and central circular handle (`⇄`) are fully draggable across the master viewport using standard W3C Pointer Events with active pointer capture (`setPointerCapture`) and `touch-action: none`. Investigators can swipe directly across the image canvas on desktop mouse or touch devices, in addition to using the precision bottom range slider.
-  - **Dynamic Layer Badges**: Viewport headers dynamically reflect active exhibits (e.g., `B: HSV SATURATION ELA`, `B: PRNU SILICON NOISE`) the instant they are promoted from the matrix filmstrip.
-  - **In-Flight Visual Feedback**: Smooth opacity transitions and a dedicated `.viewport-loader` pulsing spinner overlay provide unmistakable visual confirmation while matrices are streaming.
-  - **Proactive Background Prefetching**: Client-side prefetch hooks (`new Image().src = ex.img`) preload all exhibit thumbnails and high-res layers on tab mount, eliminating network delays when toggling between analytical maps.
-  - **Segmented Forensic Chip Controls**: Styled `.chip-btn` and `.chip-btn.active` indicators with glowing cyan/blue focus states for rapid stage mode toggling (`A/B Wipe` vs `Direct Map`) and gain scaling.
-- **Universal Media URL & Face Crop Resolver (`mediaUrl.js`)**: Multi-tier fallback hierarchy prioritizing direct backend `face_crop_path`, preset `heatmaps.original_face`, session-relative path derivations, and raw video frames, guaranteeing pixel-perfect 380×380 alignment between Slide [A] (original face) and Slide [B] (forensic heatmaps).
-- **Balanced 2-Column Forensic Workspace (`FeaturesTab.jsx`)**:
-  - **Left Column**: Full-width **Feature Attribution (SHAP)** waterfall displaying directional pulling power (Authentic vs Manipulated) without label truncation, paired with the 5-stage **Meta-Classifier Architecture Pipeline** and an interactive Forensic Guide toggle.
-  - **Right Column**: Dual-polygon **Forensic Fingerprint Radar** comparing media signature to unmanipulated camera baseline (~12%), accompanied by a structured 4-point **Investigative Findings Brief** (Identity, Camera Physics, Detected Alterations, and Legal Conclusion).
-- **Real-Time Telemetry Streaming (`useAnalysisPipeline.js`)**: Subscribes to Server-Sent Events (`/api/status/{job_id}/stream`) with a 2KB buffer bypass, streaming live GPU VRAM usage, batch iteration rates, and 9-stage progress milestones without polling.
-- **16 Dedicated Forensic Tabs**:
-  - `FeaturesTab.jsx`: 2-column forensic workspace with SHAP waterfall & dual radar.
-  - `VisualTab.jsx`: Coarse Grad-CAM and Guided Grad-CAM HDR viewers with interactive zoom modal.
-  - `FrequencyTab.jsx`: 2D FFT, 8x8 block DCT, PCA, and Hou & Zhang residual saliency views.
-  - `ElaTab.jsx`, `NoiseTab.jsx`, `CfaTab.jsx`, `CornealTab.jsx`, `GeometryTab.jsx`, `ColorTab.jsx`, `LightingTab.jsx`, `RppgTab.jsx`, `EyeTab.jsx`, `VoiceTab.jsx`, `FlowTab.jsx`, `AudioTab.jsx`, `MetaTab.jsx`.
-- **Client-Side History (`useHistory.js`)**: Persists recent forensic scans in local storage with instant reload capabilities.
-- **One-Click Court-Grade PDF Export**: Direct streaming download trigger for generated PDF dossiers.
+- **Upload and progress**: keyboard-accessible drag/drop, supported-format/empty-file/100 MB validation, live SSE status with polling recovery, cancellation of browser requests, and clear error states. Accepted backend jobs can continue after Stop watching.
+- **Report overview**: combined estimate, source details, full case-ID copying, all applicable detector scores, and returned SHAP attributions. Missing observations remain unavailable; no invented baseline or authenticity certificate is displayed.
+- **Shared detector viewer**: the diagnostics registry maps backend values and exhibits for all 15 signals. Fourteen image/temporal/audio views share one viewer; metadata has searchable extracted tags.
+- **Aligned comparison**: registered spatial overlays use explicit matching face crops or full frames and matching aspect ratios. Opaque layers prevent letterbox bleed. Charts, spectra, cropped diagnostics, and schematics use direct view. The shared 44 px divider supports pointer capture and keyboard control at both endpoints.
+- **Accessible interactions**: native image dialogs, retry/empty states, view error boundaries, visible focus, reduced motion, responsive wrapping, and detector navigation that moves focus into the selected view.
+- **Models and evaluation**: implementation notes and archived public JSON metrics with actual confusion counts and curves. Historical evaluation records are distinguished from current validation.
+- **History and PDFs**: up to 20 validated local summaries, search, demo reopening, and authenticated retained-report downloads. PDF requests distinguish pending/denied/missing responses, validate content type, time out, and abort when the view closes. Illustrative demos cannot export reports.
+
+See [frontend documentation](frontend/README.md) and [frontend audit](frontend/documentation/frontend_audit.md) for components, behavior, verification, and limits. Automated results support human review and do not establish identity, authenticity, or legal admissibility.
 
 ---
-
 ## 7. Court-Admissible PDF Evidentiary Dossier
 
 The backend generates an exhaustive multi-page forensic dossier (`pipeline/pdf_reporter.py`) built with ReportLab Flowable layouts:
@@ -750,7 +759,7 @@ The backend generates an exhaustive multi-page forensic dossier (`pipeline/pdf_r
 ```mermaid
 flowchart TD
 
-subgraph group_frontend["Frontend (React 18 + Vite)"]
+subgraph group_frontend["Frontend (React 19 + Vite)"]
   node_main["Entry point<br/>React root<br/>[main.jsx]"]
   node_ui["UI Layout<br/>React app<br/>[App.jsx]"]
   node_upload["Upload interface<br/>React component<br/>[UploadZone.jsx]"]
@@ -944,7 +953,7 @@ Deepfake-Forensics-with-Explainable-AI/
 │       ├── face_detection_yunet_2023mar.onnx # YuNet Face Detection (233 KB)
 │       └── face_landmarker.task            # MediaPipe 468 Face Mesh (3.8 MB)
 │
-└── frontend/                               # React 18 + Vite Analytical Console
+└── frontend/                               # React 19 + Vite Analytical Console
     ├── index.html                          # HTML entry point
     ├── vite.config.js                      # Vite build configuration
     ├── package.json                        # Frontend dependencies
@@ -963,7 +972,7 @@ Deepfake-Forensics-with-Explainable-AI/
         │   ├── FeaturesGrid.jsx            # 15-sensor forensic capability breakdown
         │   ├── HeroSection.jsx             # Clean homepage hero banner
         │   ├── HowItWorks.jsx              # 6-stage forensic methodology view
-        │   ├── ModelsOverview.jsx          # Neural architecture explorer & Recharts
+        │   ├── ModelsOverview.jsx          # Implementation notes & archived benchmarks
         │   ├── ReportDashboard.jsx         # Forensic report console & gauge sidebar
         │   ├── StatsGrid.jsx               # Quick-glance sensor telemetry cards
         │   ├── UploadZone.jsx              # Drag-and-drop media ingestion
@@ -1002,7 +1011,7 @@ The repository includes **23 exhaustive technical and mathematical specification
 | [`main_api.md`](backend/documentation/main_api.md) | `backend/main.py` | FastAPI gateway, SSE streaming telemetry, background thread dispatching, MIME magic validation |
 | [`image_utils.md`](backend/documentation/image_utils.md) | `backend/pipeline/image_utils.py` | High-efficiency media optimization, area interpolation downscaling, JPEG Q=80 encoding, 87.7% payload reduction |
 | [`models.md`](backend/documentation/models.md) | `backend/pipeline/models.py` | EfficientNet-B4 compound scaling, CBAM Channel & Spatial attention, feature hook registration |
-| [`ensemble_classifier.md`](backend/documentation/ensemble_classifier.md) | `backend/pipeline/ensemble_classifier.py` | 8-Layer Tabular ResNet, 4-Head MHSA, Weighted Focal Loss, Flawless Fake heuristic override, SHAP |
+| [`ensemble_classifier.md`](backend/documentation/ensemble_classifier.md) | `backend/pipeline/ensemble_classifier.py` | 8-Layer Tabular ResNet, single-token attention, Weighted Focal Loss, Flawless Fake heuristic override, SHAP |
 | [`xai_explainer.md`](backend/documentation/xai_explainer.md) | `backend/pipeline/xai_explainer.py` | Coarse Grad-CAM, Guided Backpropagation fusion, 1st-99th percentile HDR contrast stretching |
 | [`video_processor.md`](backend/documentation/video_processor.md) | `backend/pipeline/video_processor.py` | PySceneDetect scene cuts, MediaPipe KCF/CSRT OpenCV face tracking, FFmpeg 16 kHz audio demux |
 | [`SyncNetModel.md`](backend/documentation/syncnet_model.md) | `backend/pipeline/SyncNetModel.py` | Siamese 2D acoustic + 3D lip CNN, 1024-D shared metric space, temporal collapse layer 1, contrastive margin loss |
@@ -1029,7 +1038,7 @@ The repository includes **23 exhaustive technical and mathematical specification
 
 ### 10.1 Prerequisites
 - **Python**: Version 3.10 or higher
-- **Node.js**: Version 18.0 or higher (`npm` v9+)
+- **Node.js**: Version 20.19+ or 22.12+
 - **FFmpeg**: Installed and globally accessible via system PATH
 - **CUDA** (Optional): CUDA 11.8+ for GPU acceleration (CPU fallback fully supported)
 
@@ -1125,7 +1134,7 @@ curl -X GET "http://127.0.0.1:8000/api/reports/3f9c2d1b-7a8e-4f12-9c3a-5b6d7e8f9
                  ┌────────────────────┴────────────────────┐
                  ▼                                         ▼
          Vercel Edge CDN                         Hugging Face Spaces
-     (React 18 + Vite Client)                  (Docker Container Port 7860)
+     (React 19 + Vite Client)                  (Docker Container Port 7860)
          https://your-app.vercel.app               FastAPI Backend Engine
                  │                                         │
                  └──────────── REST & SSE Streams ─────────┘
@@ -1310,3 +1319,32 @@ If you utilize this software, pipeline architecture, or empirical benchmarks in 
 <p align="right">(<a href="#readme-top">back to top ↑</a>)</p>
 
 **Deepfake Forensics Platform © 2026. All Rights Reserved.**
+
+
+### Pipeline reliability audit (2026-10-16)
+
+The backend pipeline audit fixes concurrent ELA recompression, signed residual arithmetic, missing-face temporal scoring, bounded audio/video processing, strict checkpoint loading, and report field/units consistency. Missing observations return neutral scores with explicit warnings. Audio confidence is shown as N/A unless measured; existing anomaly thresholds remain experimental and require labeled-data calibration.
+
+## Pipeline audit
+
+The [file-by-file backend audit](backend/documentation/pipeline_audit.md) records all 23 pipeline module assessments, fixes, regression coverage, and scientific calibration limits. Grayscale, constant, tiny, and missing-observation inputs are treated as unavailable where the relevant measurements cannot be made; unavailable evidence is not verified authenticity.
+
+
+
+## Frontend evidence workspace
+
+The shared diagnostics registry maps backend measurements and exhibits across all 15 detector views. Missing values and images remain unavailable. Spatial overlays compare with explicit matching source frames or face crops, opaque layers, and endpoint-safe pointer/keyboard controls; charts and cropped diagnostics use direct view. Native image dialogs, retry states, error boundaries, responsive typography, and improved contrast support review on desktop and mobile.
+
+Hash-based sections preserve active analysis through browser Back/Forward. History supports search, demo reopening, and authenticated PDF downloads with pending/denied/missing handling, content-type validation, timeout, and abort. The Models page reads all three archived metrics JSON records and their actual confusion counts. A compact native detector selector below 760 px retains keyboard focus; report jumps and sticky sidebar offsets account for wrapped navigation and changing exhibit heights.
+
+Frontend verification: **20 regression tests passed**, ESLint and the production build passed, and browser checks covered all 15 detectors, a real video upload/completion, native image expansion, historical benchmarks, and both report/history PDF downloads. See the [frontend audit](frontend/documentation/frontend_audit.md) for coverage and limits. These checks do not validate detection accuracy.
+Landmark exhibit rendering now preserves face detail with face-relative marks and a 25% mesh overlay, replacing additive glow that saturated small faces. Geometry scores are unchanged; existing saved exhibits require regeneration to update.
+
+
+## Research-driven backend review (2026-10-17)
+
+Pipeline modules are being checked against original papers and official implementation contracts. Demonstrated measurement, applicability, preprocessing, and inference-state problems are fixed with regression coverage; checkpoint replacement, new calibration temperatures, and accuracy claims require representative labeled evaluation rather than guesswork.
+
+
+Working frames now avoid additional JPEG recompression before forensics, using bounded PNG samples. Scene sampling covers long sequences of cuts, and detector failures carry explicit availability flags.
+

@@ -1,121 +1,85 @@
-import React, { useState, useCallback } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowRightLeft } from 'lucide-react';
 
-/**
- * Interactive A/B Wipe Divider Line with Draggable Center Handle
- * Supports desktop mouse drag & touch swipe via standard Pointer Events and Pointer Capture.
- */
+/** Shared pointer and keyboard control for every A/B image comparison. */
 const WipeDivider = ({
   wipePercent = 50,
   setWipePercent,
   containerRef,
   color = 'var(--primary)',
-  shadowColor = 'rgba(59, 130, 246, 0.8)'
+  shadowColor = 'rgba(59, 130, 246, 0.8)',
 }) => {
+  const drag = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  const percent = Number.isFinite(wipePercent) ? Math.max(0, Math.min(100, wipePercent)) : 50;
+  const update = (value) => setWipePercent?.(Math.max(0, Math.min(100, Math.round(value))));
 
-  const calculatePercent = useCallback((clientX) => {
-    if (!containerRef?.current || !setWipePercent) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    const rawX = clientX - rect.left;
-    const clampedX = Math.max(0, Math.min(rect.width, rawX));
-    const percent = Math.round((clampedX / rect.width) * 100);
-    setWipePercent(percent);
-  }, [containerRef, setWipePercent]);
-
-  const handlePointerDown = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handlePointerDown = (event) => {
+    if (!event.isPrimary || event.button !== 0 || !containerRef?.current) return;
+    const width = containerRef.current.clientWidth;
+    if (width <= 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.focus();
+    drag.current = { id: event.pointerId, x: event.clientX, percent, width };
     setIsDragging(true);
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch (err) {
-      // Fallback if browser doesn't support capture on specific target
-    }
-    calculatePercent(e.clientX);
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const handlePointerMove = (e) => {
-    if (!isDragging) return;
-    e.preventDefault();
-    calculatePercent(e.clientX);
+  const handlePointerMove = (event) => {
+    if (!drag.current || event.pointerId !== drag.current.id) return;
+    event.preventDefault();
+    update(drag.current.percent + (event.clientX - drag.current.x) / drag.current.width * 100);
   };
 
-  const handlePointerUp = (e) => {
-    if (isDragging) {
-      setIsDragging(false);
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch (err) {}
+  const stopDrag = (event) => {
+    if (!drag.current || event.pointerId !== drag.current.id) return;
+    drag.current = null;
+    setIsDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
     }
+  };
+
+  const handleKeyDown = (event) => {
+    const step = event.shiftKey ? 10 : 1;
+    const values = { ArrowLeft: percent - step, ArrowDown: percent - step,
+      ArrowRight: percent + step, ArrowUp: percent + step,
+      PageDown: percent - 10, PageUp: percent + 10, Home: 0, End: 100 };
+    if (!(event.key in values)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    update(values[event.key]);
   };
 
   return (
-    <div
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      title="Drag to swipe between Original and Forensic layers"
-      style={{
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        left: `${wipePercent}%`,
-        width: '36px',
-        transform: 'translateX(-50%)',
-        cursor: 'ew-resize',
-        touchAction: 'none',
-        userSelect: 'none',
-        zIndex: 25,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        outline: 'none'
-      }}
-    >
-      {/* Central Visual Neon Divider Line */}
+    <>
+      <div className="comparison-seam" aria-hidden="true" style={{
+        left: `${percent}%`, background: color,
+        boxShadow: `0 0 ${isDragging ? 14 : 8}px ${shadowColor}`,
+      }} />
       <div
-        style={{
-          width: '2px',
-          height: '100%',
-          background: color,
-          boxShadow: isDragging || isHovered
-            ? `0 0 14px ${shadowColor}, 0 0 4px #fff`
-            : `0 0 8px ${shadowColor}`,
-          transition: 'box-shadow 0.15s ease'
-        }}
-      />
-
-      {/* Central Circular Swiper Handle */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: `translate(-50%, -50%) scale(${isDragging || isHovered ? 1.15 : 1.0})`,
-          width: '24px',
-          height: '24px',
-          borderRadius: '50%',
-          background: color,
-          border: '2px solid #ffffff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: isDragging || isHovered
-            ? `0 0 16px ${shadowColor}, 0 4px 12px rgba(0,0,0,0.9)`
-            : '0 2px 8px rgba(0,0,0,0.85)',
-          cursor: 'ew-resize',
-          transition: 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease'
-        }}
+        role="slider"
+        tabIndex={0}
+        aria-label="Comparison position"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        aria-valuetext={`${percent}% original visible`}
+        aria-orientation="horizontal"
+        title="Drag to swipe between Original and Forensic layers"
+        className="comparison-handle"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopDrag}
+        onPointerCancel={stopDrag}
+        onLostPointerCapture={stopDrag}
+        onKeyDown={handleKeyDown}
+        style={{ left: `clamp(22px, ${percent}%, calc(100% - 22px))`, '--wipe-color': color }}
       >
-        <ArrowRightLeft size={11} color="#ffffff" strokeWidth={2.5} />
+        <span className="comparison-grip"><ArrowRightLeft size={14} aria-hidden="true" /></span>
       </div>
-    </div>
+    </>
   );
 };
 

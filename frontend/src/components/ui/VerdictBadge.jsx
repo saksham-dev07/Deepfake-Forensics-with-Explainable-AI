@@ -1,7 +1,9 @@
 import React from 'react';
 import { CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
 
-const VerdictBadge = ({ verdict }) => {
+const VerdictBadge = ({ verdict, status: givenStatus, reason: givenReason, available }) => {
+  if (available === false) verdict = { status: 'WARN', reason: 'Measurement unavailable' };
+  verdict ??= givenStatus ? { status: givenStatus, reason: givenReason } : null;
   if (!verdict) return null;
   
   const status = typeof verdict === 'string' ? verdict : verdict.status;
@@ -10,8 +12,8 @@ const VerdictBadge = ({ verdict }) => {
   if (!status) return null;
 
   const lower = status.toLowerCase();
-  const isPass = lower.includes('pass') || lower.includes('authentic') || lower.includes('normal');
-  const isWarn = lower.includes('warn') || lower.includes('inconclusive') || lower.includes('suspect');
+  const isWarn = /warn|inconclusive|suspect|altered|retouch|info|unavailable|neutral|review/.test(lower);
+  const isPass = !isWarn && /pass|authentic|normal|lower anomaly/.test(lower);
   
   const bgColor = isPass ? 'rgba(16, 185, 129, 0.08)' : isWarn ? 'rgba(245, 158, 11, 0.08)' : 'rgba(244, 63, 94, 0.08)';
   const borderColor = isPass ? 'rgba(16, 185, 129, 0.25)' : isWarn ? 'rgba(245, 158, 11, 0.25)' : 'rgba(244, 63, 94, 0.25)';

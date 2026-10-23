@@ -5,17 +5,13 @@ import {
 } from 'lucide-react';
 
 const PIPELINE_STEPS = [
-  { id: 'ingest', label: 'Stream Ingestion & 100MB Magic-Byte MIME Validation', threshold: 0 },
-  { id: 'frames', label: 'PySceneDetect Keyframes & MediaPipe Face Tracking', threshold: 10 },
-  { id: 'backbone', label: 'EfficientNet-B4 + CBAM Batched Face Inference', threshold: 15 },
-  { id: 'xai', label: 'Dual-Resolution Grad-CAM & Guided Heatmap XAI', threshold: 30 },
-  { id: 'frequency', label: 'Frequency Decomposition (2D FFT / DCT Azimuthal)', threshold: 45 },
-  { id: 'hardware', label: 'Bayer CFA Demosaicing & PRNU Sensor Pattern Noise', threshold: 55 },
-  { id: 'photometric', label: 'Photometric 3D Harmonics & Optical Flow Vector Field', threshold: 65 },
-  { id: 'biological', label: 'Cardiovascular rPPG (CHROM) & Blink Kinematics', threshold: 75 },
-  { id: 'audio', label: 'Audio-Visual SyncNet (1024-D) & Voice Anti-Spoofing CNN', threshold: 80 },
-  { id: 'meta', label: 'PyTorch Tabular ResNet & XGBoost 15-Sensor Meta-Classifier', threshold: 85 },
-  { id: 'dossier', label: 'Synthesizing Court-Admissible Forensic PDF Dossier', threshold: 90 },
+  { id: 'ingest', label: 'Upload and input validation', threshold: 0 },
+  { id: 'frames', label: 'Read media and sample frames', threshold: 5 },
+  { id: 'backbone', label: 'Evaluate visual model', threshold: 15 },
+  { id: 'xai', label: 'Generate attention maps', threshold: 35 },
+  { id: 'detectors', label: 'Run applicable specialist detectors', threshold: 45 },
+  { id: 'meta', label: 'Combine detector outputs', threshold: 85 },
+  { id: 'report', label: 'Prepare report and exhibits', threshold: 90 },
 ];
 
 const formatFileSize = (bytes) => {
@@ -60,10 +56,8 @@ const AnalysisTerminal = ({ status, progress, file, telemetry, logs = [], onCanc
   const isVideo = file?.name ? /\.(mp4|avi|mov|mkv|webm)$/i.test(file.name) : false;
   const isImage = file?.name ? /\.(jpg|jpeg|png|webp)$/i.test(file.name) : false;
 
-  const effectiveLogs = logs && logs.length > 0 ? logs : [
-    { type: 'OK', msg: 'Media stream handshake established. Header verified.' },
-    { type: 'INFO', msg: status === 'uploading' ? 'Streaming binary chunks to forensic worker...' : 'Allocating GPU/CPU tensor buffers for inference...' },
-    { type: 'SYS', msg: 'Pre-loading EfficientNet-B4, SyncNet, and Tabular ResNet weights...' }
+  const effectiveLogs = logs.length ? logs : [
+    { type: 'INFO', msg: status === 'uploading' ? 'Uploading the selected media. Waiting for server confirmation.' : 'Waiting for analysis progress from the backend.' }
   ];
 
   return (
@@ -98,17 +92,17 @@ const AnalysisTerminal = ({ status, progress, file, telemetry, logs = [], onCanc
                 color: status === 'uploading' ? 'var(--primary)' : 'var(--success)',
                 fontFamily: 'var(--font-mono)'
               }}>
-                {status === 'uploading' ? 'INGESTING STREAM' : '15-SENSOR FORENSIC AUDIT'}
+                {status === 'uploading' ? 'INGESTING STREAM' : 'ANALYSIS IN PROGRESS'}
               </span>
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>•</span>
               <span className="mono-font" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Elapsed: {formatTimer(elapsedSeconds)}
+                Time in this view: {formatTimer(elapsedSeconds)}
               </span>
             </div>
 
             <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               {isVideo ? <FileVideo size={16} color="var(--primary)" /> : isImage ? <FileImage size={16} color="var(--primary)" /> : <File size={16} color="var(--primary)" />}
-              <span>{file ? file.name : 'Target Media Stream'}</span>
+              <span style={{ overflowWrap: 'anywhere' }}>{file ? file.name : 'Target Media Stream'}</span>
               {file?.size && (
                 <span className="mono-font" style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>
                   ({formatFileSize(file.size)})
@@ -122,10 +116,11 @@ const AnalysisTerminal = ({ status, progress, file, telemetry, logs = [], onCanc
           <button
             type="button"
             onClick={onCancel}
+            title="Stops updates in this browser. A job accepted by the server may continue."
             className="btn btn-outline"
             style={{ fontSize: '0.775rem', padding: '0.45rem 0.85rem' }}
           >
-            <X size={13} /> Cancel Audit
+            <X size={13} /> Stop watching
           </button>
         )}
       </div>
@@ -140,22 +135,11 @@ const AnalysisTerminal = ({ status, progress, file, telemetry, logs = [], onCanc
             </span>
           </div>
           <span className="mono-font" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>
-            {Math.round(progress)}%
+            {status === 'uploading' ? 'Uploading…' : `${Math.round(progress)}%`}
           </span>
         </div>
 
-        {/* Progress Track */}
-        <div style={{
-          width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.05)',
-          borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--glass-border)'
-        }}>
-          <div style={{
-            width: `${Math.min(100, Math.max(2, progress))}%`,
-            height: '100%',
-            background: 'linear-gradient(90deg, var(--primary) 0%, #38bdf8 100%)',
-            transition: 'width 0.3s ease'
-          }} />
-        </div>
+        <progress className="analysis-progress" aria-label="Analysis progress" max="100" value={status === 'uploading' ? undefined : progress} />
 
         {/* Sensor Checklist Stepper */}
         <div style={{
@@ -164,7 +148,7 @@ const AnalysisTerminal = ({ status, progress, file, telemetry, logs = [], onCanc
           gap: '0.6rem',
           marginTop: '1.25rem'
         }}>
-          {PIPELINE_STEPS.slice(0, 8).map((step, idx) => {
+          {PIPELINE_STEPS.map((step, idx) => {
             const st = getStepStatus(step, idx);
             return (
               <div key={step.id} style={{
@@ -198,17 +182,17 @@ const AnalysisTerminal = ({ status, progress, file, telemetry, logs = [], onCanc
               <div className="terminal-dot green" />
             </div>
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              forensic-engine: stdout stream
+              Analysis status messages
             </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
             <Terminal size={12} />
-            <span>CUDA / OpenMP Multi-Threaded</span>
+            <span>Backend progress</span>
           </div>
         </div>
 
-        <div className="terminal-logs" ref={logContainerRef}>
+        <div className="terminal-logs" ref={logContainerRef} role="log" aria-label="Analysis activity" aria-live="polite">
           {effectiveLogs.map((log, i) => {
             const isOk = log.type === 'OK';
             const isErr = log.type === 'ERR';

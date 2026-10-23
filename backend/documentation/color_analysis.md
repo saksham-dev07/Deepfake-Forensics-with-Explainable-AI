@@ -1,5 +1,7 @@
 # Technical Specification & Forensic Architecture: Multi-Space Chrominance & Skin Subsurface Scattering Analysis (`color_analysis.py`)
 
+> Research correction (2026-10-17): whole-image YCrCb/HSV/Lab variation does not measure blood flow or subsurface scattering. `h_circular_variance` now measures hue spread correctly on the hue circle; legacy linear `h_variance` is retained for compatibility and does not affect scoring. Tiny, achromatic, spatially constant, or invalid-quality inputs return `available: false`, neutral `color_anomaly_score: 0.5`, and a warning. Valid results expose `available: true` and `score_kind: "heuristic"`, `score_calibrated: false`. See [research comparison](research_image_forensics.md#5-color_analysispy); this correction supersedes stronger claims below.
+
 **Implementation File**: [`backend/pipeline/color_analysis.py`](../pipeline/color_analysis.py)  
 **Analytical Classification**: Spectral & Chrominance Forensics / Biophysical Skin Hemodynamics  
 **Upstream Dependencies**: `OpenCV (cv2)`, `NumPy`, `OS`  
@@ -240,3 +242,8 @@ def analyze_chrominance(
    * Foundation and powder reduce epidermal texture, but subsurface dermal scattering and natural facial topography preserve $C_r$ and $a^*$ variance above $6.5$. Fails at most 1 threshold $\rightarrow \text{score} \le 0.60$.
 3. **Lossy H.264 Compressed Video**:
    * Image Quality Assessment lowers $Q = 0.6$, shrinking $T_a = 3.0$ and $T_S = 9.0$, preventing low-bitrate compression artifacts from falsely triggering high deepfake scores.
+
+## Pipeline audit corrections (2026-10-16)
+
+Achromatic images return neutral `color_anomaly_score: 0.5` with a warning because their missing chrominance cannot establish synthetic origin. Measurements cover the whole input image, not a segmented skin region. LAB a* and HSV variance alone do not measure blood flow or prove authenticity; thresholds remain heuristic and require validation on labeled media.
+

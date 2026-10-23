@@ -1,124 +1,72 @@
-# DeepForensics Dashboard (Frontend)
+# DeepForensics frontend
 
-This is the high-performance **React 18 + Vite** client application for the **DeepForensics Multi-Modal Forensics Platform**. It provides an interactive, court-grade evidentiary console for forensic analysts, investigators, and researchers to inspect media authenticity across **15 distinct forensic dimensions**, view live Server-Sent Events (SSE) telemetry, and examine Explainable AI (XAI) attributions.
+React 19 + Vite workspace for inspecting images and videos with 15 forensic signals. Results support review and do not establish authenticity, identity, or legal admissibility.
 
----
+## Run and verify
 
-## 1. Core Architectural Features
+Requires Node 20.19+ or 22.12+ and the project's running FastAPI backend.
 
-- **Component Modularization**: Clean, scalable React architecture partitioned into specialized views:
-  - `HeroSection.jsx` & `StatsGrid.jsx`: System status overview and forensic capability indicators.
-  - `UploadZone.jsx`: Drag-and-drop media ingestion interface enforcing client-side validation.
-  - `AnalysisTerminal.jsx`: Real-time streaming terminal with active CUDA VRAM and batch rate telemetry.
-  - `FeaturesGrid.jsx`: Detailed interactive breakdown of the 15 sensory dimensions and workflow steps.
-  - `HowItWorks.jsx`: Complete 6-stage forensic inspection pipeline specification.
-  - `ModelsOverview.jsx`: Neural architecture explorer with interactive Recharts loss and accuracy curves.
-  - `ReportDashboard.jsx`: Single authoritative Forensic Dossier Header with case reference tracking, one-sentence plain-English findings, resilient two-tier PDF export (direct retrieval with on-demand client-state fallback to `POST /api/reports/generate` and active spinning loader), scan CTAs, a streamlined Inspected Media sidebar with **Target Face Crop Preview Card**, interactive Diagnostic Sensor Matrix, and live tab badges.
-- **Interactive A/B Forensics Split Workbench**:
-  - **Direct Viewport Swipe Handle (`WipeDivider.jsx`)**: The vertical split divider and central circular handle (`⇄`) are fully draggable across the master viewport using standard W3C Pointer Events with active pointer capture (`setPointerCapture`) and `touch-action: none`. Investigators can swipe directly across the image canvas on desktop mouse or touch devices, in addition to using the precision bottom range slider.
-  - **Dynamic Exhibit-Adaptive Mathematical Engine (Across All 14 Analytical Tabs)**: The right-hand mathematical formulation panel (rendered via KaTeX LaTeX) and forensic metric cards dynamically adapt to the currently promoted exhibit in the master stage:
-    - *`ElaTab.jsx`*: Standard ELA ($Q=95$), JPEG Ghosting Map ($D(q)$ error curve and local minimum $q^*$), and HSV Saturation ELA ($S(x,y)$ chrominance field).
-    - *`NoiseTab.jsx`*: Sensor PRNU noise model ($\rho(W, \mathbf{K})$), Spatial Rich Models (SRM) 2nd-order derivative high-pass residual (`srm_map_path`), and NLM denoised variance field (`denoised_map_path`).
-    - *`VisualTab.jsx`*: Standard Grad-CAM ($L_{\text{Grad-CAM}}^c$) and Guided Grad-CAM ($L_{\text{Guided Grad-CAM}}^c = \text{GuidedBackprop}(I) \odot L_{\text{Grad-CAM}}^c$).
-    - *`GeometryTab.jsx`*: 3D Procrustes distance ($D_{\text{Procrustes}}$), Perspective-n-Point 3D head pose ($R, \mathbf{t}$ Euler projection), Anthropometric ratio z-scores ($D_{\text{anthro}}$), and Sagittal plane symmetry ($\mathcal{A}_{\text{sym}}$).
-    - *`CfaTab.jsx`*: Periodicity variance map (`cfa_map_path`), 2D Fast Fourier Transform Nyquist spectrum (`cfa_fourier_path`), and GRBG sub-pixel Bayer lattice residual (`bayer_grid_path`).
-    - *`ColorTab.jsx`*: YCbCr $C_b$ blue chrominance variance, YCbCr $C_r$ hemoglobin flush variance, HSV saturation step gradient ($\nabla S$), and CIE-LAB $\Delta E^*_{ab}$.
-    - *`LightingTab.jsx`*: 3D illumination direction vector field (`lighting_map_path`), 9D Spherical Harmonics Virtual Chrome Sphere Probe (`chrome_probe_path`), and Lambertian albedo shading residual map (`shading_residual_path`).
-    - *`CornealTab.jsx`*: Bilateral glassmorphic additive difference map (`corneal_map_path`), bilateral micro-loupe specular crop (`ocular_loupe_path`), and 3D epipolar light ray convergence geometry (`specular_vector_path`).
-    - *`EyeTab.jsx`*: Soukupová & Čech Eye Aspect Ratio ($\text{EAR}$), 6-point palpebral fissure velocity ($v_{\text{lid}}(t)$), and binocular stereo gaze divergence ($\theta_{\text{gaze}}$).
-    - *`FlowTab.jsx`*: Farnebäck quadratic flow ($\vec{d}$), temporal velocity jitter ($\text{Jitter}$), and boundary shear strain ($\gamma_{xy}$).
-    - *`RppgTab.jsx`*: Cardiac Fourier spectral density & SNR, hemodynamic Perfusion Index ($\text{PI}$), and CHROM orthogonal pulse projection ($S_{\text{CHROM}}$).
-    - *`VoiceTab.jsx`*: 128-Mel spectrogram ($S(t, m)$), high-frequency spectral rolloff ($R_{\text{high}}$), and zero-crossing rate dynamics ($\text{ZCR}$).
-    - *`AudioTab.jsx`*: SyncNet lip-audio latency distance ($d(v,a)$ & $\text{LSE-C}$), 3D-CNN spatiotemporal visemes, and MFCC acoustic filterbanks.
-  - **Dynamic Layer Badges**: Viewport headers dynamically reflect active exhibits (e.g., `B: HSV SATURATION ELA`, `B: PRNU SILICON NOISE`) the instant they are promoted.
-  - **In-Flight Visual Feedback**: Smooth opacity fade transitions and a dedicated `.viewport-loader` pulsing spinner overlay provide unmistakable visual confirmation while matrices are streaming.
-  - **Proactive Background Prefetching**: Client-side prefetch hooks (`new Image().src = ex.img`) preload all exhibit thumbnails and high-res layers on tab mount, eliminating network delays when toggling between analytical maps.
-  - **Segmented Forensic Chip Controls**: Styled `.chip-btn` and `.chip-btn.active` indicators with glowing cyan/blue focus states for rapid stage mode toggling (`A/B Wipe` vs `Direct Map`) and gain scaling.
-- **Universal Media URL & Face Crop Resolver (`mediaUrl.js`)**:
-  - `resolveOriginalFaceUrl(result)`: Multi-tier fallback hierarchy prioritizing direct backend `face_crop_path`, preset `heatmaps.original_face`, session-relative path derivations, and raw video frames.
-  - `handleFaceImgError`: Graceful image error handler that automatically cascades from face crops to raw frames before falling back to procedural SVG graphics.
-  - Guaranteed pixel-perfect 380×380 alignment between Slide [A] (original face) and Slide [B] (forensic heatmaps).
-- **Real-Time SSE Telemetry (`useAnalysisPipeline.js`)**: Subscribes to Server-Sent Events (`/api/status/{job_id}/stream`) with 2KB buffer bypass, receiving real-time progress ($0-100\%$), forensic execution logs, and live GPU/CPU telemetry without polling overhead.
-- **Dual-Layer Explainable AI (XAI) Visualizer**: Renders both coarse **Grad-CAM** overlays (hooking the 1792-channel convolutional head) and microscopic **Guided Grad-CAM** maps (1st–99th percentile HDR contrast stretched in scientific Inferno colormaps).
-- **True SHAP Explanations**: Visualizes mathematical directional attributions from `shap.KernelExplainer` ($\rightarrow \text{FAKE}$ / $\rightarrow \text{AUTHENTIC}$) with impact percentages.
-- **Balanced 2-Column Forensic Workspace (`FeaturesTab.jsx`)**:
-  - **Left Column**: Full-width **Feature Attribution (SHAP)** waterfall with directional bars and plain-English impact tags, plus the 5-stage **Meta-Classifier Architecture Pipeline** with an interactive toggle to the Forensic Guide.
-  - **Right Column**: Dual-polygon **Forensic Fingerprint Radar** comparing media footprint to unmanipulated camera baseline (~12%), paired with a structured **Investigative Findings Brief**.
-- **15 Specialized Sensory Tabs**: Dedicated analytical views for every forensic dimension:
-  1. `VisualTab.jsx`: Grad-CAM & Guided Grad-CAM heatmaps.
-  2. `FeaturesTab.jsx`: 2-column forensic workspace with SHAP waterfall & dual radar.
-  3. `FrequencyTab.jsx`: 2D FFT, 8x8 block DCT, and Hou & Zhang spectral residuals.
-  4. `ElaTab.jsx`: Error Level Analysis (ELA) recompression error maps.
-  5. `NoiseTab.jsx`: PRNU sensor noise & Spatial Rich Models (SRM).
-  6. `CfaTab.jsx`: Color Filter Array (CFA) Bayer demosaicing grid residuals.
-  7. `GeometryTab.jsx`: 3D head pose Euler angles & boundary Sobel gradient energy.
-  8. `CornealTab.jsx`: Corneal specular highlights & Normalized Cross-Correlation (NCC).
-  9. `ColorTab.jsx`: YCbCr / CIELAB chrominance bleeding.
-  10. `LightingTab.jsx`: 9-coefficient 3D Spherical Harmonics ($l \le 2$) light probes.
-  11. `RppgTab.jsx`: Cardiovascular blood volume pulse (BVP) & Fourier spectral SNR.
-  12. `EyeTab.jsx`: Eye Aspect Ratio (EAR) biological blink timing & gaze convergence.
-  13. `VoiceTab.jsx`: 128-mel spectrogram & vocoder audio anti-spoofing.
-  14. `AudioTab.jsx`: SyncNet 1024-D audio-visual lip-sync error metrics (LSE-D / LSE-C).
-  15. `FlowTab.jsx`: Dense Inverse Search (DIS) optical flow temporal jitter.
-  16. `MetaTab.jsx`: EXIF metadata, generative AI signatures, and container streams.
-- **Glassmorphism 2.0 Design System**: Deep Slate base (`#0f172a`), inner glass-rim shadows, translucent floating panels, crisp typography (`Outfit` and `JetBrains Mono`), and fluid Framer Motion animations.
-
----
-
-## 2. Technology Stack
-
-- **Framework**: React 18.2 with Vite bundler
-- **Data Visualization**: Recharts (Radar, Area, Line, and Bar charts)
-- **Icons & UI Graphics**: Lucide React
-- **Animations**: Framer Motion & Vanilla CSS keyframe transitions
-- **Styling**: Tailored Modern CSS Design System (no Tailwind bloat)
-
----
-
-## 3. Installation & Local Development
-
-### 3.1 Prerequisites
-- **Node.js**: Version 18.0 or higher
-- **npm**: Version 9.0 or higher
-
-### 3.2 Setup Steps
-```bash
-# 1. Navigate to the frontend directory
+```powershell
 cd frontend
-
-# 2. Install dependencies
 npm install
-
-# 3. Start development server
 npm run dev
 ```
 
-The application will be accessible at `http://localhost:5173`.
+Open http://localhost:5173. Production assets are generated in `dist/`.
 
----
-
-## 4. Backend Connection & Environment Variables
-
-### 4.1 Local Development
-By default, the frontend connects to the local FastAPI server running on `http://127.0.0.1:8000` with the master development API key (`deepforensics-dev-key`).
-
-### 4.2 Production Configuration
-When deploying to **Vercel** or other cloud platforms, configure environment variables in `.env` or the platform dashboard:
-
-```env
-# URL pointing to your backend FastAPI deployment (e.g. Hugging Face Spaces or Cloud Run)
-VITE_API_URL=https://your-backend-instance.hf.space
-
-# API Key matching the backend API_KEY environment variable
-VITE_API_KEY=your-secure-api-key
-```
-
----
-
-## 5. Build for Production
-
-To validate types and bundle optimized static assets:
-```bash
+```powershell
+npm run lint
+npm test
 npm run build
 ```
-Compiled static assets are placed in the `frontend/dist/` directory ready for deployment to Vercel, Netlify, or static web servers.
+
+Configure `VITE_API_URL` (default http://127.0.0.1:8000) and `VITE_API_KEY` to match the backend `API_KEY`. The bundled key is a shared client credential, not a user-specific secret. Private exhibits use signed backend links; PDF requests send `x-api-key`.
+
+## Pages and navigation
+
+- Analyze: keyboard-accessible upload and drag/drop, real progress, report overview, all applicable detector views, PDF export, and a new-audit action.
+- Methodology: six stages with explicit observation limits.
+- Models: implementation details and three archived benchmark JSON records with actual confusion counts and diagnostic curves. These are historical records, not fresh evaluations of the corrected pipeline.
+- History: up to 20 browser-local summaries, search, demo reopening, and retained PDF downloads. Full real reports are not stored in local storage.
+
+Sections use `#analyze`, `#methodology`, `#models`, and `#history`. Back/Forward preserves the active analysis. Reloading starts a new analysis session while saved history remains. The responsive layout wraps navigation, places report content before its sidebar on mobile, and brings a selected detector into sight with keyboard focus.
+
+## Shared evidence presentation
+
+`constants/diagnostics.js` registers detector fields, metrics, exhibits, applicability, and interpretation limits. Fourteen analytical tab wrappers use `ui/DiagnosticTab.jsx`; metadata and the combined overview have dedicated views. `utils/reportData.js` handles availability and numeric presentation. Missing/non-finite observations render N/A; valid zero values remain visible. Neutral scores with explicit observation warnings are unavailable. Near-zero/near-perfect percentages do not round to absolute certainty.
+
+The overview shows returned detector scores and SHAP attributions. It does not invent a camera baseline, contributions, per-pixel measurements, or authenticity certification.
+
+`utils/mediaUrl.js` owns all API/media and frontend public-asset paths. Original face and original frame resolvers accept explicit backend fields and sample fields only. Missing originals return null; no fabricated reference images or guessed artifact paths are used.
+
+Only registered spatial exhibits with matching aspect ratios offer an A/B wipe. Neural attention uses its matching face crop; whole-frame diagnostics use `first_frame_path`. Charts, spectra, cropped diagnostics, and illustrative schematics use direct view. Opaque comparison layers prevent letterbox bleed. The shared `WipeDivider` keeps its 44 px pointer target within endpoints while the seam follows 0–100%. Pointer capture and grab offset preserve dragging; arrows, Shift+arrows, PageUp/PageDown, Home/End, and a labeled native range support keyboard operation.
+
+Image failures offer retry. Missing exhibits have descriptive empty states. A native image dialog supports focus containment and Escape. Error boundaries contain view failures so navigation remains usable. Typography, contrast, touch targets, focus indicators, and reduced-motion rules are shared in `index.css`.
+
+## Requests and state
+
+`useAnalysisPipeline` owns each request session. Reset, replacement uploads/demos, and unmount abort requests and clear timers. Stale responses cannot overwrite a newer report. An interrupted/closed/stalled SSE stream falls back to bounded polling. Progress is clamped; logs accept validated strings or backend `{type,msg}` records. Stop watching ends browser updates; an accepted backend job can continue.
+
+Uploads accept MP4/AVI/MOV/MKV/WEBM/JPG/JPEG/PNG/WEBP up to 100 MB. Empty files are rejected before a request. Missing job IDs and API errors render useful messages. Demos are explicitly illustrative and cannot export a PDF.
+
+`utils/downloadReport.js` distinguishes pending (202), denied (401/403), and missing (404/410) reports. Only missing reports with an in-memory result can regenerate through `POST /api/reports/generate`. Requests have a 45-second timeout, abort when the view closes, and require PDF content type before download.
+
+History validates stored entries, tolerates blocked/full storage, deduplicates jobs, and records demo provenance. It stores summaries rather than media or full report payloads.
+
+## Verification
+
+The frontend regression suite covers request races, cancellation, stream recovery, upload validation, malformed telemetry/storage, history, hash navigation, availability and zero values, PDF error handling, and populated/missing rendering of every detector. Comparison checks cover source coordinate selection, opaque layers, chart exclusions, and divider endpoints. SSR test servers disable WebSockets to avoid port conflicts.
+
+Browser QA and remaining limits are recorded in [frontend audit](documentation/frontend_audit.md).
+Detector jumps use immediate scrolling and disable report scroll anchoring so changing exhibit heights cannot pull mobile readers back toward the sidebar.
+
+Wrapped navigation at tablet widths also offsets report jumps and the sticky source sidebar.
+
+All three registered benchmark metrics files and diagnostic images ship in public/benchmark_artifacts. Regression checks verify these assets and confusion-matrix sample totals. Missing JSON is reported clearly even when the host responds with an HTML SPA fallback.
+
+At phone and narrow tablet widths, a labeled native detector selector replaces the two rows of section/pill navigation, keeping evidence closer to the top and preserving access to every applicable detector and the overview.
+
+The native selector retains keyboard focus while changing detectors, so arrow-key selection remains usable.
+
+The face-geometry exhibit shows landmark positions rather than anomaly intensity. Its backend renderer now uses a translucent mesh instead of an overexposed glow. Previously saved exhibits require regeneration or a new scan to show the change.
+

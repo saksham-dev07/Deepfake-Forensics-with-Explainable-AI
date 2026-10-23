@@ -4,13 +4,14 @@ import { SAMPLE_REPORTS } from '../constants/sampleReports';
 
 const UploadZone = ({ onFileUpload, onSelectSample }) => {
   const fileInputRef = useRef(null);
+  const dragDepth = useRef(0);
   const [dragActive, setDragActive] = useState(false);
 
-  const onDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); };
-  const onDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); };
+  const onDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); dragDepth.current += 1; setDragActive(true); };
+  const onDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); dragDepth.current = Math.max(0, dragDepth.current - 1); if (!dragDepth.current) setDragActive(false); };
   const onDragOver = (e) => { e.preventDefault(); e.stopPropagation(); };
   const onDrop = (e) => {
-    e.preventDefault(); e.stopPropagation(); setDragActive(false);
+    e.preventDefault(); e.stopPropagation(); dragDepth.current = 0; setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       onFileUpload(e.dataTransfer.files[0]);
     }
@@ -20,12 +21,24 @@ const UploadZone = ({ onFileUpload, onSelectSample }) => {
   const onFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       onFileUpload(e.target.files[0]);
+      e.target.value = '';
     }
   };
 
   return (
     <div className="upload-card-wrapper">
-      <div
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={onFileChange}
+          aria-label="Media file"
+          style={{ display: 'none' }}
+          accept=".mp4,.avi,.mov,.mkv,.webm,.png,.jpg,.jpeg,.webp"
+        />
+      <button
+        type="button"
+        aria-describedby="upload-help"
+        aria-label="Choose an image or video"
         className={`upload-zone ${dragActive ? 'drag-active' : ''}`}
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
@@ -33,27 +46,21 @@ const UploadZone = ({ onFileUpload, onSelectSample }) => {
         onDrop={onDrop}
         onClick={triggerFileSelect}
       >
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={onFileChange}
-          style={{ display: 'none' }}
-          accept="video/*,image/*"
-        />
+
 
         <div className="upload-icon-box">
           <UploadCloud size={24} color="var(--primary)" />
         </div>
 
         <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
-          Select or drop media stream
+          Choose an image or video
         </div>
         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.25rem', textAlign: 'center' }}>
-          Ingest video or image file to execute parallel forensic audit
+          Browse your files, or drag one here to begin.
         </div>
 
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '1rem' }}>
-          {['MP4', 'MOV', 'MKV', 'AVI', 'JPG', 'PNG', 'WEBP'].map(ext => (
+          {['MP4', 'MOV', 'MKV', 'AVI', 'WEBM', 'JPG', 'PNG', 'WEBP'].map(ext => (
             <span key={ext} className="format-chip">
               {ext}
             </span>
@@ -61,19 +68,19 @@ const UploadZone = ({ onFileUpload, onSelectSample }) => {
         </div>
 
         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--font-mono)' }}>
-          <span>Max 100 MB • Binary Magic-Byte Check • 15 Sensors</span>
+          <span id="upload-help">Max 100 MB · Images and videos</span>
         </div>
-      </div>
+      </button>
 
       {/* Quick Interactive Forensic Demos */}
       <div className="sample-presets-panel">
         <div className="sample-presets-header">
           <div className="sample-presets-title">
             <Sparkles size={13} color="var(--primary)" />
-            <span>Instant Forensic Evaluation Demos</span>
+            <span>Explore sample reports</span>
           </div>
           <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-            1-Click Pre-Audited
+            Illustrative data
           </span>
         </div>
 
@@ -92,7 +99,7 @@ const UploadZone = ({ onFileUpload, onSelectSample }) => {
             </div>
             <div>
               <div className="preset-title">{SAMPLE_REPORTS.deepfake_face.meta.title}</div>
-              <div className="preset-subtitle">High probability face-swap • CFA &amp; rPPG failure</div>
+              <div className="preset-subtitle">Illustrative face-swap detector results</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -118,12 +125,12 @@ const UploadZone = ({ onFileUpload, onSelectSample }) => {
             </div>
             <div>
               <div className="preset-title">{SAMPLE_REPORTS.pristine_capture.meta.title}</div>
-              <div className="preset-subtitle">Authentic camera sensor • Valid PRNU &amp; corneal highlights</div>
+              <div className="preset-subtitle">Illustrative lower-anomaly detector results</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.12)', color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
-              GENUINE 95.2%
+              4.8% ANOMALY
             </span>
             <Play size={12} color="var(--text-muted)" />
           </div>
@@ -144,7 +151,7 @@ const UploadZone = ({ onFileUpload, onSelectSample }) => {
             </div>
             <div>
               <div className="preset-title">{SAMPLE_REPORTS.ai_altered.meta.title}</div>
-              <div className="preset-subtitle">Authentic face • Localized generative retouching / ELA seam</div>
+              <div className="preset-subtitle">Illustrative localized editing signals</div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

@@ -5,6 +5,13 @@ import torch
 import torch.nn as nn
 
 class S(nn.Module):
+    """Checkpoint-compatible SyncNet v2 architecture.
+
+    Contract: audio [B, 1, 13, 20] PCM-scale MFCCs; video
+    [B, 3, 5, 224, 224] unnormalized BGR pixels. Embeddings are distances,
+    not authenticity probabilities. The v2 code differs from the paper's
+    original 256-dimensional grayscale network; do not mix their checkpoints.
+    """
     def __init__(self, num_layers_in_fc_layers = 1024):
         super().__init__()
 
@@ -85,7 +92,8 @@ class S(nn.Module):
         )
 
     def forward_aud(self, x):
-
+        if x.ndim != 4 or tuple(x.shape[1:]) != (1, 13, 20):
+            raise ValueError("SyncNet audio input must have shape [B, 1, 13, 20]")
         mid = self.netcnnaud(x)  # N x ch x 24 x M
         mid = mid.view((mid.size(0), -1))  # N x (ch x 24)
         out = self.netfcaud(mid)
@@ -93,7 +101,8 @@ class S(nn.Module):
         return out
 
     def forward_lip(self, x):
-
+        if x.ndim != 5 or tuple(x.shape[1:]) != (3, 5, 224, 224):
+            raise ValueError("SyncNet video input must have shape [B, 3, 5, 224, 224]")
         mid = self.netcnnlip(x)
         mid = mid.view((mid.size(0), -1))  # N x (ch x 24)
         out = self.netfclip(mid)
@@ -101,7 +110,8 @@ class S(nn.Module):
         return out
 
     def forward_lipfeat(self, x):
-
+        if x.ndim != 5 or tuple(x.shape[1:]) != (3, 5, 224, 224):
+            raise ValueError("SyncNet video input must have shape [B, 3, 5, 224, 224]")
         mid = self.netcnnlip(x)
         out = mid.view((mid.size(0), -1))  # N x (ch x 24)
 

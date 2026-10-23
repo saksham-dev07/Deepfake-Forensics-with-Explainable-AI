@@ -2,42 +2,12 @@ import React from 'react';
 import { UploadCloud, Eye, Cpu, FileCheck, Activity, HeartPulse, ArrowRight } from 'lucide-react';
 
 const STEPS = [
-  {
-    step: '01',
-    icon: UploadCloud,
-    title: 'Stream Ingestion, IQA & Face Tracking',
-    detail: 'Media is ingested via asynchronous 1MB chunked streams with strict 100MB ceiling and post-stream binary magic-byte MIME validation. Audio is demuxed into uncompressed 16 kHz mono PCM WAV, while frames are sampled using PySceneDetect camera-cut triggers. The engine crops faces with a 20% margin using MediaPipe (468 landmarks) and tracks facial kinematics across frames via KCF/CSRT trackers, computing Laplacian variance for Image Quality Assessment (IQA).'
-  },
-  {
-    step: '02',
-    icon: Cpu,
-    title: 'EfficientNet-B4 + CBAM Neural Feature Extraction',
-    detail: 'Cropped, ImageNet-normalized facial crops are evaluated in 32-frame sliding-window batches by a fine-tuned EfficientNet-B4 backbone enhanced with CBAM (Convolutional Block Attention Module). Channel and Spatial attention heads jointly isolate GAN upsampling artifacts, boundary interpolation blurring, and checkerboard frequency leakage.'
-  },
-  {
-    step: '03',
-    icon: Eye,
-    title: 'Dual-Resolution Explainable AI (XAI)',
-    detail: 'To satisfy legal admissibility (Daubert standard), decisions are grounded through two attribution layers: Grad-CAM hooks the 1792-channel conv_head to highlight macroscopic facial areas driving the fake class, while Guided Grad-CAM fuses Guided Backpropagation with 1st–99th percentile dynamic range contrast stretching and scientific COLORMAP_INFERNO rendering to expose microscopic pixel-level warping seams.'
-  },
-  {
-    step: '04',
-    icon: Activity,
-    title: 'Bounded 4-Worker Parallel Sensory Audit',
-    detail: 'A fault-tolerant ThreadPoolExecutor dispatches 14 specialized analytical sub-engines in parallel: 2D FFT & 8x8 Block DCT spectral residuals, Error Level Analysis (ELA) at Q=95, Lukas PRNU sensor noise via Non-Local Means, Bayer CFA Demosaicing grids, Corneal Specular Highlights in LAB color space, 3D Spherical Harmonics lighting vs Sobel background circular stats, Remote Photoplethysmography (rPPG) subcutaneous heartbeat extraction via CHROM projection, Eye Aspect Ratio (EAR) biological blink dynamics, DIS Optical Flow temporal jitter, SyncNet 1024-D audio-visual lip-sync, and 2D-CNN Depthwise Separable voice anti-spoofing.'
-  },
-  {
-    step: '05',
-    icon: HeartPulse,
-    title: 'PyTorch Meta-Classifier & "Flawless Fake" Override',
-    detail: 'An 8-layer Tabular ResNet with 4-head Multi-Head Self-Attention trained on Class-Balanced Weighted Focal Loss fuses all 15 dimensional scores into an empirical probability. If any critical biological sensor fails violently (e.g., zero eye blinking, vocoder voice clone, or audio desync > 0.80), the "Catching Flawless Fakes" Heuristic Override boosts the verdict, preventing averaging dilution. SHAP KernelExplainer attributes exact directional percentages (→ FAKE / → AUTHENTIC).'
-  },
-  {
-    step: '06',
-    icon: FileCheck,
-    title: 'Court-Admissible PDF Forensic Dossier',
-    detail: 'All metrics, telemetry, and exhibits are automatically compiled into a multi-page PDF report. The report features an executive verdict banner, a 15-sensor progress gauge audit, complete metric parameter tables across 6 chapters, a 2-column visual evidence gallery hosting up to 30+ exhibits, and a legal evidentiary disclaimer.'
-  }
+  { step: '01', icon: UploadCloud, title: 'Choose media to inspect', detail: 'Upload an image or video up to 100 MB. Video analysis uses sampled frames from the first 60 seconds. The backend extracts an audio track when available.' },
+  { step: '02', icon: Cpu, title: 'Evaluate the visual model', detail: 'The trained EfficientNet-B4 visual model evaluates face crops. Its score estimates manipulation-related patterns; it does not verify a person’s identity.' },
+  { step: '03', icon: Eye, title: 'Review visual explanations', detail: 'Grad-CAM and guided attention maps show regions influencing the visual model. They explain model behavior and are not independent proof that a region was edited.' },
+  { step: '04', icon: Activity, title: 'Compare available detector evidence', detail: 'Compression, noise residuals, frequency structure, face geometry, lighting, and metadata add context. Video and audio inputs enable additional temporal and acoustic measurements. Missing observations are marked unavailable.' },
+  { step: '05', icon: HeartPulse, title: 'Understand the combined estimate', detail: 'The meta-classifier combines available detector features and applies the configured override rules. SHAP attribution, when returned, describes which features influenced that prediction. Accuracy depends on source quality and similarity to the training data.' },
+  { step: '06', icon: FileCheck, title: 'Export findings for review', detail: 'The report brings detector values, warnings, and available exhibits together in a PDF. Review the original source and independent evidence before making a consequential decision. Automated output does not establish legal admissibility.' },
 ];
 
 const HowItWorks = ({ onStart }) => {
@@ -52,13 +22,13 @@ const HowItWorks = ({ onStart }) => {
           fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em',
           marginBottom: '0.85rem'
         }}>
-          Evidentiary Pipeline Specification
+          From upload to evidence
         </div>
         <h1 style={{ fontSize: '2.4rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-main)', marginBottom: '0.75rem' }}>
-          Forensic Inspection Architecture
+          How the analysis works
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', maxWidth: '680px', margin: '0 auto', lineHeight: 1.6 }}>
-          DeepForensics does not rely on heuristic guesswork. It systematically deconstructs media across 15 physical, biological, spectral, and deep neural dimensions to provide court-grade mathematical attribution.
+          DeepForensics combines a trained visual model with supporting forensic heuristics. Review what was measured, what was unavailable, and where the analysis is uncertain.
         </p>
       </div>
 
@@ -91,7 +61,7 @@ const HowItWorks = ({ onStart }) => {
           onClick={onStart} 
           style={{ padding: '0.75rem 2rem', fontSize: '0.9rem' }}
         >
-          <span>Launch Ingestion Console</span>
+          <span>Open analysis workspace</span>
           <ArrowRight size={15} />
         </button>
       </div>

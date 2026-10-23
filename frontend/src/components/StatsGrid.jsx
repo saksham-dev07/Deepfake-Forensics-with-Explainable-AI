@@ -4,10 +4,10 @@ import {
 } from 'lucide-react';
 
 const SENSORS = [
-  { icon: BrainCircuit, title: 'Core Ensemble', value: '15-Sensor Meta', sub: 'Tabular ResNet + Attention' },
-  { icon: ScanSearch, title: 'Attribution XAI', value: 'Grad-CAM & SHAP', sub: 'Coarse & Guided Inferno HDR' },
+  { icon: BrainCircuit, title: 'Core Ensemble', value: '15-Sensor Meta', sub: 'XGBoost · trained neural fallback' },
+  { icon: ScanSearch, title: 'Attribution XAI', value: 'Grad-CAM & SHAP', sub: 'Model attention & feature influence' },
   { icon: Activity, title: 'Spectral Decomp', value: '2D FFT & 8x8 DCT', sub: 'Azimuthal Residual Saliency' },
-  { icon: Camera, title: 'Physical Optics', value: 'PRNU Noise & ELA', sub: 'NLM Denoising & Q=95 Matrix' },
+  { icon: Camera, title: 'Physical Optics', value: 'Noise & ELA', sub: 'Denoising & recompression' },
   { icon: Focus, title: 'Biometrics', value: '468 Landmarks', sub: 'MediaPipe & DIS Optical Flow' },
   { icon: Volume2, title: 'Audio-Visual', value: 'SyncNet 1024-D', sub: 'Lip Dynamics & Vocoder CNN' },
 ];

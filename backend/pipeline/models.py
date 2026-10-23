@@ -1,7 +1,7 @@
 from efficientnet_pytorch import EfficientNet
 import torch
 import torch.nn as nn
-import huggingface_hub
+import threading
 import os
 
 # Base architecture for the custom EfficientNet-B4 model
@@ -113,12 +113,12 @@ class DeepfakeDetector:
             if weights_path is not None:
                 print(f"Loading EfficientNet-B4 + CBAM visual backbone from {os.path.basename(weights_path)}...")
                 self.model = ImprovedContrastiveFeatureExtractor()
-                ckpt = torch.load(weights_path, map_location='cpu', weights_only=False)
+                ckpt = torch.load(weights_path, map_location='cpu', weights_only=True)
                 
                 if 'model' in ckpt:
-                    self.model.load_state_dict(ckpt['model'], strict=False)
+                    self.model.load_state_dict(ckpt['model'], strict=True)
                 else:
-                    self.model.load_state_dict(ckpt, strict=False)
+                    self.model.load_state_dict(ckpt, strict=True)
                     
                 print(f"Visual backbone ({os.path.basename(weights_path)}) loaded successfully!")
                 # Add target layer for GradCAM to use with XAI Explainer
@@ -126,54 +126,31 @@ class DeepfakeDetector:
             else:
                 raise FileNotFoundError(f"Neither improved_finetuned_model_v2.pth nor improved_finetuned_model.pth found in weights directory.")
 
+            self.model._inference_lock = threading.RLock()
             self.model.eval()
             self.model.to(self.device)
             
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"Warning: Could not load the nikokons model ({e}).")
-            print("Falling back to standard timm EfficientNet-B4.")
-            import timm
-            self.model = timm.create_model('tf_efficientnet_b4_ns', pretrained=True, num_classes=2)
-            self.model.eval()
-            self.model.to(self.device)
+            raise RuntimeError("Unable to load trained visual detector weights; analysis cannot proceed.") from e
 
     def predict(self, tensor_images):
         """
-        tensor_images: A batch of images [B, C, H, W] in range [0, 1]
-        Returns probability of being a deepfake
+        ImageNet-normalized floating RGB batch [B, 3, H, W].
+        Returns the checkpoint's uncalibrated class-0 softmax score.
         """
+        if (not isinstance(tensor_images, torch.Tensor) or tensor_images.ndim != 4
+                or tensor_images.shape[0] == 0 or tensor_images.shape[1] != 3
+                or min(tensor_images.shape[2:]) == 0 or not tensor_images.is_floating_point()
+                or not torch.isfinite(tensor_images).all()):
+            raise ValueError("Expected a nonempty finite normalized floating RGB batch")
         tensor_images = tensor_images.to(self.device)
         
-        with torch.no_grad():
+        with self.model._inference_lock, torch.no_grad():
             outputs = self.model(tensor_images)
-            # Assuming output is logits for [real, fake] or a single logit
-            if outputs.shape[1] == 2:
-                # The fine-tuned model maps: Index 0 = FAKE, Index 1 = REAL
-                probs = torch.nn.functional.softmax(outputs, dim=1)[:, 0]
-            else:
-                probs = torch.sigmoid(outputs)
+            if outputs.shape != (tensor_images.shape[0], 2) or not torch.isfinite(outputs).all():
+                raise ValueError("Visual checkpoint must return two finite logits per image")
+            # Checkpoint label contract: Index 0 = FAKE, Index 1 = REAL.
+            probs = torch.nn.functional.softmax(outputs, dim=1)[:, 0]
                 
         return probs.cpu().numpy()
 
-# Mock SyncNet for Audio/Video Sync as we need the specific weights file
-class SyncNetAnalyzer:
-    def __init__(self, weights_path="weights/syncnet_v2.model"):
-        import os
-        self.weights_path = weights_path
-        if not os.path.exists(weights_path):
-            print(f"Warning: SyncNet weights not found at {weights_path}.")
-            print("Please download 'syncnet_v2.model' from Rudrabha/Wav2Lip Google Drive and place it there.")
-            self.available = False
-        else:
-            self.available = True
-            # Load the model here (mocked for now, as Wav2Lip SyncNet architecture requires specific classes)
-            
-    def analyze_sync(self, frames_dir, audio_path):
-        if not self.available:
-            return 0.5 # Return a neutral score if unavailable
-            
-        # In a full implementation, we would extract audio mfcc via librosa,
-        # crop faces from frames, and feed both into SyncNet to get sync error.
-        return 0.5 # Return neutral score since the full heavy model is not currently bundled

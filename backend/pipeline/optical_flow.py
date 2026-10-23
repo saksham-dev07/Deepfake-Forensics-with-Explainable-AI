@@ -1,18 +1,21 @@
 import cv2
 import numpy as np
 import os
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 from pipeline.face_geometry import detect_face
-from pipeline.image_utils import save_optimized_image
+from pipeline.image_utils import save_optimized_image, save_optimized_figure
 
 def analyze_optical_flow(video_path, output_dir, prefix="flow"):
     """
-    Analyzes temporal consistency using Farneback Dense Optical Flow.
+    Analyzes temporal consistency using DIS Dense Optical Flow.
     Detects mask jittering and frame-by-frame flickering common in deepfakes.
     """
     results = {
+        "available": False,
+        "score_available": False,
+        "eligible_for_fusion": False,
+        "score_calibrated": False,
+        "score_kind": "heuristic",
         "flow_anomaly_score": 0.5,
         "mean_motion_variance": 0.0,
         "flow_plot_path": "",
@@ -26,11 +29,20 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
     cap = cv2.VideoCapture(video_path)
     ret, frame1 = cap.read()
     if not ret:
+        cap.release()
         results["warnings"].append("Could not read video for optical flow.")
         return results
 
     # Resize for faster processing
-    frame1 = cv2.resize(frame1, (320, 240))
+    # Preserve aspect ratio; stretching portrait faces changes displacement
+    # magnitudes differently along the two axes.
+    scale = 320 / max(frame1.shape[:2])
+    target_size = (round(frame1.shape[1] * scale), round(frame1.shape[0] * scale))
+    if min(target_size) < 8:
+        cap.release()
+        results["warnings"].append("Frame aspect ratio leaves insufficient optical-flow resolution.")
+        return results
+    frame1 = cv2.resize(frame1, target_size)
     prvs = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
     
     # Dynamically extract face bounding box for precise ROI targeting
@@ -43,9 +55,14 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
         roi_x1, roi_x2 = max(0, fx), min(w, fx + fw)
         roi_y1, roi_y2 = max(0, fy), min(h, fy + fh)
     else:
-        # Fallback to center
-        roi_y1, roi_y2 = int(h*0.1), int(h*0.9)
-        roi_x1, roi_x2 = int(w*0.2), int(w*0.8)
+        cap.release()
+        results["warnings"].append("No face detected; a central-image flow score cannot substitute for facial motion evidence.")
+        return results
+
+    if roi_x2 <= roi_x1 or roi_y2 <= roi_y1:
+        cap.release()
+        results["warnings"].append("No valid motion region.")
+        return results
 
     motion_variances = []
     max_frames = 60 # Analyze max 60 frames (2 seconds)
@@ -63,11 +80,15 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
         if not ret:
             break
             
-        frame2 = cv2.resize(frame2, (320, 240))
+        frame2 = cv2.resize(frame2, target_size)
         next_gray = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
         
         # Calculate dense optical flow using DIS
         flow = dis.calc(prvs, next_gray, None)
+        if flow is None or not np.isfinite(flow).all():
+            cap.release()
+            results["warnings"].append("Optical flow returned invalid displacement vectors.")
+            return results
         
         # Extract magnitude and angle
         mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
@@ -83,7 +104,7 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
         frame_count += 1
         
         # Keep the last flow field for visualization
-        if frame_count == max_frames // 2:
+        if frame_count == 1 or frame_count == max_frames // 2:
             hsv[..., 0] = ang * 180 / np.pi / 2
             hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
             bgr_flow = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
@@ -108,13 +129,19 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
         results["warnings"].append(f"Moderate jittering detected (Var of Vars: {var_of_vars:.1f})")
         
     results["flow_anomaly_score"] = float(anomaly_score)
+    results["available"] = True
+    results["score_available"] = True
+    results["eligible_for_fusion"] = True
+    results["analyzed_frame_pairs"] = len(motion_variances)
+    results["processing_size"] = list(target_size)
+    results["roi_mode"] = "fixed_initial_face_box"
     results["mean_motion_variance"] = float(round(mean_var, 3))
     
     # Generate Explanation
     explanation = {
-        "what_happened": "Temporal consistency was analyzed using Farneback Dense Optical Flow to track pixel movement across consecutive frames.",
-        "result": "Motion vectors appear temporally consistent." if anomaly_score < 0.5 else "Detected abnormal temporal flickering and inconsistent motion trajectories.",
-        "why_it_happened": "Face-swapping AI models often struggle to maintain exact spatial alignment between frames. This results in microscopic 'jittering' or 'flickering' in the synthesized facial mask which creates spikes in motion variance.",
+        "what_happened": "Measured DIS optical-flow magnitude variance within the initial detected face box across consecutive frames.",
+        "result": "Lower motion-variance heuristic" if anomaly_score < 0.5 else "Elevated motion-variance heuristic",
+        "why_it_happened": "This is an uncalibrated motion descriptor, not a DIS deepfake classifier. Real head movement, a face leaving the fixed box, camera motion, cuts, lighting changes and compression can raise variance.",
         "variables": {
             "Mean Motion Variance": f"{mean_var:.3f}",
             "Variance of Variances (Jitter)": f"{var_of_vars:.2f}",
@@ -124,9 +151,9 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
     results["explanation"] = explanation
     
     # Plot Variance over time
-    plt.figure(figsize=(8, 3))
-    plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(8, 3), facecolor='#0f172a')
+    fig = Figure(figsize=(8, 3), facecolor='#0f172a')
+    ax = fig.subplots()
+    ax.set_facecolor('#0f172a')
     
     ax.plot(motion_variances, color='#10b981', linewidth=2)
     ax.set_title('Temporal Motion Variance (Jitter)', color='white', pad=10)
@@ -136,9 +163,7 @@ def analyze_optical_flow(video_path, output_dir, prefix="flow"):
     ax.grid(True, color='#1e293b', alpha=0.6)
     
     plot_path = os.path.join(output_dir, f"{prefix}_plot.png")
-    plt.tight_layout()
-    plt.savefig(plot_path, dpi=120, bbox_inches='tight', facecolor='#0f172a')
-    plt.close('all')
+    save_optimized_figure(plot_path, fig)
     
     results["flow_plot_path"] = plot_path.replace("\\", "/")
     

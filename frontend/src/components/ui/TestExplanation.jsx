@@ -1,14 +1,14 @@
 import React from 'react';
 import { Lightbulb, Info, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import TestDefinition from './TestDefinition';
+import { finiteNumber } from '../../utils/reportData';
 
-const TestExplanation = ({ explanation, testId }) => {
+const TestExplanation = ({ explanation, testId, score }) => {
   if (!explanation) return null;
 
   const resultStr = String(explanation.result || '');
-  const lowerResult = resultStr.toLowerCase();
-  const isDanger = lowerResult.includes('deepfake') || lowerResult.includes('detected') || lowerResult.includes('mismatch') || lowerResult.includes('disrupted') || lowerResult.includes('synthetic');
-  const isWarning = lowerResult.includes('suppressed') || lowerResult.includes('inconclusive') || lowerResult.includes('elevated') || lowerResult.includes('warn');
+  const isDanger = finiteNumber(score) && score > 0.6;
+  const isWarning = !finiteNumber(score) || score > 0.35;
 
   const statusColor = isDanger ? 'var(--danger)' : isWarning ? 'var(--warning)' : 'var(--success)';
   const statusBg = isDanger ? 'rgba(244, 63, 94, 0.08)' : isWarning ? 'rgba(245, 158, 11, 0.08)' : 'rgba(16, 185, 129, 0.08)';

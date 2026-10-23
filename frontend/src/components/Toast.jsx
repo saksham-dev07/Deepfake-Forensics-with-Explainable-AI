@@ -1,25 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { X, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 
-const Toast = ({ message, type = 'error', onClose, duration = 5000 }) => {
-  const [isVisible, setIsVisible] = useState(true);
-
+const Toast = ({ message, type = 'error', onClose, duration = 0 }) => {
   useEffect(() => {
-    if (duration > 0) {
-      const timer = setTimeout(() => {
-        setIsVisible(false);
-        setTimeout(onClose, 250);
-      }, duration);
-      return () => clearTimeout(timer);
-    }
+    if (duration <= 0) return;
+    const timer = setTimeout(onClose, duration);
+    return () => clearTimeout(timer);
   }, [duration, onClose]);
 
   if (!message) return null;
-
-  const handleClose = () => {
-    setIsVisible(false);
-    setTimeout(onClose, 250);
-  };
 
   const config = {
     error: {
@@ -45,10 +34,10 @@ const Toast = ({ message, type = 'error', onClose, duration = 5000 }) => {
   const current = config[type] || config.info;
 
   return (
-    <div style={{
+    <div role={type === 'error' ? 'alert' : 'status'} style={{
       position: 'fixed',
-      top: '1.5rem',
-      right: '1.5rem',
+      top: '1rem',
+      right: '1rem',
       zIndex: 9999,
       display: 'flex',
       alignItems: 'flex-start',
@@ -58,9 +47,7 @@ const Toast = ({ message, type = 'error', onClose, duration = 5000 }) => {
       boxShadow: '0 8px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
       borderRadius: 'var(--radius-sm)',
       padding: '0.85rem 1.1rem',
-      maxWidth: '420px',
-      transform: isVisible ? 'translateY(0) scale(1)' : 'translateY(-15px) scale(0.96)',
-      opacity: isVisible ? 1 : 0,
+      width: 'min(420px, calc(100vw - 2rem))',
       transition: 'all var(--transition-fast)'
     }}>
       <div style={{
@@ -88,7 +75,7 @@ const Toast = ({ message, type = 'error', onClose, duration = 5000 }) => {
       </div>
 
       <button
-        onClick={handleClose}
+        onClick={onClose}
         style={{
           background: 'transparent',
           border: 'none',
@@ -101,7 +88,8 @@ const Toast = ({ message, type = 'error', onClose, duration = 5000 }) => {
           borderRadius: '4px',
           transition: 'color var(--transition-fast)'
         }}
-        title="Dismiss Alert"
+        title="Dismiss alert"
+        aria-label="Dismiss alert"
       >
         <X size={15} />
       </button>

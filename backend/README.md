@@ -10,6 +10,15 @@ pinned: false
 
 # DeepForensics Backend: Explainable Multi-Modal AI Forensics Engine
 
+## Inference and artifact access behavior
+
+`DeepfakeMetaClassifier.FEATURE_ORDER` is the shared 15-sensor schema. `predict` delegates to `predict_batch`; a loaded XGBoost checkpoint takes precedence over PyTorch. SHAP calls the same gateway plus the same critical-sensor override as the final verdict. Visual model loading and inference fail explicitly when trained inference is unavailable; optional detector exceptions remain in `module_errors`. Lazy pipeline import failures now mark the job failed.
+
+All report routes and `/reports` require `x-api-key`. Read-only PDF and upload URLs can instead use HMAC signatures scoped to the exact path with a one-hour expiry. Polling/SSE serialize signed image paths, omit server file paths, and retain raw paths internally for PDF generation. Artifact responses are `private, no-store`. The API key is shared by the web client and must not be represented as individual-user access control. The vault can be fetched by an authorized client sending the header; its download links are signed. SPA asset paths are confined to `static/`. PDF regeneration accepts safe job identifiers and embeds only files resolved beneath `uploads/`, stripping URL signatures first.
+
+Image ingestion includes WEBP; WEBM is treated as video by telemetry and rPPG. Telemetry describes the sampling limit rather than claiming a measured 32 frames/sec rate. Run regressions with `python -m unittest discover -s tests -v` from this directory.
+
+
 The **DeepForensics Backend** is a high-throughput, court-admissible forensic analysis engine built with **FastAPI**, **PyTorch**, and **OpenCV**. It evaluates media integrity across **15 distinct multimodal forensic dimensions**—combining deep neural computer vision, acoustic biometrics, cardiovascular physiological signals, classical sensor noise physics, and mathematical Explainable AI (XAI).
 
 ---
@@ -138,9 +147,9 @@ All analytical modules produce a normalized anomaly score $s \in [0.0, 1.0]$ whe
   - Lip Tower: 6-stage 3D-CNN spatiotemporal encoder fusing 5 consecutive video frames into a 1024-D embedding.
 * Evaluates temporal synchronization distance (LSE-D) and peak confidence (LSE-C).
 
-### 3.3 Tabular ResNet with Multi-Head Self-Attention (Meta-Classifier)
+### 3.3 Tabular ResNet with Single-Token Self-Attention (Meta-Classifier)
 * **File**: [`pipeline/ensemble_classifier.py`](./pipeline/ensemble_classifier.py) (Full Docs: [ensemble_classifier.md](./documentation/ensemble_classifier.md))
-* Integrates all 15 sensory inputs into an 8-layer Tabular ResNet architecture with skip connections, LayerNorm, and 4-head Multi-Head Self-Attention ($\mathbb{R}^{15} \rightarrow \mathbb{R}^{64} \rightarrow \mathbb{R}^{128} \rightarrow \mathbb{R}^{64} \rightarrow \mathbb{R}^1$).
+* Uses XGBoost when its checkpoint is available; otherwise uses a trained Tabular ResNet with residual blocks, BatchNorm and a single-token attention block (15 → 64 → 32 → 1). The single token does not implement attention across individual sensor tokens.
 * Trained using **Class-Balanced Weighted Focal Loss**:
   $$\mathcal{L}_{\text{FL}}(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t) \quad \text{with } \gamma=2.0, \alpha=0.65$$
 
@@ -175,7 +184,7 @@ Detailed mathematical derivations, transfer functions, and code architectures fo
 | :--- | :--- | :--- |
 | **[main_api.md](./documentation/main_api.md)** | `main.py` | FastAPI gateway, rate limiting, SSE streaming, 9-stage pipeline orchestration. |
 | **[models.md](./documentation/models.md)** | `pipeline/models.py` | EfficientNet-B4 compound scaling, MBConv, CBAM dual attention, Grad-CAM hooks. |
-| **[ensemble_classifier.md](./documentation/ensemble_classifier.md)** | `pipeline/ensemble_classifier.py` | Tabular ResNet with Multi-Head Self-Attention, Focal Loss, 15-D fusion. |
+| **[ensemble_classifier.md](./documentation/ensemble_classifier.md)** | `pipeline/ensemble_classifier.py` | Tabular ResNet with Single-Token Self-Attention, Focal Loss, 15-D fusion. |
 | **[video_processor.md](./documentation/video_processor.md)** | `pipeline/video_processor.py` | PySceneDetect cut detection, FFmpeg `select` frame filter, 16 kHz PCM extraction. |
 | **[audio_sync.md](./documentation/audio_sync.md)** | `pipeline/audio_sync.py` | 13-D MFCC feature extraction, 5-frame 3D lip crops, SyncNet LSE-D/LSE-C metrics. |
 | **[syncnet_model.md](./documentation/syncnet_model.md)** | `pipeline/SyncNetModel.py` | Dual-stream 2D/3D CNN Siamese two-tower architecture in 1024-D space. |
@@ -370,19 +379,19 @@ The DeepForensics backend incorporates an optimized media pipeline and caching l
   - `noise_srm_map.jpg`: $1,906\text{ KB} \rightarrow 212\text{ KB}$ (**88.9% drop**)
   - Total case payload drops from **$\approx 15\text{ MB}$ down to $\approx 1.2\text{ MB}$**, reducing client load times from 60 seconds to sub-second streaming.
 
-### 10.2 Aggressive Browser Caching (`CachedStaticFiles`)
+### 10.2 Protected Artifact Delivery (`CachedStaticFiles`)
 * Custom Starlette `StaticFiles` subclass mounted at `/uploads`:
   ```python
   class CachedStaticFiles(StaticFiles):
       async def get_response(self, path: str, scope):
           response = await super().get_response(path, scope)
           if response.status_code == 200:
-              response.headers["Cache-Control"] = "public, max-age=604800, immutable"
+              response.headers["Cache-Control"] = "private, no-store"
           return response
 
   app.mount("/uploads", CachedStaticFiles(directory="uploads"), name="uploads")
   ```
-* Forensic artifacts for a given `job_id` are immutable once generated. Setting `Cache-Control: public, max-age=604800, immutable` guarantees that client browsers cache artifacts locally in disk/memory, rendering subsequent exhibit toggles and A/B comparisons in **$0\text{ ms}$**.
+* Artifact reads require the API header or an exact-path signed URL. `private, no-store` prevents shared caching and persistent browser caching of sensitive exhibits; no zero-latency guarantee is made.
 
 ### 10.3 Historical Uploads Batch Optimization Script
 * Utility script [`scripts/optimize_existing_uploads.py`](./scripts/optimize_existing_uploads.py) traverses historical `uploads/` directories and retroactively recompresses all images:
@@ -394,3 +403,27 @@ The DeepForensics backend incorporates an optimized media pipeline and caching l
 ### 10.4 Dedicated Face Crop Artifact (`face_crop.jpg`)
 * In `backend/main.py`, the extracted primary face crop is normalized to $380\times 380\text{ px}$ and saved to `uploads/{job_id}_frames/face_crop.jpg`.
 * Both `"face_crop_path"` and `"first_frame_path"` are returned in the `/api/status/{job_id}` JSON payload, giving frontends a direct, lightweight reference for A/B comparison and biometric inspection.
+
+
+### Pipeline reliability audit (2026-10-16)
+
+Pipeline audit: JPEG recompression runs in memory; residuals preserve signed values; DCT masks and radial averaging are corrected. Eye/rPPG require measured face observations. Voice model failures are neutral, and SyncNet batches at most eight windows on a 25 Hz timeline. Model loading is strict and synchronized; Grad-CAM shares the inference lock and restores activations on failure. All plots use the shared optimized encoder. PDF fields, UTC timestamps, SNR units, and unavailable measurements match detector outputs. See [pipeline audit](documentation/pipeline_audit.md) for all 23 file assessments and calibration limits.
+
+## Audit verification
+
+See [all 23 pipeline module assessments](documentation/pipeline_audit.md). Grayscale color analysis and tiny/constant spectral inputs return neutral warnings instead of unsupported findings or PCA errors. Run backend regression checks from this directory with `venv/Scripts/python.exe -m unittest discover -s tests -v` on Windows (or the equivalent active Python environment).
+
+
+Landmark exhibit rendering now preserves face detail with face-relative marks and a 25% mesh overlay, replacing additive glow that saturated small faces. Geometry scores are unchanged; existing saved exhibits require regeneration to update.
+
+
+Landmark exhibits use face-relative point sizes, MediaPipe Tasks mesh connections, and a translucent 25% overlay. Additive glow no longer obscures small faces. Existing saved exhibits retain their original rendering until regenerated.
+
+
+## Research-driven pipeline review (2026-10-17)
+
+A file-by-file primary-source review is in progress across backend/pipeline. Model and fusion inference now reject invalid/untrained outputs, synthetic demonstration RNG is local, and explanation calls isolate and clean gradient state. Checkpoint architecture and weights are preserved. Research notes distinguish implementation correctness from unmeasured classification accuracy.
+
+
+Research preprocessing correction: working samples are lossless PNG within the existing 1080px resource cap, avoiding an additional JPEG encode before forensic analysis. Original file metadata is still analyzed from the upload; working pixels are decoded/resized representations, not raw camera evidence.
+

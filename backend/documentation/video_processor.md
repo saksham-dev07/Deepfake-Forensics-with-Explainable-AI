@@ -1,5 +1,10 @@
 # Technical Specification & Data Ingestion Architecture: Video Preprocessor & Scene-Aware Frame Extractor (`video_processor.py`)
 
+## Supported still-image formats
+
+`process_video` treats JPG, JPEG, PNG and WEBP as still images, decoding once and saving the analysis frame through `save_optimized_image`. Accepted video formats are unchanged. WEBP no longer reaches the video decoder by mistake. OpenCV fallback video frames also use `save_optimized_image` with a 1080px cap and JPEG quality 85.
+
+
 **Implementation File**: [`backend/pipeline/video_processor.py`](../pipeline/video_processor.py)  
 **Analytical Classification**: Media Ingestion / Video Transcoding / Scene-Aware Temporal Sampling / Acoustic Demuxing  
 **Framing Algorithms**: PySceneDetect (`ContentDetector`, Threshold 27.0) / FFmpeg Hardware-Accelerated `select` Filter  
@@ -198,3 +203,13 @@ def process_video(
 * **Upstream Consumer**: Called at the beginning of the analysis pipeline in `main.py` before delegating to individual forensic workers.
 * **Zero-Frame Guard**: Raises `ValueError("Video has no frames or could not be read.")` if `total_frames == 0` or `fps == 0`.
 * **Corrupted Image Guard**: Raises `ValueError("Could not read image file.")` if `cv2.imread` fails on static image files.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Still images no longer require an FFmpeg executable. Video FPS and frame counts must be positive and finite before integer conversion. Scene detection and FFmpeg extraction stop at 60 seconds, subprocesses have a 120-second timeout, and runtime scene-detection errors fall back to uniform sampling. Frame indices are deduplicated in every path. FFmpeg output starts at frame_0000.jpg to match the OpenCV and still-image paths; extraction fails explicitly if no frames were written.
+
+## Research review (2026-10-17)
+
+Decoded working frames use lossless PNG instead of introducing JPEG recompression before pixel-level forensics. The existing 1080px cap still applies and may remove forensic detail; no raw-sensor preservation is claimed. FFmpeg and OpenCV fallback now share this cap and PNG format. Scene-heavy clips spread the 16-frame budget across all detected cuts rather than exhausting it on early scenes. Main analysis discovers only explicit frame_ samples, not later diagnostic JPEGs. See research_core.md and the PNG/FFmpeg primary references.
+

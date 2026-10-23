@@ -15,12 +15,12 @@ const Footer = () => {
               </span>
             </div>
             <p className="footer-desc" style={{ fontSize: '0.8rem', lineHeight: 1.6, color: 'var(--text-secondary)', marginTop: '0.75rem' }}>
-              Court-grade multimodal forensic workbench powered by 15 sensory dimensions, compound-scaled EfficientNet-B4 + CBAM, dual Grad-CAM saliency, SHAP Kernel attribution, and an 8-layer Tabular ResNet ensemble judge.
+              A workspace for investigating media authenticity with 15 forensic signals, visual explanations, and exportable reports.
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              <span className="mono-font">DAUBERT STANDARD COMPLIANT</span>
+              <span className="mono-font">SUPPORTS HUMAN REVIEW</span>
               <span>•</span>
-              <span className="mono-font">FEDERAL RULE OF EVIDENCE 902(14)</span>
+              <span className="mono-font">RESULTS ARE ESTIMATES</span>
             </div>
           </div>
 
@@ -30,7 +30,7 @@ const Footer = () => {
             <ul className="footer-links" style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
               <li>EfficientNet-B4 (Depth 1.8, Width 1.4)</li>
               <li>CBAM Channel &amp; Spatial Attention</li>
-              <li>Tabular ResNet-8 (15-D Sensor Fusion)</li>
+              <li>XGBoost / trained Tabular ResNet</li>
               <li>Dual Grad-CAM &amp; Guided HDR Inferno</li>
               <li>SyncNet 3D-CNN &amp; Mel Spectrogram</li>
             </ul>
@@ -38,22 +38,22 @@ const Footer = () => {
 
           {/* Invariants Checked */}
           <div className="footer-col">
-            <h4 className="footer-col-title">Physical Invariants</h4>
+            <h4 className="footer-col-title">Supporting evidence</h4>
             <ul className="footer-links" style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
-              <li>PRNU Sensor Silicon Noise (Laplacian)</li>
+              <li>Signed denoising residuals</li>
               <li>CFA Bayer Filter Demosaic Grid</li>
-              <li>Corneal Reflection Spherical Geometry</li>
-              <li>Hemodynamic Pulse (rPPG CHROM)</li>
-              <li>Dense Farnebäck Motion Flow Jitter</li>
+              <li>Corneal highlight comparison</li>
+              <li>Pulse-like color variation (rPPG)</li>
+              <li>DIS optical flow consistency</li>
             </ul>
           </div>
 
           {/* System Telemetry & Repository */}
           <div className="footer-col">
-            <h4 className="footer-col-title">System Status</h4>
+            <h4 className="footer-col-title">Workspace</h4>
             <div className="status-indicator" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '4px 8px', borderRadius: 'var(--radius-xs)', marginBottom: '0.85rem' }}>
               <span className="status-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }}></span>
-              <span className="status-text mono-font" style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--success)' }}>INFERENCE CORE ONLINE</span>
+              <span className="status-text mono-font" style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--success)' }}>IMAGES & VIDEOS</span>
             </div>
 
             <ul className="footer-links">
@@ -70,10 +70,10 @@ const Footer = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <span>&copy; {new Date().getFullYear()} DeepForensics Platform. Version 2.4.0-Enterprise.</span>
             <span style={{ color: 'var(--text-dim)' }}>|</span>
-            <span style={{ color: 'var(--text-muted)' }}>Cryptographic Pipeline: SHA-256 Validated</span>
+            <span style={{ color: 'var(--text-muted)' }}>Media is processed by the backend</span>
           </div>
           <div className="mono-font" style={{ color: 'var(--text-dim)', fontSize: '0.7rem' }}>
-            LATENCY: &lt;45ms TENSOR CORES
+            Timing depends on media and hardware
           </div>
         </div>
       </div>

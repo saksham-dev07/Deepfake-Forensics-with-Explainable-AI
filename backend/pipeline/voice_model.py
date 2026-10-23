@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import os
 
 class DepthwiseSeparableConv(nn.Module):
@@ -19,11 +18,14 @@ class DepthwiseSeparableConv(nn.Module):
 
 class LightweightAudioAntiSpoof(nn.Module):
     """
-    Lightweight CNN inspired by 'A Lightweight and Efficient Model for Audio Anti-Spoofing'.
-    Takes 1-channel Mel-Spectrograms as input and outputs a spoofing probability.
+    Project-specific depthwise CNN returning an uncalibrated spoofing score.
+
+    The checkpoint contains no training/configuration metadata. This architecture
+    must not be presented as a reproduced published ASVspoof baseline.
     """
     def __init__(self):
         super().__init__()
+        self.weights_loaded = False
         self.features = nn.Sequential(
             nn.Conv2d(1, 16, kernel_size=3, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(16),
@@ -58,29 +60,39 @@ class LightweightAudioAntiSpoof(nn.Module):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.to(device)
         
-        if os.path.exists(path):
-            self.load_state_dict(torch.load(path, map_location=device, weights_only=True))
-        else:
-            print(f"Warning: Synthetic voice weights not found at {path}.")
+        self.weights_loaded = False
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Voice weights not found: {path}")
+        state = torch.load(path, map_location=device, weights_only=True)
+        if not state or any(not torch.isfinite(value).all() for value in state.values()):
+            raise ValueError("Voice checkpoint contains missing or non-finite tensors")
+        self.load_state_dict(state)
+        self.eval()
+        self.weights_loaded = True
             
     def predict(self, mel_spectrogram):
         """
-        Predicts whether the audio is spoofed (1.0 = Fake, 0.0 = Real).
-        mel_spectrogram: numpy array of shape (Mels, Time)
+        Return the checkpoint's sigmoid score, not a calibrated probability.
+        Input is a finite, normalized array of shape (128, 256).
         """
+        if not self.weights_loaded:
+            raise RuntimeError("Load trained voice weights before prediction")
         device = next(self.parameters()).device
         self.eval()
         
-        with torch.no_grad():
-            # Convert to tensor and add Batch and Channel dimensions
-            tensor = torch.FloatTensor(mel_spectrogram).unsqueeze(0).unsqueeze(0).to(device)
+        tensor = torch.as_tensor(mel_spectrogram, dtype=torch.float32)
+        if tensor.shape != (128, 256) or not torch.isfinite(tensor).all():
+            raise ValueError("Voice model requires a finite (128, 256) mel spectrogram")
+        if tensor.min() < 0 or tensor.max() > 1:
+            raise ValueError("Voice model mel input must be normalized to [0, 1]")
+        with torch.inference_mode():
+            tensor = tensor.unsqueeze(0).unsqueeze(0).to(device)
             prob = self(tensor).item()
-            
+        if not 0 <= prob <= 1:
+            raise ValueError("Voice checkpoint returned an invalid score")
         return prob
 
 if __name__ == "__main__":
-    # Generate synthetic dummy weights
     model = LightweightAudioAntiSpoof()
-    weights_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "weights", "voice_spoofing.pth")
-    torch.save(model.state_dict(), weights_path)
-    print(f"Initialized PyTorch Voice Spoofing model with synthetic weights at {weights_path}")
+    model.load_weights()
+    print("Voice checkpoint loaded successfully (no weights were modified).")

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense } from 'react';
+import { MotionConfig } from 'framer-motion';
 import ReportDashboard from './components/ReportDashboard';
-import ModelsOverview from './components/ModelsOverview';
 import HeroSection from './components/HeroSection';
 import StatsGrid from './components/StatsGrid';
 import FeaturesGrid from './components/FeaturesGrid';
@@ -9,12 +9,18 @@ import AnalysisTerminal from './components/AnalysisTerminal';
 import Toast from './components/Toast';
 import { useAnalysisPipeline } from './hooks/useAnalysisPipeline';
 import { 
-  Shield, ScanSearch, Info, Database, GitBranch, History, Trash2, ArrowRight
+  Shield, ScanSearch, Info, Database, GitBranch, History
 } from 'lucide-react';
 import { useHistory } from './hooks/useHistory';
 import Footer from './components/Footer';
 import HowItWorks from './components/HowItWorks';
 import { SAMPLE_REPORTS } from './constants/sampleReports';
+import SkeletonLoader from './components/ui/SkeletonLoader';
+import HistoryView from './components/HistoryView';
+import ErrorBoundary from './components/ui/ErrorBoundary';
+import { useHashNavigation } from './hooks/useHashNavigation';
+
+const ModelsOverview = lazy(() => import('./components/ModelsOverview'));
 
 function App() {
   const {
@@ -33,7 +39,7 @@ function App() {
   } = useAnalysisPipeline();
 
   const { history, saveToHistory, clearHistory } = useHistory();
-  const [activeNav, setActiveNav] = useState('analyze');
+  const { activeNav, navigate } = useHashNavigation();
 
   // Save to history automatically when a job completes
   React.useEffect(() => {
@@ -41,6 +47,12 @@ function App() {
       saveToHistory(jobId, result, file?.name);
     }
   }, [status, result, jobId, file?.name, saveToHistory]);
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.title = `${({ analyze: 'Analyze media', about: 'Methodology', models: 'Models', history: 'History' })[activeNav]} · DeepForensics`;
+    document.getElementById('main-content')?.focus({ preventScroll: true });
+  }, [activeNav, status]);
 
   const handleSelectSample = (sampleKey) => {
     const sample = SAMPLE_REPORTS[sampleKey];
@@ -50,7 +62,7 @@ function App() {
   };
 
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       {error && (
         <Toast 
           message={error} 
@@ -60,9 +72,10 @@ function App() {
       )}
       
       {/* Navigation Bar */}
-      <nav className="navbar">
+      <a href="#main-content" className="skip-link">Skip to content</a>
+      <nav className="navbar" aria-label="Main navigation">
         <div className="navbar-inner">
-          <a className="navbar-brand" href="#" onClick={(e) => { e.preventDefault(); resetApp(); setActiveNav('analyze'); }}>
+          <a className="navbar-brand" href="#analyze" onClick={(e) => { e.preventDefault(); navigate('analyze'); }}>
             <div className="navbar-logo">
               <Shield size={18} color="var(--primary)" />
             </div>
@@ -76,44 +89,48 @@ function App() {
             <button
               type="button"
               className={`nav-link ${activeNav === 'analyze' ? 'active' : ''}`}
-              onClick={() => { setActiveNav('analyze'); if (status === 'complete') resetApp(); }}
+              aria-current={activeNav === 'analyze' ? 'page' : undefined}
+              onClick={() => navigate('analyze')}
             >
-              <ScanSearch size={15} /> Ingest &amp; Analyze
+              <ScanSearch size={15} /> Analyze
             </button>
             <button
               type="button"
               className={`nav-link ${activeNav === 'about' ? 'active' : ''}`}
-              onClick={() => setActiveNav('about')}
+              aria-current={activeNav === 'about' ? 'page' : undefined}
+              onClick={() => navigate('about')}
             >
               <Info size={15} /> Methodology
             </button>
             <button
               type="button"
               className={`nav-link ${activeNav === 'models' ? 'active' : ''}`}
-              onClick={() => setActiveNav('models')}
+              aria-current={activeNav === 'models' ? 'page' : undefined}
+              onClick={() => navigate('models')}
             >
-              <Database size={15} /> Model Weights
+              <Database size={15} /> Models
             </button>
             <button
               type="button"
               className={`nav-link ${activeNav === 'history' ? 'active' : ''}`}
-              onClick={() => setActiveNav('history')}
+              aria-current={activeNav === 'history' ? 'page' : undefined}
+              onClick={() => navigate('history')}
             >
-              <History size={15} /> Audit Log ({history.length})
+              <History size={15} /> History ({history.length})
             </button>
 
-            <div style={{ height: '20px', width: '1px', background: 'var(--glass-border)', margin: '0 0.5rem' }} />
+            <div className="navbar-meta" style={{ height: '20px', width: '1px', background: 'var(--glass-border)', margin: '0 0.5rem' }} />
 
-            <div className="status-indicator-pill">
+            <div className="status-indicator-pill navbar-meta">
               <div className="status-dot" />
-              <span>CORE ONLINE</span>
+              <span>FORENSIC CONSOLE</span>
             </div>
 
             <a 
               href="https://github.com/saksham-dev07/Deepfake-Forensics-with-Explainable-AI" 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="nav-link" 
+              className="nav-link navbar-meta"
               title="GitHub Source Code"
               style={{ padding: '0.45rem' }}
             >
@@ -123,8 +140,9 @@ function App() {
         </div>
       </nav>
 
-      <div className="container">
+      <main id="main-content" className="container" tabIndex={-1}>
         <div className="page-content">
+          <ErrorBoundary key={activeNav}>
 
           {/* ====== ANALYZE TAB ====== */}
           {activeNav === 'analyze' && (
@@ -163,6 +181,7 @@ function App() {
               {/* COMPLETE STATE */}
               {status === 'complete' && result && (
                 <ReportDashboard 
+                  key={jobId}
                   result={result} 
                   resetApp={resetApp} 
                   jobId={jobId} 
@@ -173,117 +192,29 @@ function App() {
           )}
 
           {/* ====== MODELS TAB ====== */}
-          {activeNav === 'models' && <ModelsOverview />}
+          {activeNav === 'models' && (
+            <Suspense fallback={<SkeletonLoader type="card" />}>
+              <ModelsOverview />
+            </Suspense>
+          )}
 
           {/* ====== ABOUT TAB ====== */}
           {activeNav === 'about' && (
-            <HowItWorks onStart={() => { setActiveNav('analyze'); resetApp(); }} />
+            <HowItWorks onStart={() => navigate('analyze')} />
           )}
 
           {/* ====== HISTORY TAB ====== */}
-          {activeNav === 'history' && (
-            <div style={{ maxWidth: '860px', margin: '1.5rem auto' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                <div>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                    Local Forensic Audit Trail
-                  </h2>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                    Indexed browser audit session logs. Media files remain local to your client session.
-                  </p>
-                </div>
-                {history.length > 0 && (
-                  <button 
-                    type="button"
-                    className="btn btn-outline" 
-                    onClick={clearHistory}
-                    style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem' }}
-                  >
-                    <Trash2 size={13} /> Clear Audit History
-                  </button>
-                )}
-              </div>
-              
-              {history.length === 0 ? (
-                <div className="forensic-panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-                  <History size={40} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.4 }} />
-                  <h3 style={{ color: 'var(--text-main)', fontSize: '1.1rem', marginBottom: '0.35rem' }}>
-                    No audit records found
-                  </h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-                    Execute a media stream inspection or load an instant forensic sample to record an audit.
-                  </p>
-                  <button 
-                    type="button"
-                    className="btn btn-primary" 
-                    onClick={() => { setActiveNav('analyze'); resetApp(); }}
-                  >
-                    Launch Ingestion Console
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {history.map((item, idx) => {
-                    const isHigh = item.score > 0.55;
-                    const statusColor = isHigh ? 'var(--danger)' : 'var(--success)';
-                    return (
-                      <div 
-                        key={idx} 
-                        className="forensic-panel" 
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between', 
-                          padding: '1.25rem 1.5rem',
-                          transition: 'border-color var(--transition-fast)'
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.35rem' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--text-main)' }}>
-                              {item.fileName}
-                            </span>
-                            <span style={{ 
-                              fontSize: '0.68rem', 
-                              fontWeight: 700, 
-                              fontFamily: 'var(--font-mono)',
-                              padding: '0.15rem 0.5rem', 
-                              borderRadius: '4px', 
-                              background: `${statusColor}15`,
-                              color: statusColor,
-                              border: `1px solid ${statusColor}35`
-                            }}>
-                              {item.verdict}
-                            </span>
-                          </div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'flex', gap: '1.25rem', fontFamily: 'var(--font-mono)' }}>
-                            <span>CASE: #{item.jobId?.substring(0, 10) || 'AUDIT'}</span>
-                            <span>{new Date(item.date).toLocaleString()}</span>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                          <div style={{ textAlign: 'right' }}>
-                            <div className="mono-font" style={{ fontSize: '1.3rem', fontWeight: 800, color: statusColor }}>
-                              {(item.score * 100).toFixed(1)}%
-                            </div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                              Anomaly Index
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+          {activeNav === 'history' && <HistoryView history={history} clearHistory={clearHistory} onStart={() => navigate('analyze')} onDemo={id => {
+            const sample = Object.values(SAMPLE_REPORTS).find(item => item.meta.id === id);
+            if (sample) { loadSampleResult(sample); navigate('analyze'); }
+            else setError('This demo is no longer available. Choose a current sample from Analyze.');
+          }} />}
+          </ErrorBoundary>
         </div>
-      </div>
+      </main>
 
       <Footer />
-    </>
+    </MotionConfig>
   );
 }
 

@@ -178,3 +178,8 @@ Two operational maintenance scripts utilize `image_utils.py` for repository and 
    python backend/scripts/generate_existing_face_crops.py
    ```
    Scans existing analysis directories, extracts facial crops using the standardized $380 \times 380$ px anchor, and saves `face_crop.jpg` for pixel-aligned A/B split comparisons.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+`save_optimized_image` rejects empty inputs and nonpositive size limits, raises OSError when OpenCV reports a failed write, and returns the saved path. `save_optimized_figure(path, figure, dpi=120)` serializes Agg rendering with a reentrant lock and passes decoded pixels through the same bounded image encoder. Callers use private Figure objects; no global pyplot styles, current figure, or close-all operations are required.

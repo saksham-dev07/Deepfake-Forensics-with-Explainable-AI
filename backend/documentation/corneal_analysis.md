@@ -273,3 +273,8 @@ def analyze_corneal_reflections(
   2. **Closed Eyes / Blinking**: If eyelid contours occlude the cornea, $L^*$ contains zero pixels $\ge 180$, resulting in zero highlights and a neutral score.
   3. **Zero-Area Crops**: Guarded by `if left_eye_rgb.size == 0:` returning a safe fallback.
   4. **Singleton Landmarker Caching**: Reuses `get_landmarker()` from `pipeline/face_geometry.py` to prevent redundant memory allocation.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Absent highlights in either eye return neutral 0.5 plus a warning, rather than treating two empty masks as perfect agreement or suppressing one-sided missing data into an authentic score. Paths retain their actual nested output directory. The ray image is explicitly labeled illustrative: its fixed schematic coordinates do not constitute reconstructed epipolar measurements. Similarity of thresholded eye patches alone is not proof of authenticity.

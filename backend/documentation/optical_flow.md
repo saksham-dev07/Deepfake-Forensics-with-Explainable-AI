@@ -218,3 +218,8 @@ def analyze_optical_flow(
   1. **Short Video Guard**: If fewer than 10 frames are read ($T < 10$), immediately flags `"Video too short for temporal consistency check."` and returns neutral score `0.50`.
   2. **File Missing Guard**: Checks `os.path.exists(video_path)`, returning an error dictionary if unreadable.
   3. **Headless Plotting**: Enforces `matplotlib.use('Agg')` prior to imports, preventing GUI thread crashes in headless production environments.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Optical flow uses DIS (documentation and explanations now match the implementation). Failed initial reads release VideoCapture, empty ROIs return neutral with a warning, and the center-region fallback is explicitly labeled when no face is found. Plotting uses a private Figure and shared optimized encoding; it no longer changes global pyplot styles or closes figures belonging to other workers.

@@ -32,13 +32,13 @@ const TestDefinition = ({ testId }) => {
         }}
       >
         <BookOpen size={15} color="var(--primary)" />
-        <span>Forensic Protocol &amp; Physical Theory: <strong style={{ color: 'var(--primary)' }}>{def.title}</strong></span>
+        <span>Method &amp; limitations: <strong style={{ color: 'var(--primary)' }}>{def.title}</strong></span>
       </summary>
       <div style={{ padding: '0 0.85rem 0.85rem 0.85rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.78rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--glass-border)', paddingTop: '0.65rem' }}>
         <div><strong style={{ color: 'var(--text-main)' }}>Physical Phenomenon:</strong> {def.what_is_it}</div>
         <div><strong style={{ color: 'var(--text-main)' }}>Detection Mechanism:</strong> {def.what_it_does}</div>
-        <div><strong style={{ color: 'var(--text-main)' }}>Daubert Reliability:</strong> {def.how_good_is_it}</div>
-        <div><strong style={{ color: 'var(--text-main)' }}>Adversarial Countermeasures:</strong> {def.how_to_bypass}</div>
+        <div><strong style={{ color: 'var(--text-main)' }}>Reliability notes:</strong> {def.how_good_is_it}</div>
+        <div><strong style={{ color: 'var(--text-main)' }}>Factors that affect the result:</strong> {def.how_to_bypass}</div>
       </div>
     </details>
   );

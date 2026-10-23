@@ -1,5 +1,10 @@
 # Technical Specification & Document Architecture: Automated Forensic PDF Reporting Engine (`pdf_reporter.py`)
 
+## Exhibit path safety and signed URL handling
+
+Client-state PDF regeneration may receive signed upload URLs. Before embedding, the reporter URL-decodes the path, removes its query, resolves it and requires it to remain beneath the active `uploads/` directory. External and out-of-directory paths are skipped; arbitrary server files cannot become report exhibits. Internal reports continue using the original local artifact paths.
+
+
 **Implementation File**: [`backend/pipeline/pdf_reporter.py`](../pipeline/pdf_reporter.py)  
 **Analytical Classification**: Automated Document Synthesis / Evidentiary Forensics / Multi-Modal Data Aggregation  
 **Rendering Engine**: `fpdf2 (FPDF)` / `OpenCV (cv2)`  
@@ -229,3 +234,8 @@ On ephemeral infrastructure (e.g. container platforms and Hugging Face Spaces fr
    * If absent from disk, the server inspects active in-memory state (`analysis_jobs[job_id]`). If results exist, `generate_pdf_report()` executes dynamically on-the-fly and serves the resulting PDF.
    * If missing from memory, the server checks for `reports/{job_id}.json` on disk to reconstruct the PDF.
 3. **Stateless Synthesis Endpoint**: `POST /api/reports/generate` accepts a client-provided analysis result payload and synthesizes an official PDF dossier immediately, enabling client-side dashboards (or sample demo presets) to download reports without preexisting server files.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Reports retain the full job identifier and use an actual timezone-aware UTC timestamp. Missing/non-finite numeric fields render N/A instead of authentic-looking zeroes. Inconclusive/unknown verdicts use amber, and long verdict text scales to fit. SHAP factors accept strings or structured dictionaries. Noise variance, heart_rate, and signal_plot_path match detector outputs; SNR is labeled a ratio rather than dB. Sync descriptions no longer claim an uncomputed Pearson correlation or offset confidence. Very tall exhibits are bounded to 210 mm while preserving aspect ratio.

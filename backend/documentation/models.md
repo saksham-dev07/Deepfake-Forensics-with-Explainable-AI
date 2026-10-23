@@ -1,5 +1,10 @@
 # Technical Specification & Neural Architecture: Deepfake Vision Backbone & CBAM Attention (`models.py`)
 
+## Runtime correction: trained detector required
+
+Failure to load the trained EfficientNet checkpoint raises `RuntimeError`. The application fails the job on visual inference failure rather than downloading a generic ImageNet backbone with an untrained binary head or substituting a neutral neural score. Optional forensic detectors retain their separate guarded fallbacks.
+
+
 **Implementation File**: [`backend/pipeline/models.py`](../pipeline/models.py)  
 **Analytical Classification**: Deep Convolutional Neural Network / Dual-Domain Attention (CBAM) / Feature Attribution  
 **Backbone Network**: EfficientNet-B4 ($19.3\text{M}$ Parameters, $1792$-Dimensional Latent Embedding)  
@@ -155,12 +160,8 @@ Step 2: Check weights/improved_finetuned_model.pth (Base CBAM)
         ├── If present: Instantiate ImprovedContrastiveFeatureExtractor
         └── Set self.model.conv_head = self.model.efficient_net._conv_head
 
-Step 3: Check weights/finetuned_model.pth (V1 Legacy)
-        ├── If present: Instantiate ContrastiveFeatureExtractor
-        └── Set self.model.conv_head = self.model.global_feature_extractor.efficient_net._conv_head
-
-Step 3: Fallback (Missing Weights)
-        └── timm.create_model('tf_efficientnet_b4_ns', pretrained=True, num_classes=2)
+Step 3: Missing or invalid trained weights
+        └── Raise RuntimeError; no verdict is generated from an untrained classifier
 ```
 
 ### 5.1 Explainable AI (XAI) Grad-CAM Hook
@@ -228,7 +229,7 @@ def predict(self, tensor_images: torch.Tensor) -> np.ndarray
   * Paired with **Feature 1 (`spectral_score`)**, **Feature 2 (`ela_score`)**, and **Feature 3 (`geometry_anomaly`)**. In the meta-classifier dataset generator (`generate_synthetic_dataset`), cases where `nn_score` is fooled ($0.10 - 0.40$) are deliberately counterbalanced by physical and biological sensors to prevent deepfake bypasses.
 * **Safety Guards Handled**:
   1. **Strict CPU/GPU Device Management**: Model weights and input tensors automatically map to CUDA if available (`torch.cuda.is_available()`), with CPU fallback.
-  2. **Missing Weights Fallback**: Falls back gracefully to Timm's NoisyStudent pre-trained weights (`tf_efficientnet_b4_ns`) if local weights are absent.
+  2. **Missing Weights Guard**: Raises `RuntimeError` when trained weights cannot load. A generic ImageNet classifier is not a valid forensic fallback.
   3. **No-Grad Context**: Wraps all predictions in `torch.no_grad()` to avoid GPU memory growth during high-throughput analysis.
 
 ---
@@ -774,4 +775,14 @@ $$\begin{bmatrix}
 * **Conclusion:** This tri-benchmark suite mathematically proves that the visual backbone is multi-domain resilient: immune to catastrophic forgetting on pristine benchmarks while achieving a **2× empirical accuracy jump** on the hardest compressed video benchmark in deepfake literature.
 
 
+
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Visual checkpoints load with weights_only=True and strict=True: incomplete weights cannot leave a random classifier head active. The bundled v2 state dict was verified to match every architecture key. A shared reentrant model lock serializes ordinary inference with Grad-CAM and guided backpropagation, which install hooks and temporarily replace activation modules. The legacy SyncNetAnalyzer remains an unused neutral stub; real audio synchronization uses audio_sync.py.
+
+## Research review (2026-10-17)
+
+EfficientNet and CBAM checkpoint architecture and label mapping are retained. Inference validates nonempty finite normalized RGB batches and exactly two finite logits, failing rather than emitting invalid scores. The unused neutral-only SyncNet mock was removed; audio_sync.py owns actual SyncNet inference. Class-0 softmax is an uncalibrated model score, not verified correctness probability. See research_core.md for primary sources.
 

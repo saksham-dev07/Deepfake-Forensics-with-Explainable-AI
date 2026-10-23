@@ -2,6 +2,9 @@ from fpdf import FPDF
 import datetime
 import os
 import uuid
+import math
+from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 def sanitize_text(text):
     if text is None:
@@ -24,15 +27,15 @@ def fmt_num(val, fmt=".2f", default="N/A"):
     if val is None or val == "" or val == "N/A":
         return default
     try:
-        return f"{float(val):{fmt}}"
+        return f"{float(val):{fmt}}" if math.isfinite(float(val)) else default
     except (ValueError, TypeError):
         return str(val)
 
-def fmt_pct(val, fmt=".1f", default="0.0%"):
+def fmt_pct(val, fmt=".1f", default="N/A"):
     if val is None or val == "" or val == "N/A":
         return default
     try:
-        return f"{float(val) * 100:{fmt}}%"
+        return f"{float(val) * 100:{fmt}}%" if math.isfinite(float(val)) else default
     except (ValueError, TypeError):
         return str(val)
 
@@ -145,21 +148,25 @@ def generate_pdf_report(result_data: dict, output_path: str):
     pdf.set_line_width(0.2)
     pdf.ln(3)
     
-    job_id_str = str(result_data.get('job_id', uuid.uuid4())).split('-')[0].upper()
+    job_id_str = str(result_data.get('job_id', uuid.uuid4()))
     filename_str = result_data.get('filename', 'Video/Image Archive')
     
     pdf.draw_table_row("Case ID / Job", job_id_str, pdf.gray_bg)
-    pdf.draw_table_row("Analysis Date", datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'))
+    pdf.draw_table_row("Analysis Date", datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'))
     pdf.draw_table_row("Target File Type", filename_str, pdf.gray_bg)
     pdf.draw_table_row("Frames Analyzed", str(result_data.get('frames_analyzed', 'N/A')))
     pdf.ln(15)
 
     # Executive Verdict
-    score = result_data.get('overall_score', 0)
+    raw_score = result_data.get('overall_score')
+    score = float(raw_score) if raw_score is not None else 0.5
+    if not math.isfinite(score):
+        score = 0.5
+    score = max(0.0, min(1.0, score))
     verdict = result_data.get('verdict', 'Unknown')
     is_ai_altered = result_data.get('is_ai_altered', False) or "ALTERED" in verdict.upper()
     
-    if is_ai_altered:
+    if is_ai_altered or "INCONCLUSIVE" in verdict.upper() or "UNKNOWN" in verdict.upper():
         verdict_color = (217, 119, 6) # Amber / Gold
     elif "FAKE" in verdict.upper() or score > 0.5:
         verdict_color = pdf.danger_color
@@ -174,7 +181,7 @@ def generate_pdf_report(result_data: dict, output_path: str):
     pdf.set_xy(10, pdf.get_y() + 6)
     pdf.cell(0, 10, "EXECUTIVE VERDICT", 0, 1, 'C')
     
-    font_size = 20 if len(verdict) > 18 else 26
+    font_size = min(26, 410 / max(1, len(verdict)))
     pdf.set_font("Arial", 'B', font_size)
     pdf.cell(0, 12, verdict.upper(), 0, 1, 'C')
     pdf.set_text_color(0, 0, 0)
@@ -207,6 +214,9 @@ def generate_pdf_report(result_data: dict, output_path: str):
         pdf.set_line_width(0.2)
         pdf.ln(3)
         for i, feature in enumerate(shap_features[:4]):
+            if isinstance(feature, dict):
+                feature = feature.get("feature") or feature.get("name") or feature.get("description") or "Unavailable factor"
+            feature = str(feature)
             pdf.set_font("Arial", 'B', 10)
             pdf.set_text_color(*pdf.danger_color)
             pdf.cell(8, 8, "!", 0, 0, 'C')
@@ -241,7 +251,7 @@ def generate_pdf_report(result_data: dict, output_path: str):
     pdf.draw_table_row("Frequency Domain Anomaly", fmt_pct(result_data.get('spectral_anomaly_score'), '.2f'), None, True)
     pdf.draw_table_row("Error Level Analysis (ELA) Compression", fmt_pct(result_data.get('ela_score'), '.2f'), pdf.gray_bg, True)
     pdf.draw_table_row("Biological Geometry Anomaly", fmt_pct(result_data.get('geometry_anomaly_score'), '.2f'), None, True)
-    pdf.draw_table_row("Sensor Noise Fingerprint (PRNU)", fmt_pct(result_data.get('noise_score'), '.2f'), pdf.gray_bg, True)
+    pdf.draw_table_row("Denoising Residual Heuristic", fmt_pct(result_data.get('noise_score'), '.2f'), pdf.gray_bg, True)
     pdf.draw_table_row("Chrominance Color Space Anomaly", fmt_pct(result_data.get('color_score'), '.2f'), None, True)
     if 'sync_score' in result_data:
         pdf.draw_table_row("Audio-Visual Desynchronization", fmt_pct(result_data.get('sync_score'), '.2f'), pdf.gray_bg, True)
@@ -356,9 +366,9 @@ def generate_pdf_report(result_data: dict, output_path: str):
     # --- NOISE & COLOR ---
     pdf.chapter_title("4", "SENSOR NOISE & COLOR SPACE")
     noise = result_data.get('noise_analysis', {}) or {}
-    pdf.draw_table_row("PRNU Noise Anomaly Score", fmt_pct(noise.get('noise_score'), '.1f'), pdf.gray_bg)
-    if 'prnu_variance' in noise:
-        pdf.draw_table_row("PRNU Variance", fmt_num(noise.get('prnu_variance'), '.4f'))
+    pdf.draw_table_row("Denoising Residual Anomaly Score", fmt_pct(noise.get('noise_score'), '.1f'), pdf.gray_bg)
+    if 'noise_variance' in noise or 'prnu_variance' in noise:
+        pdf.draw_table_row("Signed Residual Variance", fmt_num(noise.get('noise_variance', noise.get('prnu_variance')), '.4f'))
         
     color = result_data.get('color_analysis', {}) or {}
     if color:
@@ -401,7 +411,7 @@ def generate_pdf_report(result_data: dict, output_path: str):
                 pdf.draw_table_row("LSE-D (Expert Distance)", fmt_num(sync.get('lse_d'), '.2f'), pdf.gray_bg)
             pdf.ln(2)
             pdf.set_font("Arial", 'I', 9)
-            pdf.multi_cell(0, 5, "Sync Analysis: Mathematical correlation between visual Mouth Aspect Ratio (MAR) and Audio MFCC. Low confidence indicates phonetic dubbing.")
+            pdf.multi_cell(0, 5, "Sync Analysis: aligned audio/video embedding distance. Temporal-offset confidence and Pearson correlation are unavailable unless separately measured; distance alone does not prove phonetic dubbing.")
         
         if voice:
             pdf.ln(5)
@@ -419,9 +429,9 @@ def generate_pdf_report(result_data: dict, output_path: str):
             pdf.ln(5)
             pdf.draw_table_row("rPPG Heart Rate Anomaly", fmt_pct(rppg.get('rppg_anomaly_score'), '.1f'), pdf.gray_bg)
             if 'snr' in rppg:
-                pdf.draw_table_row("Signal-to-Noise Ratio (SNR)", f"{fmt_num(rppg.get('snr'), '.2f')} dB")
-            if 'bpm' in rppg:
-                pdf.draw_table_row("Estimated BPM", fmt_num(rppg.get('bpm'), '.1f'), pdf.gray_bg)
+                pdf.draw_table_row("Signal-to-Noise Ratio (SNR)", f"{fmt_num(rppg.get('snr'), '.2f')} (ratio)")
+            if 'heart_rate' in rppg or 'bpm' in rppg:
+                pdf.draw_table_row("Estimated BPM", fmt_num(rppg.get('heart_rate', rppg.get('bpm')), '.1f'), pdf.gray_bg)
 
     # --- METADATA ---
     metadata = result_data.get('metadata_analysis', {}) or {}
@@ -448,19 +458,13 @@ def generate_pdf_report(result_data: dict, output_path: str):
         if not img_path or not isinstance(img_path, str):
             return
 
-        resolved_path = img_path
-        if not os.path.exists(resolved_path):
-            candidates = [
-                img_path.lstrip("/\\"),
-                os.path.join("uploads", os.path.basename(img_path)),
-                os.path.join("backend", img_path.lstrip("/\\")),
-                os.path.join("backend", "uploads", os.path.basename(img_path)),
-                os.path.join("..", img_path.lstrip("/\\"))
-            ]
-            for cand in candidates:
-                if os.path.exists(cand):
-                    resolved_path = cand
-                    break
+        # Client reports may contain signed URLs; only local upload exhibits are eligible.
+        relative_path = unquote(urlsplit(img_path.replace("\\", "/")).path).lstrip("/")
+        upload_root = Path("uploads").resolve()
+        resolved = Path(relative_path).resolve()
+        if not resolved.is_relative_to(upload_root):
+            return
+        resolved_path = str(resolved)
 
         if resolved_path and os.path.exists(resolved_path):
             try:
@@ -469,7 +473,8 @@ def generate_pdf_report(result_data: dict, output_path: str):
                     h, w, _ = img.shape
                     aspect_ratio = h / w
                     target_w = 90
-                    target_h = target_w * aspect_ratio
+                    target_h = min(210, target_w * aspect_ratio)
+                    target_w = target_h / aspect_ratio
                     
                     if col_index == 0:
                         if pdf.get_y() + target_h + 20 > 270:
@@ -487,7 +492,7 @@ def generate_pdf_report(result_data: dict, output_path: str):
                     pdf.set_draw_color(200, 200, 200)
                     pdf.rect(x_pos - 1, y_pos - 1, target_w + 2, target_h + 2)
                     
-                    pdf.image(resolved_path, x=x_pos, y=y_pos, w=target_w)
+                    pdf.image(resolved_path, x=x_pos, y=y_pos, w=target_w, h=target_h)
                     
                     # Caption
                     pdf.set_xy(x_pos, y_pos + target_h + 2)
@@ -646,7 +651,7 @@ def generate_pdf_report(result_data: dict, output_path: str):
     corneal = result_data.get('corneal_analysis', {})
     rppg = result_data.get('rppg_analysis', {})
     
-    advanced_items = [lighting.get('lighting_map_path'), cfa.get('cfa_map_path'), corneal.get('corneal_map_path'), rppg.get('rppg_plot_path')]
+    advanced_items = [lighting.get('lighting_map_path'), cfa.get('cfa_map_path'), corneal.get('corneal_map_path'), rppg.get('signal_plot_path', rppg.get('rppg_plot_path'))]
     if any(advanced_items):
         gallery_section("Advanced Modalities")
 
@@ -661,8 +666,8 @@ def generate_pdf_report(result_data: dict, output_path: str):
         embed_image("Corneal Reflection Overlay", corneal.get('corneal_map_path'))
         
     rppg = result_data.get('rppg_analysis', {})
-    if rppg.get('rppg_plot_path'):
-        embed_image("rPPG Heartbeat Waveform", rppg.get('rppg_plot_path'))
+    if rppg.get('signal_plot_path', rppg.get('rppg_plot_path')):
+        embed_image("rPPG Heartbeat Waveform", rppg.get('signal_plot_path', rppg.get('rppg_plot_path')))
     if rppg.get('rppg_map_path'):
         embed_image("rPPG Face ROI Heatmap", rppg.get('rppg_map_path'))
 

@@ -1,5 +1,7 @@
 # Technical Specification & Forensic Architecture: EXIF & Container Metadata Forensics (`metadata_analysis.py`)
 
+> Research correction (2026-10-17): missing metadata, normal editor names, camera tags, and default timestamps now remain neutral (`metadata_anomaly_score: 0.5`, `available: false`). `metadata_available` records extraction separately. An explicit generator software declaration retains legacy score 0.95 with `available: true`, `declared_generator: true`; it is an unsigned editable claim, not proof. All results mark `provenance_authenticated: false`, `score_kind: "heuristic"`, `score_calibrated: false`. Invalid video containers are not misreported as stripped metadata. C2PA validation is not implemented. See [research comparison](research_image_forensics.md#7-metadata_analysispy); this correction supersedes stronger provenance claims below.
+
 **Implementation File**: [`backend/pipeline/metadata_analysis.py`](../pipeline/metadata_analysis.py)  
 **Analytical Classification**: Container Forensics / EXIF & ISOBMFF Header Provenance / Software Fingerprinting  
 **Upstream Dependencies**: `exifread`, `imageio_ffmpeg`, `subprocess`, `re`, `os`  
@@ -217,3 +219,8 @@ def analyze_metadata(file_path: str) -> dict
     ```
   * **Critical Machine Learning Justification**: Real-world social media platforms (WhatsApp, X/Twitter, Instagram, TikTok) automatically strip EXIF data and re-encode video containers using FFmpeg/Lavf to save bandwidth. If the meta-classifier was allowed to train on metadata as a dominant feature, it would learn a spurious shortcut (`IF stripped THEN fake`), causing massive false positives on authentic social media media!
   * By randomizing metadata during training, the neural network learns to rely strictly on physical, optical, and biological signals, while metadata serves as an explicit deterministic diagnostic for human forensic analysts.
+
+
+## Pipeline audit corrections (2026-10-16)
+
+Missing files and EXIF/FFmpeg extraction failures return neutral 0.5 rather than falsely low anomaly scores. WEBM is supported consistently with ingestion. Metadata inspection has a 30-second subprocess timeout. Ordinary FFmpeg/Lavf encoder tags no longer imply 0.7 anomaly: those encoders are widely used for normal processing. Missing metadata and software signatures remain heuristic context, not proof of synthesis.

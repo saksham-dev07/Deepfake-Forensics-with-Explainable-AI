@@ -1,9 +1,11 @@
 import React from 'react';
+import { formatPercent } from '../../utils/reportData';
 
-const ScoreRing = ({ score = 0, label, invert = false, size = 120 }) => {
-  const safeScore = typeof score === 'number' && !isNaN(score) ? Math.min(1, Math.max(0, score)) : 0;
+const ScoreRing = ({ score = null, label, invert = false, size = 120 }) => {
+  const available = typeof score === 'number' && Number.isFinite(score) && score >= 0 && score <= 1;
+  const safeScore = available ? score : 0;
   const s = invert ? 1 - safeScore : safeScore;
-  const color = s > 0.6 ? 'var(--danger)' : s > 0.35 ? 'var(--warning)' : 'var(--success)';
+  const color = !available ? 'var(--text-muted)' : s > 0.6 ? 'var(--danger)' : s > 0.35 ? 'var(--warning)' : 'var(--success)';
   
   const strokeWidth = Math.max(4, Math.round(size * 0.08));
   const radius = (size - strokeWidth) / 2;
@@ -13,7 +15,7 @@ const ScoreRing = ({ score = 0, label, invert = false, size = 120 }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <svg role="img" aria-label={`${label || 'Score'}: ${available ? formatPercent(safeScore) : 'unavailable'}`} width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {/* Background track circle */}
         <circle 
           cx={center} 
@@ -45,10 +47,10 @@ const ScoreRing = ({ score = 0, label, invert = false, size = 120 }) => {
           dominantBaseline="central"
           className="mono-font tabular-num"
           fill="var(--text-main)"
-          fontSize={Math.round(size * 0.22)}
+          fontSize={Math.round(size * 0.20)}
           fontWeight="800"
         >
-          {Math.round(safeScore * 100)}%
+          {available ? formatPercent(safeScore) : 'N/A'}
         </text>
       </svg>
       {label && (
